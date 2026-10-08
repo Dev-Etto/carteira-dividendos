@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Dados locais (banco e cache de downloads)
+backend/data/carteira.db*
+backend/data/cache/
+
+# Segredos
+.env
+.env.local
+
+# Node / Next
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Sistema
+.DS_Store
