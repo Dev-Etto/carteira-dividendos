@@ -1,0 +1,286 @@
+"""Modelo de dados (Fase 1).
+
+Dados de mercado usam float (vêm de fontes externas e servem para análise).
+Valores do usuário (operações, aplicações) usam Numeric/Decimal para não errar
+preço médio e IR por arredondamento.
+"""
+
+from datetime import date, datetime
+from decimal import Decimal
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+Money = Numeric(18, 6, asdecimal=True)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Asset(Base):
+    """Ativo do universo.
+
+    asset_class: acao | fii | etf.
+    sector: bancos | seguros | energia | saneamento | telecom | perene | ciclico.
+    segment (só energia): transmissao | geracao | distribuicao | integrada.
+    """
+
+    __tablename__ = "assets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(12), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    asset_class: Mapped[str] = mapped_column(String(20))
+    sector: Mapped[str] = mapped_column(String(40))
+    segment: Mapped[str | None] = mapped_column(String(40))
+    cnpj: Mapped[str | None] = mapped_column(String(20), index=True)
+    economic_group: Mapped[str | None] = mapped_column(String(60))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    shares_outstanding: Mapped[float | None] = mapped_column(Float)
+    last_price: Mapped[float | None] = mapped_column(Float)
+    last_price_at: Mapped[datetime | None] = mapped_column(DateTime)
+    price_source: Mapped[str | None] = mapped_column(String(20))
+
+    evaluations: Mapped[list["Evaluation"]] = relationship(back_populates="asset")
+
+
+class PriceDaily(Base):
+    __tablename__ = "prices_daily"
+    __table_args__ = (UniqueConstraint("asset_id", "date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
+    date: Mapped[date] = mapped_column(Date)
+    close: Mapped[float] = mapped_column(Float)
+    volume: Mapped[float] = mapped_column(Float, default=0)
+    source: Mapped[str] = mapped_column(String(20))
+
+
+class Dividend(Base):
+    """Provento por ação/cota. ex_date = data ex (primeiro dia sem direito; é a data que o Yahoo informa).
+
+    kind: dividendo | jcp | rendimento | amortizacao.
+    """
+
+    __tablename__ = "dividends"
+    __table_args__ = (UniqueConstraint("asset_id", "ex_date", "kind", "amount"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
+    ex_date: Mapped[date] = mapped_column(Date)
+    pay_date: Mapped[date | None] = mapped_column(Date)
+    amount: Mapped[float] = mapped_column(Float)
+    kind: Mapped[str] = mapped_column(String(20), default="dividendo")
+    source: Mapped[str] = mapped_column(String(20))
+
+
+class Split(Base):
+    """Desdobramento (ratio > 1) ou grupamento (ratio < 1)."""
+
+    __tablename__ = "splits"
+    __table_args__ = (UniqueConstraint("asset_id", "date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
+    date: Mapped[date] = mapped_column(Date)
+    ratio: Mapped[float] = mapped_column(Float)
+    source: Mapped[str] = mapped_column(String(20))
+
+
+class Fundamental(Base):
+    """Números anuais da DFP (CVM), consolidados, em R$ (não em milhares)."""
+
+    __tablename__ = "fundamentals"
+    __table_args__ = (UniqueConstraint("asset_id", "year"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
+    year: Mapped[int] = mapped_column(Integer)
+    revenue: Mapped[float | None] = mapped_column(Float)
+    ebit: Mapped[float | None] = mapped_column(Float)
+    depreciation: Mapped[float | None] = mapped_column(Float)
+    net_income: Mapped[float | None] = mapped_column(Float)
+    equity: Mapped[float | None] = mapped_column(Float)
+    gross_debt: Mapped[float | None] = mapped_column(Float)
+    cash: Mapped[float | None] = mapped_column(Float)
+    operating_cash_flow: Mapped[float | None] = mapped_column(Float)
+    investing_cash_flow: Mapped[float | None] = mapped_column(Float)
+    dividends_paid: Mapped[float | None] = mapped_column(Float)
+    published_at: Mapped[date | None] = mapped_column(Date)
+    source: Mapped[str] = mapped_column(String(20), default="cvm")
+
+
+class SectorMetric(Base):
+    """Indicadores setoriais (Basileia, inadimplência, índice combinado, concessões).
+
+    Na Fase 1 vêm de data/sector_metrics.csv, editável à mão.
+    """
+
+    __tablename__ = "sector_metrics"
+    __table_args__ = (UniqueConstraint("asset_id", "key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
+    key: Mapped[str] = mapped_column(String(40))
+    value: Mapped[float] = mapped_column(Float)
+    reference: Mapped[str | None] = mapped_column(String(20))
+    source: Mapped[str] = mapped_column(String(40), default="manual")
+    updated_at: Mapped[date] = mapped_column(Date)
+
+
+class MacroRate(Base):
+    """Série do Banco Central em fração decimal. series: selic_meta | cdi | ipca_12m."""
+
+    __tablename__ = "macro_rates"
+    __table_args__ = (UniqueConstraint("series", "date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    series: Mapped[str] = mapped_column(String(20))
+    date: Mapped[date] = mapped_column(Date)
+    value: Mapped[float] = mapped_column(Float)
+
+
+class TreasuryBond(Base):
+    __tablename__ = "treasury_bonds"
+    __table_args__ = (UniqueConstraint("name", "maturity", "date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(60))
+    maturity: Mapped[date] = mapped_column(Date)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    buy_rate: Mapped[float | None] = mapped_column(Float)
+    sell_rate: Mapped[float | None] = mapped_column(Float)
+    buy_price: Mapped[float | None] = mapped_column(Float)
+    sell_price: Mapped[float | None] = mapped_column(Float)
+
+
+class Evaluation(Base):
+    __tablename__ = "evaluations"
+    __table_args__ = (UniqueConstraint("asset_id", "date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
+    date: Mapped[date] = mapped_column(Date)
+    score: Mapped[int] = mapped_column(Integer)
+    verdict: Mapped[str] = mapped_column(String(12))
+    ceiling_price: Mapped[float | None] = mapped_column(Float)
+    margin_pct: Mapped[float | None] = mapped_column(Float)
+    dividend_yield: Mapped[float | None] = mapped_column(Float)
+    summary: Mapped[str] = mapped_column(Text, default="")
+    rules: Mapped[list] = mapped_column(JSON)
+    extras: Mapped[dict] = mapped_column(JSON, default=dict)
+    engine_version: Mapped[str] = mapped_column(String(10))
+
+    asset: Mapped[Asset] = relationship(back_populates="evaluations")
+
+
+class Profile(Base):
+    __tablename__ = "profile"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    risk_profile: Mapped[str] = mapped_column(String(20), default="moderado")
+    income_stability: Mapped[str] = mapped_column(String(20), default="estavel")
+    monthly_expenses: Mapped[Decimal] = mapped_column(Money, default=Decimal(0))
+    emergency_months: Mapped[int] = mapped_column(Integer, default=6)
+    monthly_contribution: Mapped[Decimal] = mapped_column(Money, default=Decimal(0))
+    passive_income_goal: Mapped[Decimal] = mapped_column(Money, default=Decimal(0))
+    onboarded: Mapped[bool] = mapped_column(Boolean, default=False)
+    answers: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class AllocationTarget(Base):
+    """Peso-alvo de uma classe, em %. asset_class: renda_fixa | acoes | fiis | etfs."""
+
+    __tablename__ = "allocation_targets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_class: Mapped[str] = mapped_column(String(20), unique=True)
+    weight_pct: Mapped[float] = mapped_column(Float)
+
+
+class RuleConfig(Base):
+    __tablename__ = "rule_config"
+
+    key: Mapped[str] = mapped_column(String(60), primary_key=True)
+    value: Mapped[float] = mapped_column(Float)
+
+
+class Transaction(Base):
+    """Compra ou venda. kind: compra | venda. origin: manual | aporte."""
+
+    __tablename__ = "transactions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
+    date: Mapped[date] = mapped_column(Date)
+    kind: Mapped[str] = mapped_column(String(10))
+    quantity: Mapped[Decimal] = mapped_column(Money)
+    price: Mapped[Decimal] = mapped_column(Money)
+    fees: Mapped[Decimal] = mapped_column(Money, default=Decimal(0))
+    origin: Mapped[str] = mapped_column(String(10), default="manual")
+    import_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    asset: Mapped[Asset] = relationship()
+
+
+class FixedIncomeHolding(Base):
+    """Aplicação de renda fixa.
+
+    kind: tesouro | cdb | lci | lca | outro.
+    indexer: cdi | ipca | pre | selic.
+    rate: % do CDI quando o indexador é cdi; taxa ao ano (prefixado ou spread sobre o IPCA) nos demais.
+    """
+
+    __tablename__ = "fixed_income_holdings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    issuer: Mapped[str] = mapped_column(String(120))
+    kind: Mapped[str] = mapped_column(String(20))
+    indexer: Mapped[str] = mapped_column(String(10))
+    rate: Mapped[float] = mapped_column(Float)
+    start_date: Mapped[date] = mapped_column(Date)
+    maturity: Mapped[date | None] = mapped_column(Date)
+    daily_liquidity: Mapped[bool] = mapped_column(Boolean, default=False)
+    amount: Mapped[Decimal] = mapped_column(Money)
+    is_emergency_reserve: Mapped[bool] = mapped_column(Boolean, default=False)
+    fgc_covered: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class IncomeReceived(Base):
+    __tablename__ = "income_received"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
+    date: Mapped[date] = mapped_column(Date)
+    amount: Mapped[Decimal] = mapped_column(Money)
+    kind: Mapped[str] = mapped_column(String(20))
+
+
+class SyncRun(Base):
+    """Uma etapa de uma atualização de dados. status: running | ok | error."""
+
+    __tablename__ = "sync_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source: Mapped[str] = mapped_column(String(30))
+    started_at: Mapped[datetime] = mapped_column(DateTime)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+    status: Mapped[str] = mapped_column(String(10), default="running")
+    rows: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
