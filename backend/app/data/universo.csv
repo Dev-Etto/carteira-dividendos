@@ -1,0 +1,33 @@
+ticker,nome,classe,setor,segmento,grupo
+ITUB4,Itaú Unibanco,acao,bancos,,Itaú
+ITSA4,Itaúsa,acao,bancos,,Itaú
+BBDC4,Bradesco,acao,bancos,,Bradesco
+BBAS3,Banco do Brasil,acao,bancos,,Banco do Brasil
+SANB11,Santander Brasil,acao,bancos,,Santander
+ABCB4,Banco ABC Brasil,acao,bancos,,
+BRSR6,Banrisul,acao,bancos,,
+BPAC11,BTG Pactual,acao,bancos,,BTG
+BBSE3,BB Seguridade,acao,seguros,,Banco do Brasil
+CXSE3,Caixa Seguridade,acao,seguros,,Caixa
+PSSA3,Porto Seguro,acao,seguros,,
+TAEE11,Taesa,acao,energia,transmissao,
+ISAE4,ISA Energia Brasil,acao,energia,transmissao,
+ALUP11,Alupar,acao,energia,transmissao,
+EGIE3,Engie Brasil,acao,energia,geracao,
+AURE3,Auren Energia,acao,energia,geracao,
+ELET3,Eletrobras,acao,energia,geracao,
+CPFE3,CPFL Energia,acao,energia,integrada,
+CMIG4,Cemig,acao,energia,integrada,Cemig
+CPLE3,Copel,acao,energia,integrada,
+EQTL3,Equatorial,acao,energia,distribuicao,
+ENGI11,Energisa,acao,energia,distribuicao,
+SBSP3,Sabesp,acao,saneamento,,
+CSMG3,Copasa,acao,saneamento,,
+SAPR11,Sanepar,acao,saneamento,,
+VIVT3,Telefônica Brasil (Vivo),acao,telecom,,
+TIMS3,TIM Brasil,acao,telecom,,
+ABEV3,Ambev,acao,perene,,
+WEGE3,WEG,acao,perene,,
+KLBN11,Klabin,acao,ciclico,,
+PETR4,Petrobras,acao,ciclico,,
+VALE3,Vale,acao,ciclico,,
