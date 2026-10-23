@@ -1,0 +1,338 @@
+"""Orquestra a coleta. Ordem: universo → macro → Tesouro → CVM → cotações/histórico → avaliações.
+
+Cada etapa é registrada em sync_runs. Uma etapa que falha não impede as outras.
+Só roda um sync por vez: `_lock` garante isso e também responde à tela de Configurações se há um rodando.
+"""
+
+import asyncio
+import csv
+import logging
+import threading
+from collections.abc import Awaitable, Callable
+from datetime import date, datetime, timedelta
+from pathlib import Path
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.core.config import get_settings
+from app.core.errors import BusinessRuleError
+from app.db.models import (
+    Asset,
+    Dividend,
+    Fundamental,
+    MacroRate,
+    PriceDaily,
+    SectorMetric,
+    Split,
+    SyncRun,
+    TreasuryBond,
+)
+from app.db.session import SessionLocal
+from app.providers import bcb, cvm, market, tesouro
+from app.providers.base import DOWNLOAD_ERRORS, DividendEvent, PricePoint, Quote, SplitInfo
+from app.schemas.api import SyncRunOut, SyncStatus
+from app.services.evaluation import evaluate_all
+from app.services.upsert import upsert
+
+log = logging.getLogger("sync")
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+
+FUNDAMENTAL_FIELDS = (
+    "revenue",
+    "ebit",
+    "depreciation",
+    "net_income",
+    "equity",
+    "gross_debt",
+    "cash",
+    "operating_cash_flow",
+    "investing_cash_flow",
+    "dividends_paid",
+)
+
+INCREMENTAL_OVERLAP_DAYS = 10
+MarketHistory = tuple[list[PricePoint], list[DividendEvent], list[SplitInfo], float | None]
+
+STEPS = ("universo", "macro", "tesouro", "cvm", "mercado", "avaliacoes")
+
+_lock = threading.Lock()
+_current_step: str | None = None
+
+
+def parse_steps(etapas: str | None) -> set[str] | None:
+    """Converte "macro,cvm" no conjunto de etapas; vazio significa todas."""
+    only = {e.strip() for e in (etapas or "").split(",") if e.strip()}
+    unknown = only - set(STEPS)
+    if unknown:
+        raise BusinessRuleError(f"Etapas desconhecidas: {sorted(unknown)}. Use: {', '.join(STEPS)}")
+    return only or None
+
+
+def sync_status(db: Session) -> SyncStatus:
+    runs = db.scalars(select(SyncRun).order_by(SyncRun.id.desc()).limit(12)).all()
+    return SyncStatus(running=is_running(), step=current_step(), runs=[SyncRunOut.model_validate(r) for r in runs])
+
+
+def is_running() -> bool:
+    return _lock.locked()
+
+
+def current_step() -> str | None:
+    return _current_step
+
+
+async def _step(db: Session, name: str, fn: Callable[[], Awaitable[int]]) -> None:
+    run = SyncRun(source=name, started_at=datetime.now(), status="running")
+    db.add(run)
+    db.commit()
+    global _current_step
+    _current_step = name
+    try:
+        run.rows = await fn()
+        run.status = "ok"
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        log.exception("falha na etapa %s", name)
+        run.status = "error"
+        run.error = f"{type(e).__name__}: {e}"[:2000]
+    run.finished_at = datetime.now()
+    db.commit()
+
+
+def seed_universe(db: Session) -> int:
+    n = 0
+    with open(DATA_DIR / "universo.csv", encoding="utf-8") as f:
+        rows = [
+            {
+                "ticker": r["ticker"].strip().upper(),
+                "name": r["nome"].strip(),
+                "asset_class": r["classe"].strip(),
+                "sector": r["setor"].strip(),
+                "segment": r["segmento"].strip() or None,
+                "economic_group": r["grupo"].strip() or None,
+                "active": True,
+            }
+            for r in csv.DictReader(f)
+            if r.get("ticker")
+        ]
+    n += upsert(db, Asset, rows, keys=["ticker"], update=["name", "asset_class", "sector", "segment", "economic_group"])
+    db.commit()
+    return n
+
+
+def load_sector_metrics(db: Session) -> int:
+    path = DATA_DIR / "sector_metrics.csv"
+    if not path.exists():
+        return 0
+    tickers = {a.ticker: a.id for a in db.scalars(select(Asset))}
+    rows = []
+    with open(path, encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            aid = tickers.get((r.get("ticker") or "").strip().upper())
+            if not aid or not r.get("valor"):
+                continue
+            rows.append(
+                {
+                    "asset_id": aid,
+                    "key": r["chave"].strip(),
+                    "value": float(r["valor"].replace(",", ".")),
+                    "reference": (r.get("referencia") or "").strip() or None,
+                    "source": (r.get("fonte") or "manual").strip(),
+                    "updated_at": date.today(),
+                }
+            )
+    n = upsert(db, SectorMetric, rows, keys=["asset_id", "key"], update=["value", "reference", "source", "updated_at"])
+    db.commit()
+    return n
+
+
+async def sync_macro(db: Session) -> int:
+    total = 0
+    for name in bcb.SERIES:
+        points = await bcb.fetch_series(name)
+        total += upsert(
+            db, MacroRate, [{"series": name, "date": d, "value": v} for d, v in points], keys=["series", "date"], update=["value"]
+        )
+    db.commit()
+    return total
+
+
+async def sync_treasury(db: Session) -> int:
+    bonds = await tesouro.fetch_bonds()
+    rows = [b.__dict__ for b in bonds]
+    n = upsert(
+        db, TreasuryBond, rows, keys=["name", "maturity", "date"], update=["buy_rate", "sell_rate", "buy_price", "sell_price"]
+    )
+    db.commit()
+    return n
+
+
+async def sync_cvm(db: Session) -> int:
+    today = date.today()
+    assets = list(db.scalars(select(Asset).where(Asset.asset_class == "acao")))
+    mapping = await cvm.fetch_ticker_map(today.year)
+    for a in assets:
+        if a.ticker in mapping:
+            a.cnpj = mapping[a.ticker]
+    db.commit()
+    by_cnpj: dict[str, list[Asset]] = {}
+    for a in assets:
+        if a.cnpj:
+            by_cnpj.setdefault(a.cnpj, []).append(a)
+    total = 0
+    years = range(today.year - get_settings().cvm_years, today.year)
+    for year in years:
+        try:
+            statements = await cvm.fetch_dfp(year, set(by_cnpj))
+        except DOWNLOAD_ERRORS:
+            log.warning("DFP %s indisponível", year)
+            continue
+        rows = [
+            {"asset_id": a.id, "year": year, "published_at": st.published_at, "source": "cvm"}
+            | {k: st.values.get(k) for k in FUNDAMENTAL_FIELDS}
+            for cnpj, st in statements.items()
+            for a in by_cnpj[cnpj]
+        ]
+        total += upsert(
+            db,
+            Fundamental,
+            rows,
+            keys=["asset_id", "year"],
+            update=["published_at", "source", *FUNDAMENTAL_FIELDS],
+        )
+        db.commit()
+    return total
+
+
+async def _history(db: Session, asset: Asset) -> MarketHistory:
+    """Histórico incremental (últimos dias). O Yahoo reajusta todo o histórico depois de um desdobramento;
+    quando aparece um no trecho novo, apaga o que havia e baixa tudo de novo."""
+    last = db.scalar(select(func.max(PriceDaily.date)).where(PriceDaily.asset_id == asset.id))
+    start = last - timedelta(days=INCREMENTAL_OVERLAP_DAYS) if last else None
+    history = await market.yahoo_history(asset.ticker, start)
+    _, _, new_splits, _ = history
+    if not (start and new_splits):
+        return history
+    db.query(PriceDaily).filter(PriceDaily.asset_id == asset.id).delete()
+    db.query(Dividend).filter(Dividend.asset_id == asset.id, Dividend.source == "yahoo").delete()
+    return await market.yahoo_history(asset.ticker, None)
+
+
+def _store_history(db: Session, asset: Asset, history: MarketHistory) -> int:
+    prices, divs, splits, shares = history
+    stored = upsert(
+        db,
+        PriceDaily,
+        [{"asset_id": asset.id, "date": p.date, "close": p.close, "volume": p.volume, "source": "yahoo"} for p in prices],
+        keys=["asset_id", "date"],
+        update=["close", "volume"],
+    )
+    upsert(
+        db,
+        Dividend,
+        [{"asset_id": asset.id, "ex_date": d.ex_date, "amount": d.amount, "kind": d.kind, "source": "yahoo"} for d in divs],
+        keys=["asset_id", "ex_date", "kind", "amount"],
+    )
+    upsert(
+        db,
+        Split,
+        [{"asset_id": asset.id, "date": s.date, "ratio": s.ratio, "source": "yahoo"} for s in splits],
+        keys=["asset_id", "date"],
+    )
+    asset.shares_outstanding = shares or asset.shares_outstanding
+    if prices:
+        asset.last_price, asset.last_price_at, asset.price_source = prices[-1].close, datetime.now(), "yahoo"
+    return stored
+
+
+def _apply_quote(asset: Asset, quote: Quote) -> None:
+    """A cotação da brapi é mais fresca que o fechamento do Yahoo e traz o valor de mercado e o nome."""
+    asset.last_price, asset.last_price_at, asset.price_source = quote.price, datetime.now(), "brapi"
+    if quote.market_cap and quote.price:
+        asset.shares_outstanding = quote.market_cap / quote.price
+    if quote.name and asset.name == asset.ticker:
+        asset.name = quote.name
+
+
+async def _sync_asset_market(db: Session, asset: Asset) -> int:
+    stored = _store_history(db, asset, await _history(db, asset))
+    quote = await market.brapi_quote(asset.ticker)
+    if quote:
+        _apply_quote(asset, quote)
+    db.commit()
+    return stored
+
+
+async def sync_market(db: Session, tickers: set[str] | None = None) -> int:
+    """Preços, proventos e desdobramentos de cada ativo. A falha de um ativo é registrada e não para os outros."""
+    total = 0
+    query = select(Asset).where(Asset.active)
+    if tickers:
+        query = query.where(Asset.ticker.in_(tickers))
+    for asset in list(db.scalars(query)):
+        try:
+            total += await _sync_asset_market(db, asset)
+        except Exception:
+            db.rollback()
+            log.exception("falha ao atualizar %s", asset.ticker)
+    return total
+
+
+async def _run_steps(db: Session, only: set[str] | None, tickers: set[str] | None = None) -> None:
+    global _current_step
+    steps: dict[str, Callable[[], Awaitable[int]]] = {
+        "universo": lambda: _sync_wrap(seed_universe(db) + load_sector_metrics(db)),
+        "macro": lambda: sync_macro(db),
+        "tesouro": lambda: sync_treasury(db),
+        "cvm": lambda: sync_cvm(db),
+        "mercado": lambda: sync_market(db, tickers),
+        "avaliacoes": lambda: _sync_wrap(evaluate_all(db)),
+    }
+    try:
+        for name in STEPS:
+            if not only or name in only:
+                await _step(db, name, steps[name])
+    finally:
+        _current_step = None
+
+
+async def run_full_sync(db: Session, only: set[str] | None = None, tickers: set[str] | None = None) -> bool:
+    """Roda a coleta no event loop atual (CLI e testes). Devolve False se já havia um sync rodando."""
+    if not _lock.acquire(blocking=False):
+        return False
+    try:
+        await _run_steps(db, only, tickers)
+    finally:
+        _lock.release()
+    return True
+
+
+def _run_in_thread(only: set[str] | None, tickers: set[str] | None) -> None:
+    """Corpo da thread de sync. O lock já foi adquirido por start_background_sync e é liberado aqui, no fim."""
+    db = SessionLocal()
+    try:
+        asyncio.run(_run_steps(db, only, tickers))
+    except Exception:
+        log.exception("sync em segundo plano falhou")
+    finally:
+        db.close()
+        _lock.release()
+
+
+def start_background_sync(only: set[str] | None = None, tickers: set[str] | None = None) -> bool:
+    """Dispara a coleta numa thread com event loop próprio, para o parse da CVM e as avaliações
+    (CPU e SQLite síncronos) não travarem a API. Devolve False se já havia um sync rodando."""
+    if not _lock.acquire(blocking=False):
+        return False
+    try:
+        threading.Thread(target=_run_in_thread, args=(only, tickers), name="sync", daemon=True).start()
+    except Exception:
+        _lock.release()
+        raise
+    return True
+
+
+async def _sync_wrap(n: int) -> int:
+    return n
