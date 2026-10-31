@@ -1,0 +1,3158 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "Carteira de Dividendos",
+  "description": "Assistente local de investimentos em dividendos (método Barsi). Não é recomendação de investimento.",
+  "version": "0.1.0"
+ },
+ "paths": {
+  "/api/painel": {
+   "get": {
+    "tags": [
+     "painel"
+    ],
+    "summary": "Dashboard",
+    "operationId": "dashboard_api_painel_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DashboardOut"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/macro": {
+   "get": {
+    "tags": [
+     "painel"
+    ],
+    "summary": "Read Macro",
+    "operationId": "read_macro_api_macro_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MacroOut"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/ativos": {
+   "get": {
+    "tags": [
+     "ativos"
+    ],
+    "summary": "List Assets",
+    "operationId": "list_assets_api_ativos_get",
+    "parameters": [
+     {
+      "name": "classe",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Classe"
+      }
+     },
+     {
+      "name": "setor",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Setor"
+      }
+     },
+     {
+      "name": "veredito",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Veredito"
+      }
+     },
+     {
+      "name": "nota_min",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "maximum": 100,
+         "minimum": 0
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Nota Min"
+      }
+     },
+     {
+      "name": "busca",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Busca"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/AssetRow"
+         },
+         "title": "Response List Assets Api Ativos Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "ativos"
+    ],
+    "summary": "Create Asset",
+    "operationId": "create_asset_api_ativos_post",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AssetCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AssetRow"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/ativos/{ticker}": {
+   "get": {
+    "tags": [
+     "ativos"
+    ],
+    "summary": "Asset Detail",
+    "operationId": "asset_detail_api_ativos__ticker__get",
+    "parameters": [
+     {
+      "name": "ticker",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Ticker"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AssetDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/ativos/{ticker}/historico": {
+   "get": {
+    "tags": [
+     "ativos"
+    ],
+    "summary": "Asset History",
+    "operationId": "asset_history_api_ativos__ticker__historico_get",
+    "parameters": [
+     {
+      "name": "ticker",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Ticker"
+      }
+     },
+     {
+      "name": "anos",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 20,
+       "minimum": 1,
+       "default": 5,
+       "title": "Anos"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AssetHistory"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/carteira": {
+   "get": {
+    "tags": [
+     "carteira"
+    ],
+    "summary": "Portfolio",
+    "operationId": "portfolio_api_carteira_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PortfolioOut"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/transacoes": {
+   "get": {
+    "tags": [
+     "carteira"
+    ],
+    "summary": "List Transactions",
+    "operationId": "list_transactions_api_transacoes_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/TransactionOut"
+         },
+         "type": "array",
+         "title": "Response List Transactions Api Transacoes Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "carteira"
+    ],
+    "summary": "Create Transaction",
+    "operationId": "create_transaction_api_transacoes_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TransactionIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TransactionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/transacoes/{tx_id}": {
+   "put": {
+    "tags": [
+     "carteira"
+    ],
+    "summary": "Update Transaction",
+    "operationId": "update_transaction_api_transacoes__tx_id__put",
+    "parameters": [
+     {
+      "name": "tx_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Tx Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TransactionIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TransactionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "carteira"
+    ],
+    "summary": "Delete Transaction",
+    "operationId": "delete_transaction_api_transacoes__tx_id__delete",
+    "parameters": [
+     {
+      "name": "tx_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Tx Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/aporte/plano": {
+   "post": {
+    "tags": [
+     "aporte"
+    ],
+    "summary": "Plan",
+    "operationId": "plan_api_aporte_plano_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PlanIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PlanOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/aporte/registrar": {
+   "post": {
+    "tags": [
+     "aporte"
+    ],
+    "summary": "Register Plan",
+    "operationId": "register_plan_api_aporte_registrar_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RegisterPlanIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RegisterPlanOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/renda-fixa": {
+   "get": {
+    "tags": [
+     "renda fixa"
+    ],
+    "summary": "List Holdings",
+    "operationId": "list_holdings_api_renda_fixa_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/FixedIncomeOut"
+         },
+         "type": "array",
+         "title": "Response List Holdings Api Renda Fixa Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "renda fixa"
+    ],
+    "summary": "Create Holding",
+    "operationId": "create_holding_api_renda_fixa_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FixedIncomeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FixedIncomeOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/renda-fixa/{holding_id}": {
+   "put": {
+    "tags": [
+     "renda fixa"
+    ],
+    "summary": "Update Holding",
+    "operationId": "update_holding_api_renda_fixa__holding_id__put",
+    "parameters": [
+     {
+      "name": "holding_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Holding Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FixedIncomeIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FixedIncomeOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "renda fixa"
+    ],
+    "summary": "Delete Holding",
+    "operationId": "delete_holding_api_renda_fixa__holding_id__delete",
+    "parameters": [
+     {
+      "name": "holding_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Holding Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/renda-fixa/tesouro": {
+   "get": {
+    "tags": [
+     "renda fixa"
+    ],
+    "summary": "Treasury",
+    "operationId": "treasury_api_renda_fixa_tesouro_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/TreasuryOut"
+         },
+         "type": "array",
+         "title": "Response Treasury Api Renda Fixa Tesouro Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/renda-fixa/comparar": {
+   "post": {
+    "tags": [
+     "renda fixa"
+    ],
+    "summary": "Compare",
+    "operationId": "compare_api_renda_fixa_comparar_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CompareIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CompareOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/perfil/questionario": {
+   "get": {
+    "tags": [
+     "perfil"
+    ],
+    "summary": "Questionnaire",
+    "operationId": "questionnaire_api_perfil_questionario_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/Question"
+         },
+         "type": "array",
+         "title": "Response Questionnaire Api Perfil Questionario Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/perfil": {
+   "get": {
+    "tags": [
+     "perfil"
+    ],
+    "summary": "Read Profile",
+    "operationId": "read_profile_api_perfil_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProfileOut"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "perfil"
+    ],
+    "summary": "Save Profile",
+    "operationId": "save_profile_api_perfil_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProfileIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProfileOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/alocacao": {
+   "get": {
+    "tags": [
+     "perfil"
+    ],
+    "summary": "Read Allocation",
+    "operationId": "read_allocation_api_alocacao_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AllocationItem"
+         },
+         "type": "array",
+         "title": "Response Read Allocation Api Alocacao Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "perfil"
+    ],
+    "summary": "Save Allocation",
+    "operationId": "save_allocation_api_alocacao_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "items": {
+         "$ref": "#/components/schemas/AllocationItem"
+        },
+        "type": "array",
+        "title": "Items"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AllocationItem"
+         },
+         "type": "array",
+         "title": "Response Save Allocation Api Alocacao Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/regras": {
+   "get": {
+    "tags": [
+     "perfil"
+    ],
+    "summary": "Read Rules",
+    "operationId": "read_rules_api_regras_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RuleConfigItem"
+         },
+         "type": "array",
+         "title": "Response Read Rules Api Regras Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "perfil"
+    ],
+    "summary": "Save Rules",
+    "operationId": "save_rules_api_regras_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": {
+         "type": "number"
+        },
+        "type": "object",
+        "title": "Items"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RuleConfigItem"
+         },
+         "type": "array",
+         "title": "Response Save Rules Api Regras Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/sync": {
+   "post": {
+    "tags": [
+     "sistema"
+    ],
+    "summary": "Trigger Sync",
+    "operationId": "trigger_sync_api_sync_post",
+    "parameters": [
+     {
+      "name": "etapas",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Etapas"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SyncStatus"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/sync/status": {
+   "get": {
+    "tags": [
+     "sistema"
+    ],
+    "summary": "Sync Status",
+    "operationId": "sync_status_api_sync_status_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SyncStatus"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/health": {
+   "get": {
+    "tags": [
+     "sistema"
+    ],
+    "summary": "Health",
+    "operationId": "health_api_health_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object",
+         "title": "Response Health Api Health Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "AllocationItem": {
+    "properties": {
+     "asset_class": {
+      "type": "string",
+      "enum": [
+       "renda_fixa",
+       "acoes",
+       "fiis",
+       "etfs"
+      ],
+      "title": "Asset Class"
+     },
+     "weight_pct": {
+      "type": "number",
+      "maximum": 100.0,
+      "minimum": 0.0,
+      "title": "Weight Pct"
+     }
+    },
+    "type": "object",
+    "required": [
+     "asset_class",
+     "weight_pct"
+    ],
+    "title": "AllocationItem"
+   },
+   "AssetCreate": {
+    "properties": {
+     "ticker": {
+      "type": "string",
+      "maxLength": 12,
+      "minLength": 4,
+      "title": "Ticker"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "sector": {
+      "type": "string",
+      "enum": [
+       "bancos",
+       "seguros",
+       "energia",
+       "saneamento",
+       "telecom",
+       "perene",
+       "ciclico"
+      ],
+      "title": "Sector"
+     },
+     "segment": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Segment"
+     },
+     "economic_group": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Economic Group"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ticker",
+     "name",
+     "sector"
+    ],
+    "title": "AssetCreate"
+   },
+   "AssetDetail": {
+    "properties": {
+     "ticker": {
+      "type": "string",
+      "title": "Ticker"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "asset_class": {
+      "type": "string",
+      "title": "Asset Class"
+     },
+     "sector": {
+      "type": "string",
+      "title": "Sector"
+     },
+     "segment": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Segment"
+     },
+     "price": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price"
+     },
+     "price_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price At"
+     },
+     "score": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Score"
+     },
+     "verdict": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Verdict"
+     },
+     "ceiling_price": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ceiling Price"
+     },
+     "margin_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Margin Pct"
+     },
+     "dividend_yield": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dividend Yield"
+     },
+     "avg_daily_volume_brl": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Daily Volume Brl"
+     },
+     "evaluated_on": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evaluated On"
+     },
+     "summary": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Summary"
+     },
+     "rules": {
+      "items": {
+       "$ref": "#/components/schemas/RuleResult"
+      },
+      "type": "array",
+      "title": "Rules"
+     },
+     "extras": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Extras"
+     },
+     "economic_group": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Economic Group"
+     },
+     "data_sources": {
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "type": "object",
+      "title": "Data Sources"
+     },
+     "risks": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Risks"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ticker",
+     "name",
+     "asset_class",
+     "sector",
+     "segment",
+     "price",
+     "price_at",
+     "score",
+     "verdict",
+     "ceiling_price",
+     "margin_pct",
+     "dividend_yield",
+     "evaluated_on",
+     "summary",
+     "rules",
+     "extras",
+     "economic_group",
+     "data_sources",
+     "risks"
+    ],
+    "title": "AssetDetail"
+   },
+   "AssetHistory": {
+    "properties": {
+     "prices": {
+      "items": {
+       "$ref": "#/components/schemas/PricePointOut"
+      },
+      "type": "array",
+      "title": "Prices"
+     },
+     "dividends_by_year": {
+      "items": {
+       "$ref": "#/components/schemas/DividendYearOut"
+      },
+      "type": "array",
+      "title": "Dividends By Year"
+     },
+     "scores": {
+      "items": {
+       "$ref": "#/components/schemas/ScorePointOut"
+      },
+      "type": "array",
+      "title": "Scores"
+     }
+    },
+    "type": "object",
+    "required": [
+     "prices",
+     "dividends_by_year",
+     "scores"
+    ],
+    "title": "AssetHistory"
+   },
+   "AssetRow": {
+    "properties": {
+     "ticker": {
+      "type": "string",
+      "title": "Ticker"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "asset_class": {
+      "type": "string",
+      "title": "Asset Class"
+     },
+     "sector": {
+      "type": "string",
+      "title": "Sector"
+     },
+     "segment": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Segment"
+     },
+     "price": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price"
+     },
+     "price_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price At"
+     },
+     "score": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Score"
+     },
+     "verdict": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Verdict"
+     },
+     "ceiling_price": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ceiling Price"
+     },
+     "margin_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Margin Pct"
+     },
+     "dividend_yield": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dividend Yield"
+     },
+     "avg_daily_volume_brl": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Daily Volume Brl"
+     },
+     "evaluated_on": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evaluated On"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ticker",
+     "name",
+     "asset_class",
+     "sector",
+     "segment",
+     "price",
+     "price_at",
+     "score",
+     "verdict",
+     "ceiling_price",
+     "margin_pct",
+     "dividend_yield",
+     "evaluated_on"
+    ],
+    "title": "AssetRow"
+   },
+   "ClassSlice": {
+    "properties": {
+     "asset_class": {
+      "type": "string",
+      "title": "Asset Class"
+     },
+     "value": {
+      "type": "number",
+      "title": "Value"
+     },
+     "current_pct": {
+      "type": "number",
+      "title": "Current Pct"
+     },
+     "target_pct": {
+      "type": "number",
+      "title": "Target Pct"
+     }
+    },
+    "type": "object",
+    "required": [
+     "asset_class",
+     "value",
+     "current_pct",
+     "target_pct"
+    ],
+    "title": "ClassSlice"
+   },
+   "CompareIn": {
+    "properties": {
+     "kind": {
+      "type": "string",
+      "enum": [
+       "tesouro",
+       "cdb",
+       "lci",
+       "lca",
+       "outro"
+      ],
+      "title": "Kind"
+     },
+     "indexer": {
+      "type": "string",
+      "enum": [
+       "cdi",
+       "ipca",
+       "pre",
+       "selic"
+      ],
+      "title": "Indexer"
+     },
+     "rate": {
+      "type": "number",
+      "title": "Rate"
+     },
+     "days": {
+      "type": "integer",
+      "exclusiveMinimum": 0.0,
+      "title": "Days"
+     }
+    },
+    "type": "object",
+    "required": [
+     "kind",
+     "indexer",
+     "rate",
+     "days"
+    ],
+    "title": "CompareIn"
+   },
+   "CompareOut": {
+    "properties": {
+     "gross_annual": {
+      "type": "number",
+      "title": "Gross Annual"
+     },
+     "net_annual": {
+      "type": "number",
+      "title": "Net Annual"
+     },
+     "ir_rate": {
+      "type": "number",
+      "title": "Ir Rate"
+     },
+     "tax_exempt": {
+      "type": "boolean",
+      "title": "Tax Exempt"
+     },
+     "equivalent_label": {
+      "type": "string",
+      "title": "Equivalent Label"
+     },
+     "equivalent_rate": {
+      "type": "number",
+      "title": "Equivalent Rate"
+     },
+     "vs_cdi_net": {
+      "type": "number",
+      "title": "Vs Cdi Net"
+     }
+    },
+    "type": "object",
+    "required": [
+     "gross_annual",
+     "net_annual",
+     "ir_rate",
+     "tax_exempt",
+     "equivalent_label",
+     "equivalent_rate",
+     "vs_cdi_net"
+    ],
+    "title": "CompareOut"
+   },
+   "DashboardOut": {
+    "properties": {
+     "profile": {
+      "$ref": "#/components/schemas/ProfileOut"
+     },
+     "total_invested": {
+      "type": "number",
+      "title": "Total Invested"
+     },
+     "reserve_value": {
+      "type": "number",
+      "title": "Reserve Value"
+     },
+     "reserve_target": {
+      "type": "number",
+      "title": "Reserve Target"
+     },
+     "income_12m": {
+      "type": "number",
+      "title": "Income 12M"
+     },
+     "passive_income_goal": {
+      "type": "number",
+      "title": "Passive Income Goal"
+     },
+     "classes": {
+      "items": {
+       "$ref": "#/components/schemas/ClassSlice"
+      },
+      "type": "array",
+      "title": "Classes"
+     },
+     "next_step": {
+      "$ref": "#/components/schemas/NextStep"
+     },
+     "alerts": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Alerts"
+     },
+     "top_opportunities": {
+      "items": {
+       "$ref": "#/components/schemas/AssetRow"
+      },
+      "type": "array",
+      "title": "Top Opportunities"
+     },
+     "macro": {
+      "$ref": "#/components/schemas/MacroOut"
+     },
+     "last_sync": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Sync"
+     }
+    },
+    "type": "object",
+    "required": [
+     "profile",
+     "total_invested",
+     "reserve_value",
+     "reserve_target",
+     "income_12m",
+     "passive_income_goal",
+     "classes",
+     "next_step",
+     "alerts",
+     "top_opportunities",
+     "macro",
+     "last_sync"
+    ],
+    "title": "DashboardOut"
+   },
+   "DividendYearOut": {
+    "properties": {
+     "year": {
+      "type": "integer",
+      "title": "Year"
+     },
+     "amount": {
+      "type": "number",
+      "title": "Amount"
+     },
+     "dividend_yield": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dividend Yield"
+     }
+    },
+    "type": "object",
+    "required": [
+     "year",
+     "amount",
+     "dividend_yield"
+    ],
+    "title": "DividendYearOut"
+   },
+   "FixedIncomeIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "issuer": {
+      "type": "string",
+      "title": "Issuer"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "tesouro",
+       "cdb",
+       "lci",
+       "lca",
+       "outro"
+      ],
+      "title": "Kind"
+     },
+     "indexer": {
+      "type": "string",
+      "enum": [
+       "cdi",
+       "ipca",
+       "pre",
+       "selic"
+      ],
+      "title": "Indexer"
+     },
+     "rate": {
+      "type": "number",
+      "title": "Rate"
+     },
+     "start_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Start Date"
+     },
+     "maturity": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Maturity"
+     },
+     "daily_liquidity": {
+      "type": "boolean",
+      "title": "Daily Liquidity",
+      "default": false
+     },
+     "amount": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Amount"
+     },
+     "is_emergency_reserve": {
+      "type": "boolean",
+      "title": "Is Emergency Reserve",
+      "default": false
+     },
+     "fgc_covered": {
+      "type": "boolean",
+      "title": "Fgc Covered",
+      "default": true
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "issuer",
+     "kind",
+     "indexer",
+     "rate",
+     "start_date",
+     "amount"
+    ],
+    "title": "FixedIncomeIn"
+   },
+   "FixedIncomeOut": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "issuer": {
+      "type": "string",
+      "title": "Issuer"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "indexer": {
+      "type": "string",
+      "title": "Indexer"
+     },
+     "rate": {
+      "type": "number",
+      "title": "Rate"
+     },
+     "start_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Start Date"
+     },
+     "maturity": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Maturity"
+     },
+     "daily_liquidity": {
+      "type": "boolean",
+      "title": "Daily Liquidity"
+     },
+     "amount": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Amount"
+     },
+     "is_emergency_reserve": {
+      "type": "boolean",
+      "title": "Is Emergency Reserve"
+     },
+     "fgc_covered": {
+      "type": "boolean",
+      "title": "Fgc Covered"
+     },
+     "reserve_ok": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reserve Ok"
+     },
+     "reserve_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reserve Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "issuer",
+     "kind",
+     "indexer",
+     "rate",
+     "start_date",
+     "maturity",
+     "daily_liquidity",
+     "amount",
+     "is_emergency_reserve",
+     "fgc_covered"
+    ],
+    "title": "FixedIncomeOut"
+   },
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "type": "array",
+      "title": "Detail"
+     }
+    },
+    "type": "object",
+    "title": "HTTPValidationError"
+   },
+   "MacroOut": {
+    "properties": {
+     "selic_meta": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Selic Meta"
+     },
+     "cdi": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cdi"
+     },
+     "ipca_12m": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ipca 12M"
+     },
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of"
+     }
+    },
+    "type": "object",
+    "required": [
+     "selic_meta",
+     "cdi",
+     "ipca_12m",
+     "as_of"
+    ],
+    "title": "MacroOut"
+   },
+   "NextStep": {
+    "properties": {
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "description": {
+      "type": "string",
+      "title": "Description"
+     },
+     "href": {
+      "type": "string",
+      "title": "Href"
+     }
+    },
+    "type": "object",
+    "required": [
+     "title",
+     "description",
+     "href"
+    ],
+    "title": "NextStep"
+   },
+   "PlanIn": {
+    "properties": {
+     "amount": {
+      "type": "number",
+      "exclusiveMinimum": 0.0,
+      "title": "Amount"
+     }
+    },
+    "type": "object",
+    "required": [
+     "amount"
+    ],
+    "title": "PlanIn"
+   },
+   "PlanLineOut": {
+    "properties": {
+     "asset_class": {
+      "type": "string",
+      "title": "Asset Class"
+     },
+     "product": {
+      "type": "string",
+      "title": "Product"
+     },
+     "ticker": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ticker"
+     },
+     "quantity": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quantity"
+     },
+     "unit_price": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit Price"
+     },
+     "amount": {
+      "type": "number",
+      "title": "Amount"
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason"
+     },
+     "holding": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/FixedIncomeIn"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "asset_class",
+     "product",
+     "ticker",
+     "quantity",
+     "unit_price",
+     "amount",
+     "reason"
+    ],
+    "title": "PlanLineOut"
+   },
+   "PlanOut": {
+    "properties": {
+     "amount": {
+      "type": "number",
+      "title": "Amount"
+     },
+     "lines": {
+      "items": {
+       "$ref": "#/components/schemas/PlanLineOut"
+      },
+      "type": "array",
+      "title": "Lines"
+     },
+     "notes": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Notes"
+     },
+     "leftover": {
+      "type": "number",
+      "title": "Leftover"
+     }
+    },
+    "type": "object",
+    "required": [
+     "amount",
+     "lines",
+     "notes",
+     "leftover"
+    ],
+    "title": "PlanOut"
+   },
+   "PlanPurchaseIn": {
+    "properties": {
+     "ticker": {
+      "type": "string",
+      "title": "Ticker"
+     },
+     "quantity": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Quantity"
+     },
+     "price": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Price"
+     },
+     "fees": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Fees",
+      "default": "0"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ticker",
+     "quantity",
+     "price"
+    ],
+    "title": "PlanPurchaseIn"
+   },
+   "PortfolioOut": {
+    "properties": {
+     "positions": {
+      "items": {
+       "$ref": "#/components/schemas/PositionOut"
+      },
+      "type": "array",
+      "title": "Positions"
+     },
+     "fixed_income": {
+      "items": {
+       "$ref": "#/components/schemas/FixedIncomeOut"
+      },
+      "type": "array",
+      "title": "Fixed Income"
+     },
+     "classes": {
+      "items": {
+       "$ref": "#/components/schemas/ClassSlice"
+      },
+      "type": "array",
+      "title": "Classes"
+     },
+     "sectors": {
+      "additionalProperties": {
+       "type": "number"
+      },
+      "type": "object",
+      "title": "Sectors"
+     },
+     "total_invested": {
+      "type": "number",
+      "title": "Total Invested"
+     },
+     "reserve_value": {
+      "type": "number",
+      "title": "Reserve Value"
+     },
+     "reserve_target": {
+      "type": "number",
+      "title": "Reserve Target"
+     },
+     "income_12m": {
+      "type": "number",
+      "title": "Income 12M"
+     },
+     "alerts": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Alerts"
+     }
+    },
+    "type": "object",
+    "required": [
+     "positions",
+     "fixed_income",
+     "classes",
+     "sectors",
+     "total_invested",
+     "reserve_value",
+     "reserve_target",
+     "income_12m",
+     "alerts"
+    ],
+    "title": "PortfolioOut"
+   },
+   "PositionOut": {
+    "properties": {
+     "ticker": {
+      "type": "string",
+      "title": "Ticker"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "asset_class": {
+      "type": "string",
+      "title": "Asset Class"
+     },
+     "sector": {
+      "type": "string",
+      "title": "Sector"
+     },
+     "quantity": {
+      "type": "number",
+      "title": "Quantity"
+     },
+     "avg_price": {
+      "type": "number",
+      "title": "Avg Price"
+     },
+     "total_cost": {
+      "type": "number",
+      "title": "Total Cost"
+     },
+     "price": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price"
+     },
+     "value": {
+      "type": "number",
+      "title": "Value"
+     },
+     "profit": {
+      "type": "number",
+      "title": "Profit"
+     },
+     "profit_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Profit Pct"
+     },
+     "weight_pct": {
+      "type": "number",
+      "title": "Weight Pct"
+     },
+     "income_12m": {
+      "type": "number",
+      "title": "Income 12M"
+     },
+     "yield_on_cost": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Yield On Cost"
+     },
+     "verdict": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Verdict"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ticker",
+     "name",
+     "asset_class",
+     "sector",
+     "quantity",
+     "avg_price",
+     "total_cost",
+     "price",
+     "value",
+     "profit",
+     "profit_pct",
+     "weight_pct",
+     "income_12m",
+     "yield_on_cost"
+    ],
+    "title": "PositionOut"
+   },
+   "PricePointOut": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "close": {
+      "type": "number",
+      "title": "Close"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "close"
+    ],
+    "title": "PricePointOut"
+   },
+   "ProfileIn": {
+    "properties": {
+     "answers": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Answers"
+     },
+     "income_stability": {
+      "type": "string",
+      "enum": [
+       "estavel",
+       "variavel",
+       "instavel"
+      ],
+      "title": "Income Stability"
+     },
+     "monthly_expenses": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Monthly Expenses"
+     },
+     "monthly_contribution": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Monthly Contribution"
+     },
+     "passive_income_goal": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Passive Income Goal"
+     },
+     "keep_allocation": {
+      "type": "boolean",
+      "title": "Keep Allocation",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "answers",
+     "income_stability",
+     "monthly_expenses",
+     "monthly_contribution",
+     "passive_income_goal"
+    ],
+    "title": "ProfileIn"
+   },
+   "ProfileOut": {
+    "properties": {
+     "risk_profile": {
+      "type": "string",
+      "title": "Risk Profile"
+     },
+     "risk_description": {
+      "type": "string",
+      "title": "Risk Description",
+      "default": ""
+     },
+     "income_stability": {
+      "type": "string",
+      "title": "Income Stability"
+     },
+     "monthly_expenses": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Monthly Expenses"
+     },
+     "emergency_months": {
+      "type": "integer",
+      "title": "Emergency Months"
+     },
+     "emergency_target": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Emergency Target",
+      "default": "0"
+     },
+     "monthly_contribution": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Monthly Contribution"
+     },
+     "passive_income_goal": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Passive Income Goal"
+     },
+     "onboarded": {
+      "type": "boolean",
+      "title": "Onboarded"
+     },
+     "answers": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Answers"
+     }
+    },
+    "type": "object",
+    "required": [
+     "risk_profile",
+     "income_stability",
+     "monthly_expenses",
+     "emergency_months",
+     "monthly_contribution",
+     "passive_income_goal",
+     "onboarded"
+    ],
+    "title": "ProfileOut"
+   },
+   "Question": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "text": {
+      "type": "string",
+      "title": "Text"
+     },
+     "options": {
+      "items": {
+       "$ref": "#/components/schemas/QuestionOption"
+      },
+      "type": "array",
+      "title": "Options"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "text",
+     "options"
+    ],
+    "title": "Question"
+   },
+   "QuestionOption": {
+    "properties": {
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "points": {
+      "type": "integer",
+      "title": "Points"
+     }
+    },
+    "type": "object",
+    "required": [
+     "label",
+     "points"
+    ],
+    "title": "QuestionOption"
+   },
+   "RegisterPlanIn": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "purchases": {
+      "items": {
+       "$ref": "#/components/schemas/PlanPurchaseIn"
+      },
+      "type": "array",
+      "title": "Purchases"
+     },
+     "holdings": {
+      "items": {
+       "$ref": "#/components/schemas/FixedIncomeIn"
+      },
+      "type": "array",
+      "title": "Holdings"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date"
+    ],
+    "title": "RegisterPlanIn",
+    "description": "Compras de ações e aplicações de renda fixa feitas a partir do plano. Precisa de pelo menos uma."
+   },
+   "RegisterPlanOut": {
+    "properties": {
+     "transactions": {
+      "items": {
+       "$ref": "#/components/schemas/TransactionOut"
+      },
+      "type": "array",
+      "title": "Transactions"
+     },
+     "holdings": {
+      "items": {
+       "$ref": "#/components/schemas/FixedIncomeOut"
+      },
+      "type": "array",
+      "title": "Holdings"
+     }
+    },
+    "type": "object",
+    "required": [
+     "transactions",
+     "holdings"
+    ],
+    "title": "RegisterPlanOut"
+   },
+   "RuleConfigItem": {
+    "properties": {
+     "key": {
+      "type": "string",
+      "title": "Key"
+     },
+     "value": {
+      "type": "number",
+      "title": "Value"
+     },
+     "default": {
+      "type": "number",
+      "title": "Default"
+     }
+    },
+    "type": "object",
+    "required": [
+     "key",
+     "value",
+     "default"
+    ],
+    "title": "RuleConfigItem"
+   },
+   "RuleResult": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "ok",
+       "warn",
+       "fail",
+       "na"
+      ],
+      "title": "Status"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value"
+     },
+     "value_display": {
+      "type": "string",
+      "title": "Value Display"
+     },
+     "threshold": {
+      "type": "string",
+      "title": "Threshold"
+     },
+     "explanation": {
+      "type": "string",
+      "title": "Explanation"
+     },
+     "learn_more": {
+      "type": "string",
+      "title": "Learn More"
+     },
+     "weight": {
+      "type": "integer",
+      "title": "Weight"
+     },
+     "eliminatory": {
+      "type": "boolean",
+      "title": "Eliminatory",
+      "default": false
+     },
+     "group": {
+      "type": "string",
+      "title": "Group",
+      "default": "qualidade"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "label",
+     "status",
+     "value",
+     "value_display",
+     "threshold",
+     "explanation",
+     "learn_more",
+     "weight"
+    ],
+    "title": "RuleResult",
+    "description": "Resultado de uma regra. group: qualidade | preco | setorial | sustentabilidade."
+   },
+   "ScorePointOut": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "score": {
+      "type": "integer",
+      "title": "Score"
+     },
+     "verdict": {
+      "type": "string",
+      "title": "Verdict"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "score",
+     "verdict"
+    ],
+    "title": "ScorePointOut"
+   },
+   "SyncRunOut": {
+    "properties": {
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "running",
+       "ok",
+       "error"
+      ],
+      "title": "Status"
+     },
+     "rows": {
+      "type": "integer",
+      "title": "Rows"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Started At"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "source",
+     "status",
+     "rows",
+     "error",
+     "started_at",
+     "finished_at"
+    ],
+    "title": "SyncRunOut"
+   },
+   "SyncStatus": {
+    "properties": {
+     "running": {
+      "type": "boolean",
+      "title": "Running"
+     },
+     "step": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Step"
+     },
+     "runs": {
+      "items": {
+       "$ref": "#/components/schemas/SyncRunOut"
+      },
+      "type": "array",
+      "title": "Runs"
+     }
+    },
+    "type": "object",
+    "required": [
+     "running",
+     "step",
+     "runs"
+    ],
+    "title": "SyncStatus"
+   },
+   "TransactionIn": {
+    "properties": {
+     "ticker": {
+      "type": "string",
+      "title": "Ticker"
+     },
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "compra",
+       "venda"
+      ],
+      "title": "Kind"
+     },
+     "quantity": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Quantity"
+     },
+     "price": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Price"
+     },
+     "fees": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Fees",
+      "default": "0"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ticker",
+     "date",
+     "kind",
+     "quantity",
+     "price"
+    ],
+    "title": "TransactionIn"
+   },
+   "TransactionOut": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "ticker": {
+      "type": "string",
+      "title": "Ticker"
+     },
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "quantity": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Quantity"
+     },
+     "price": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Price"
+     },
+     "fees": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Fees"
+     },
+     "origin": {
+      "type": "string",
+      "title": "Origin"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "ticker",
+     "date",
+     "kind",
+     "quantity",
+     "price",
+     "fees",
+     "origin"
+    ],
+    "title": "TransactionOut"
+   },
+   "TreasuryOut": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "maturity": {
+      "type": "string",
+      "format": "date",
+      "title": "Maturity"
+     },
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "buy_rate": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Buy Rate"
+     },
+     "buy_price": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Buy Price"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "maturity",
+     "date",
+     "buy_rate",
+     "buy_price"
+    ],
+    "title": "TreasuryOut"
+   },
+   "ValidationError": {
+    "properties": {
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "type": "array",
+      "title": "Location"
+     },
+     "msg": {
+      "type": "string",
+      "title": "Message"
+     },
+     "type": {
+      "type": "string",
+      "title": "Error Type"
+     },
+     "input": {
+      "title": "Input"
+     },
+     "ctx": {
+      "type": "object",
+      "title": "Context"
+     }
+    },
+    "type": "object",
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError"
+   }
+  }
+ }
+}
