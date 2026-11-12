@@ -1,0 +1,280 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { Button, Card, ErrorBox, Field, inputCls, Loading, PageHeader } from "@/components/ui";
+import { api, type AllocationItem, type ProfileOut, type RuleConfigItem, type SyncStatus } from "@/lib/api/client";
+import { CLASS_LABEL, num, parseNumber, PROFILE_LABEL } from "@/lib/format";
+import { useApi } from "@/lib/useApi";
+
+const STEP_LABEL: Record<string, string> = {
+  universo: "Lista de ações",
+  macro: "Selic, CDI e IPCA (Banco Central)",
+  tesouro: "Tesouro Direto",
+  cvm: "Balanços (CVM)",
+  mercado: "Preços e proventos",
+  avaliacoes: "Avaliações",
+};
+
+const RULE_LABEL: Record<string, string> = {
+  yield_alvo: "Yield-alvo do preço-teto (%)",
+  yield_alvo_exigente: "Yield-alvo exigente (%)",
+  margem_ok: "Margem de segurança desejada (%)",
+  proventos_anos_ok: "Anos seguidos pagando (ideal)",
+  proventos_anos_min: "Anos seguidos pagando (mínimo)",
+  roe_ok: "ROE ideal (%)",
+  roe_min: "ROE mínimo (%)",
+  divida_ok: "Dívida/EBITDA ideal",
+  divida_max: "Dívida/EBITDA máximo",
+  liquidez_ok: "Liquidez diária ideal (R$)",
+  liquidez_min: "Liquidez diária mínima (R$)",
+  nota_comprar: "Nota mínima para comprar",
+  nota_evitar: "Nota abaixo da qual evitar",
+};
+
+/** Limites guardados como fração (0,06) que a tela mostra e recebe em porcentagem (6). */
+const PERCENT_RULES = new Set(["yield_alvo", "yield_alvo_exigente", "margem_ok", "roe_ok", "roe_min"]);
+
+/** Valor da regra como o usuário vê: em % para as frações, com vírgula decimal e sem separador de milhar. */
+function ruleText(key: string, value: number): string {
+  const shown = PERCENT_RULES.has(key) ? value * 100 : value;
+  return shown.toLocaleString("pt-BR", { maximumFractionDigits: 6, useGrouping: false });
+}
+
+/** Converte o texto digitado de volta para o valor guardado pela API; null se não for número. */
+function ruleValue(key: string, text: string): number | null {
+  const n = parseNumber(text);
+  if (n === null) return null;
+  return PERCENT_RULES.has(key) ? n / 100 : n;
+}
+
+export default function Config() {
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Configurações" subtitle="Dados do mercado, seu perfil, a divisão da carteira e os limites das regras." />
+      <SyncCard />
+      <ProfileCard />
+      <AllocationCard />
+      <RulesCard />
+    </div>
+  );
+}
+
+type SyncRun = SyncStatus["runs"][number];
+
+const RUN_CLASS: Record<SyncRun["status"], string> = { ok: "text-good", error: "text-bad", running: "text-muted" };
+
+function runLabel(r: SyncRun): string {
+  if (r.status === "ok") return `ok · ${r.rows} linhas`;
+  if (r.status === "error") return `erro: ${String(r.error).slice(0, 120)}`;
+  return "rodando…";
+}
+
+function SyncCard() {
+  const { data, reload } = useApi<SyncStatus>("/api/sync/status");
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (!data?.running) return;
+    const id = setInterval(() => void reload(), 2500);
+    return () => clearInterval(id);
+  }, [data?.running, reload]);
+  async function start() {
+    setErr(null);
+    try {
+      await api.post("/api/sync");
+      void reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+  return (
+    <Card
+      title="Dados do mercado"
+      actions={
+        <Button onClick={start} disabled={data?.running}>
+          {data?.running ? `Atualizando: ${STEP_LABEL[data.step ?? ""] ?? "…"}` : "Atualizar dados agora"}
+        </Button>
+      }
+    >
+      <p className="mb-3 text-sm text-muted">
+        A primeira atualização baixa vários anos de balanços e preços e pode levar alguns minutos. Depois disso, o app atualiza
+        sozinho todo dia às 19h enquanto a API estiver rodando. Para cotações em tempo real, coloque seu token gratuito da brapi
+        no arquivo <code className="rounded bg-neutral-soft px-1">backend/.env</code>.
+      </p>
+      {err && <ErrorBox error={err} />}
+      {data && data.runs.length > 0 && (
+        <ul className="divide-y divide-line text-sm">
+          {data.runs.map((r, i) => (
+            <li key={i} className="flex flex-wrap justify-between gap-2 py-2">
+              <span>{STEP_LABEL[r.source] ?? r.source}</span>
+              <span className={RUN_CLASS[r.status]}>{runLabel(r)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+function ProfileCard() {
+  const { data } = useApi<ProfileOut>("/api/perfil");
+  if (!data) return null;
+  return (
+    <Card
+      title="Seu perfil"
+      actions={
+        <Link href="/onboarding" className="text-sm font-semibold text-accent">
+          refazer questionário →
+        </Link>
+      }
+    >
+      <p className="text-sm text-ink">
+        {data.onboarded ? `${PROFILE_LABEL[data.risk_profile]}: ${data.risk_description}` : "Ainda não definido."}
+      </p>
+    </Card>
+  );
+}
+
+/** Divisão-alvo. Os campos guardam o texto digitado e só viram número no total e no envio, para não perder "12," no meio da digitação. */
+function AllocationCard() {
+  const { data, loading } = useApi<AllocationItem[]>("/api/alocacao");
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  if (loading && !data) return <Loading />;
+  if (!data) return null;
+  const cur = data.map((i) => ({
+    ...i,
+    text: edits[i.asset_class] ?? num(i.weight_pct, 0),
+    value: parseNumber(edits[i.asset_class] ?? i.weight_pct),
+  }));
+  const valid = cur.every((i) => i.value !== null && i.value >= 0);
+  const total = Math.round(cur.reduce((s, i) => s + (i.value ?? 0), 0) * 100) / 100;
+  const ok = valid && Math.abs(total - 100) <= 0.01;
+  async function save() {
+    setErr(null);
+    setMsg(null);
+    const body: AllocationItem[] = cur.map((i) => ({ asset_class: i.asset_class, weight_pct: i.value ?? 0 }));
+    try {
+      await api.put("/api/alocacao", body);
+      setMsg("Divisão salva.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+  return (
+    <Card title="Divisão-alvo da carteira (%)" help="diversificacao">
+      <div className="grid gap-3 sm:grid-cols-4">
+        {cur.map((i) => (
+          <Field key={i.asset_class} label={CLASS_LABEL[i.asset_class] ?? i.asset_class}>
+            <input
+              className={inputCls}
+              inputMode="decimal"
+              value={i.text}
+              onChange={(e) => setEdits((s) => ({ ...s, [i.asset_class]: e.target.value }))}
+            />
+          </Field>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center gap-3">
+        <Button onClick={save} disabled={!ok}>
+          Salvar
+        </Button>
+        <span className={`text-sm ${ok ? "text-muted" : "text-bad"}`}>
+          {valid ? `Total: ${num(total, total % 1 ? 2 : 0)}%` : "Use só números"}
+        </span>
+        {msg && <span className="text-sm text-good">{msg}</span>}
+      </div>
+      {err && (
+        <div className="mt-3">
+          <ErrorBox error={err} />
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function RulesCard() {
+  const { data, reload } = useApi<RuleConfigItem[]>("/api/regras");
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  if (!data) return null;
+  const rules = data;
+  const shown = rules.filter((r) => RULE_LABEL[r.key]);
+
+  async function send(body: Record<string, number>) {
+    setErr(null);
+    setMsg(null);
+    try {
+      await api.put("/api/regras", body);
+      setEdits({});
+      void reload();
+      setMsg("Regras salvas e ações reavaliadas.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  function save() {
+    const bad = Object.entries(edits).find(([k, v]) => ruleValue(k, v) === null);
+    if (bad) return setErr(`Valor inválido em "${RULE_LABEL[bad[0]] ?? bad[0]}".`);
+    void send(Object.fromEntries(Object.entries(edits).map(([k, v]) => [k, ruleValue(k, v) ?? 0])));
+  }
+
+  function reset() {
+    setConfirmReset(false);
+    void send(Object.fromEntries(rules.map((r) => [r.key, r.default])));
+  }
+
+  return (
+    <Card title="Limites das regras" help="veredito">
+      <p className="mb-4 text-sm text-muted">
+        Os padrões seguem o método Barsi. Mude com cuidado: regras mais frouxas aprovam mais ações, mas com mais risco.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {shown.map((r) => (
+          <Field
+            key={r.key}
+            label={RULE_LABEL[r.key] ?? r.key}
+            hint={r.value !== r.default ? `padrão: ${ruleText(r.key, r.default)}` : undefined}
+          >
+            <input
+              className={inputCls}
+              inputMode="decimal"
+              value={edits[r.key] ?? ruleText(r.key, r.value)}
+              onChange={(e) => setEdits((s) => ({ ...s, [r.key]: e.target.value }))}
+            />
+          </Field>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Button onClick={save} disabled={!Object.keys(edits).length}>
+          Salvar e reavaliar
+        </Button>
+        {confirmReset ? (
+          <>
+            <Button variant="ghost" onClick={reset}>
+              Confirmar volta aos padrões
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirmReset(false)}>
+              Cancelar
+            </Button>
+          </>
+        ) : (
+          <Button variant="ghost" onClick={() => setConfirmReset(true)}>
+            Voltar aos padrões
+          </Button>
+        )}
+        {msg && <span className="text-sm text-good">{msg}</span>}
+      </div>
+      {err && (
+        <div className="mt-3">
+          <ErrorBox error={err} />
+        </div>
+      )}
+    </Card>
+  );
+}
