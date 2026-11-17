@@ -16,7 +16,7 @@ from app.engine import fmt
 from app.engine.acoes import Assessment, Rules, grade
 from app.engine.config import merged_rules
 from app.engine.score import build_evaluation
-from app.engine.types import Evaluation, FiiSnapshot, RuleResult
+from app.engine.types import Evaluation, FiiKind, FiiSnapshot, RuleResult
 
 ENGINE_VERSION = "fii-1.0"
 
@@ -30,8 +30,24 @@ KIND_LABEL = {
 IR_RENDA_FIXA_LONGA = 0.15
 """Menor alíquota de IR da renda fixa. O CDI líquido dela é a comparação justa com o rendimento isento do FII."""
 
+KIND_MAJORITY = 0.5
+"""Peso mínimo de crédito, imóveis ou cotas de FII (sem contar o caixa) para o fundo ser papel, tijolo ou FoF."""
+
 DAYS_PER_YEAR = 365.25
 INFORME_AUSENTE = "Informe da CVM ainda não carregado para este fundo."
+
+
+def classify(paper: float, brick: float, fof: float) -> FiiKind:
+    """Tipo do fundo pela composição do ativo. O segmento declarado à CVM não serve para isso:
+    muitos fundos de papel aparecem como "Multicategoria" ou até "Logística"."""
+    invested = paper + brick + fof
+    if invested <= 0:
+        return "hibrido"
+    shares: dict[FiiKind, float] = {"papel": paper / invested, "tijolo": brick / invested, "fof": fof / invested}
+    kind, share = max(shares.items(), key=lambda item: item[1])
+    if share > KIND_MAJORITY:
+        return kind
+    return "hibrido"
 
 
 def _na(base: dict[str, Any], explanation: str) -> RuleResult:

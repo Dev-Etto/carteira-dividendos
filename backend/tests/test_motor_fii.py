@@ -178,3 +178,18 @@ def test_sem_informe_fica_sem_dado_e_neutro():
 def test_limites_sobrescritos():
     ev = evaluate_fii(papel(equity=400_000_000), {"fii_pl_min": 300_000_000})
     assert regra(ev, "fii-patrimonio").status == "ok"
+
+
+@pytest.mark.parametrize(
+    ("paper", "brick", "fof", "kind"),
+    [
+        (0.66, 0.15, 0.12, "papel"),
+        (0.0, 0.97, 0.01, "tijolo"),
+        (0.01, 0.8, 0.18, "tijolo"),
+        (0.05, 0.05, 0.85, "fof"),
+        (0.45, 0.45, 0.0, "hibrido"),
+        (0.0, 0.0, 0.0, "hibrido"),
+    ],
+)
+def test_classifica_pela_composicao(paper, brick, fof, kind):
+    assert fii.classify(paper, brick, fof) == kind
