@@ -18,14 +18,24 @@ import {
 } from "@/components/ui";
 import { Investidor10Link } from "@/components/Investidor10Link";
 import type { AssetDetail, AssetHistory, RuleResult } from "@/lib/api/client";
-import { brl, brlCompact, dateBr, num, pct, SECTOR_LABEL, SEGMENT_LABEL } from "@/lib/format";
+import { brl, brlCompact, dateBr, groupLabel, num, pct, SEGMENT_LABEL } from "@/lib/format";
+import { withNav } from "@/lib/series";
 import { useApi } from "@/lib/useApi";
 
-const GROUPS: { key: string; title: string; help?: string }[] = [
+type Group = { key: string; title: string; help?: string };
+type Extras = Record<string, number | null | undefined>;
+
+const STOCK_GROUPS: Group[] = [
   { key: "qualidade", title: "Qualidade da empresa" },
   { key: "setorial", title: "Regras do setor" },
   { key: "sustentabilidade", title: "O dividendo se sustenta?", help: "fluxo-de-caixa-livre" },
   { key: "preco", title: "O preço está bom?", help: "preco-teto" },
+];
+
+const FII_GROUPS: Group[] = [
+  { key: "qualidade", title: "Qualidade do fundo" },
+  { key: "sustentabilidade", title: "Os rendimentos se mantêm?", help: "estabilidade-rendimentos" },
+  { key: "preco", title: "O preço e o rendimento estão bons?", help: "p-vp" },
 ];
 
 const SCORE_RING: Record<ScoreTone, string> = {
@@ -36,7 +46,7 @@ const SCORE_RING: Record<ScoreTone, string> = {
 };
 
 /** Texto do preço-teto com o yield-alvo exigente; avaliações antigas não trazem esse yield. */
-function demandingCeilingHint(ex: Record<string, number | null | undefined>): string {
+function demandingCeilingHint(ex: Extras): string {
   const base = `yield-alvo ${pct(ex.yield_alvo, 0)}`;
   if (ex.yield_alvo_exigente === undefined || ex.yield_alvo_exigente === null) return base;
   return `${base} · com ${pct(ex.yield_alvo_exigente, 0)}: ${brl(ex.teto_exigente)}`;
@@ -56,6 +66,72 @@ function BackLink() {
   );
 }
 
+function marginValue(margin: number | null | undefined) {
+  return <span className={(margin ?? 0) >= 0 ? "text-good" : "text-bad"}>{pct(margin)}</span>;
+}
+
+function StockStats({ data, ex }: { data: AssetDetail; ex: Extras }) {
+  return (
+    <>
+      <Stat label="Preço atual" value={brl(data.price)} hint={data.price_at ? `em ${dateBr(data.price_at)}` : undefined} />
+      <Stat label="Preço-teto Barsi" help="preco-teto" value={brl(data.ceiling_price)} hint={demandingCeilingHint(ex)} />
+      <Stat label="Margem de segurança" value={marginValue(data.margin_pct)} />
+      <Stat
+        label="Dividend yield 12m"
+        help="dividend-yield"
+        value={pct(data.dividend_yield)}
+        hint={`média 5 anos: ${pct(ex.dy_medio_5a)}`}
+      />
+      <Stat label="Teto de Bazin" help="bazin" value={brl(ex.bazin)} hint="segunda opinião" />
+      <Stat label="Valor de Graham" help="graham" value={brl(ex.graham)} hint="segunda opinião" />
+      <Stat label="ROE médio 5 anos" help="roe" value={pct(ex.roe_medio_5a)} />
+      <Stat label="Liquidez diária" help="liquidez" value={brlCompact(data.avg_daily_volume_brl)} />
+    </>
+  );
+}
+
+/** Com o que o rendimento do FII é comparado: CDI líquido (papel) ou juro real do Tesouro IPCA+ (demais). */
+function benchmarkHint(sector: string, ex: Extras): string {
+  if (sector === "papel") return `CDI líquido de IR: ${pct(ex.cdi_liquido)}`;
+  return `Tesouro IPCA+: IPCA + ${pct(ex.ntnb_real)}`;
+}
+
+function FiiStats({ data, ex }: { data: AssetDetail; ex: Extras }) {
+  const isPaper = data.sector === "papel";
+  return (
+    <>
+      <Stat label="Preço atual" value={brl(data.price)} hint={data.price_at ? `em ${dateBr(data.price_at)}` : undefined} />
+      <Stat label="P/VP" help="p-vp" value={num(ex.pvp)} hint={`valor patrimonial da cota: ${brl(ex.valor_patrimonial_cota)}`} />
+      <Stat
+        label="Preço máximo pelo P/VP"
+        help="p-vp"
+        value={brl(data.ceiling_price)}
+        hint={`${num(ex.pvp_max)} × o valor patrimonial`}
+      />
+      <Stat label="Margem até o máximo" value={marginValue(data.margin_pct)} />
+      <Stat
+        label="Dividend yield 12m"
+        help="dividend-yield"
+        value={pct(data.dividend_yield)}
+        hint={benchmarkHint(data.sector, ex)}
+      />
+      <Stat label="Patrimônio" help="patrimonio-fii" value={brlCompact(ex.patrimonio)} hint={`${num(ex.cotistas, 0)} cotistas`} />
+      {isPaper ? (
+        <Stat label="Liquidez diária" help="liquidez" value={brlCompact(data.avg_daily_volume_brl)} />
+      ) : (
+        <Stat label="Vacância" help="vacancia" value={pct(ex.vacancia)} hint={`${num(ex.imoveis, 0)} imóveis`} />
+      )}
+      <Stat label="Taxa de administração" help="taxa-administracao" value={pct(ex.taxa_adm_ano, 2)} hint="ao ano" />
+    </>
+  );
+}
+
+function subtitle(data: AssetDetail): string {
+  const segment = data.segment ? ` · ${SEGMENT_LABEL[data.segment] ?? data.segment}` : "";
+  const group = data.economic_group ? ` · grupo ${data.economic_group}` : "";
+  return `${groupLabel(data.asset_class, data.sector)}${segment}${group}`;
+}
+
 export function AtivoView() {
   const { ticker } = useParams<{ ticker: string }>();
   const { data, error, loading, reload } = useApi<AssetDetail>(`/api/ativos/${ticker}`);
@@ -64,15 +140,15 @@ export function AtivoView() {
   if (loading && !data) return <Loading />;
   if (error) return <ErrorBox error={error} onRetry={reload} />;
   if (!data) return null;
-  const ex = data.extras as Record<string, number | null | undefined>;
+  const ex = data.extras as Extras;
+  const isFii = data.asset_class === "fii";
+  const groups = isFii ? FII_GROUPS : STOCK_GROUPS;
+  const unit = isFii ? "por cota" : "por ação";
 
   return (
     <div className="space-y-6">
       <BackLink />
-      <PageHeader
-        title={`${data.ticker} · ${data.name}`}
-        subtitle={`${SECTOR_LABEL[data.sector] ?? data.sector}${data.segment ? ` · ${SEGMENT_LABEL[data.segment] ?? data.segment}` : ""}${data.economic_group ? ` · grupo ${data.economic_group}` : ""}`}
-      >
+      <PageHeader title={`${data.ticker} · ${data.name}`} subtitle={subtitle(data)}>
         <div className="flex flex-wrap gap-2">
           <Investidor10Link ticker={data.ticker} assetClass={data.asset_class} />
           <Link
@@ -102,28 +178,13 @@ export function AtivoView() {
           </div>
         </div>
         <div className="mt-6 grid grid-cols-2 gap-5 border-t border-line pt-5 md:grid-cols-4">
-          <Stat label="Preço atual" value={brl(data.price)} hint={data.price_at ? `em ${dateBr(data.price_at)}` : undefined} />
-          <Stat label="Preço-teto Barsi" help="preco-teto" value={brl(data.ceiling_price)} hint={demandingCeilingHint(ex)} />
-          <Stat
-            label="Margem de segurança"
-            value={<span className={(data.margin_pct ?? 0) >= 0 ? "text-good" : "text-bad"}>{pct(data.margin_pct)}</span>}
-          />
-          <Stat
-            label="Dividend yield 12m"
-            help="dividend-yield"
-            value={pct(data.dividend_yield)}
-            hint={`média 5 anos: ${pct(ex.dy_medio_5a)}`}
-          />
-          <Stat label="Teto de Bazin" help="bazin" value={brl(ex.bazin)} hint="segunda opinião" />
-          <Stat label="Valor de Graham" help="graham" value={brl(ex.graham)} hint="segunda opinião" />
-          <Stat label="ROE médio 5 anos" help="roe" value={pct(ex.roe_medio_5a)} />
-          <Stat label="Liquidez diária" help="liquidez" value={brlCompact(data.avg_daily_volume_brl)} />
+          {isFii ? <FiiStats data={data} ex={ex} /> : <StockStats data={data} ex={ex} />}
         </div>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-6 lg:col-span-3">
-          {GROUPS.map((g) => {
+          {groups.map((g) => {
             const rules = data.rules.filter((r) => r.group === g.key);
             if (!rules.length) return null;
             return (
@@ -147,7 +208,7 @@ export function AtivoView() {
                     <XAxis dataKey="year" tick={{ fontSize: 11, fill: "var(--muted)" }} />
                     <YAxis tick={{ fontSize: 11, fill: "var(--muted)" }} width={40} />
                     <Tooltip
-                      formatter={(v) => [brl(Number(v)), "por ação"]}
+                      formatter={(v) => [brl(Number(v)), unit]}
                       contentStyle={{ background: "var(--surface)", border: "1px solid var(--line)", fontSize: 12 }}
                     />
                     <Bar dataKey="amount" fill="var(--accent)" radius={[4, 4, 0, 0]} />
@@ -158,11 +219,11 @@ export function AtivoView() {
               <p className="text-sm text-muted">Sem histórico ainda.</p>
             )}
           </Card>
-          <Card title="Preço (5 anos)">
+          <Card title={isFii ? "Preço × valor patrimonial (5 anos)" : "Preço (5 anos)"} help={isFii ? "p-vp" : undefined}>
             {hist.data && hist.data.prices.length ? (
               <div className="h-52">
                 <ResponsiveContainer>
-                  <LineChart data={hist.data.prices}>
+                  <LineChart data={withNav(hist.data.prices, hist.data.nav)}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" />
                     <XAxis
                       dataKey="date"
@@ -173,17 +234,23 @@ export function AtivoView() {
                     <YAxis tick={{ fontSize: 11, fill: "var(--muted)" }} width={40} domain={["auto", "auto"]} />
                     <Tooltip
                       labelFormatter={(d) => dateBr(String(d))}
-                      formatter={(v) => [brl(Number(v)), "fechamento"]}
+                      formatter={(v, name) => [brl(Number(v)), name === "nav" ? "valor patrimonial" : "fechamento"]}
                       contentStyle={{ background: "var(--surface)", border: "1px solid var(--line)", fontSize: 12 }}
                     />
                     <Line dataKey="close" stroke="var(--accent)" dot={false} strokeWidth={1.5} />
+                    {isFii && <Line dataKey="nav" stroke="var(--muted)" dot={false} strokeWidth={1.5} strokeDasharray="4 3" />}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             ) : (
               <p className="text-sm text-muted">Sem histórico ainda.</p>
             )}
-            {data.ceiling_price && <p className="mt-2 text-xs text-muted">Preço-teto atual: {brl(data.ceiling_price)}</p>}
+            {data.ceiling_price && (
+              <p className="mt-2 text-xs text-muted">
+                {isFii ? "Preço máximo pelo P/VP" : "Preço-teto atual"}: {brl(data.ceiling_price)}
+                {isFii && " · linha tracejada: valor patrimonial da cota"}
+              </p>
+            )}
           </Card>
           <Card title="O que pode dar errado">
             <ul className="space-y-2 text-sm text-ink">
@@ -204,7 +271,9 @@ export function AtivoView() {
                 </div>
               ))}
             </dl>
-            <p className="mt-3 text-xs text-muted">Anos pagando proventos sem interrupção: {num(ex.anos_pagando ?? 0, 0)}</p>
+            {!isFii && (
+              <p className="mt-3 text-xs text-muted">Anos pagando proventos sem interrupção: {num(ex.anos_pagando ?? 0, 0)}</p>
+            )}
           </Card>
         </div>
       </div>
