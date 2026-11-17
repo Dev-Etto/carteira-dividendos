@@ -80,6 +80,19 @@ export const SECTOR_LABEL: Record<string, string> = {
   ciclico: "Cíclico",
 };
 
+export const FII_KIND_LABEL: Record<string, string> = {
+  papel: "Papel",
+  tijolo: "Tijolo",
+  fof: "Fundo de fundos",
+  hibrido: "Híbrido",
+};
+
+/** Rótulo do grupo do ativo: o setor de uma ação ou o tipo de um FII. */
+export function groupLabel(assetClass: string, sector: string): string {
+  const labels = assetClass === "fii" ? FII_KIND_LABEL : SECTOR_LABEL;
+  return labels[sector] ?? sector;
+}
+
 export const PROFILE_LABEL: Record<string, string> = {
   conservador: "Conservador",
   moderado: "Moderado",
