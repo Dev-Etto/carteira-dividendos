@@ -1,11 +1,13 @@
 """Tipos do motor de regras. O motor é puro: recebe um snapshot e devolve uma avaliação."""
 
 from dataclasses import dataclass, field
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel
 
 RuleStatus = Literal["ok", "warn", "fail", "na"]
+FiiKind = Literal["papel", "tijolo", "fof", "hibrido"]
 Verdict = Literal["comprar", "aguardar", "neutro", "evitar"]
 
 STATUS_POINTS: dict[str, float] = {"ok": 1.0, "warn": 0.5, "fail": 0.0}
@@ -100,3 +102,41 @@ class StockSnapshot:
     pe_history: list[float] = field(default_factory=list)
     pb_history: list[float] = field(default_factory=list)
     current_year: int = 2026
+
+
+@dataclass
+class FiiSnapshot:
+    """Tudo o que o motor de FIIs precisa saber sobre um fundo, já carregado.
+
+    kind: papel | tijolo | fof | hibrido, pela composição da carteira no informe mensal da CVM.
+    segment: segmento declarado à CVM (Logística, Shoppings...), só para exibição.
+    equity: patrimônio líquido em R$. nav_per_share: valor patrimonial da cota.
+    admin_fee_month: taxa de administração do mês em fração do patrimônio.
+    dividends_ttm / dividends_prev_ttm: proventos por cota nos últimos 12 meses e nos 12 anteriores.
+    cdi / ntnb_real: CDI ao ano e juro real da NTN-B (Tesouro IPCA+) mais longa, em fração.
+    largest_credit_share: maior ativo de crédito ÷ patrimônio (papel).
+    largest_property_share: maior imóvel ÷ receita do fundo (tijolo).
+    vacancy: vacância física média ponderada pela área; None quando o dado do fundo é inconsistente.
+    """
+
+    ticker: str
+    name: str
+    kind: FiiKind
+    today: date
+    segment: str | None = None
+    price: float | None = None
+    avg_daily_volume_brl: float | None = None
+    equity: float | None = None
+    nav_per_share: float | None = None
+    holders: int | None = None
+    listed: bool | None = None
+    started_on: date | None = None
+    admin_fee_month: float | None = None
+    dividends_ttm: float | None = None
+    dividends_prev_ttm: float | None = None
+    cdi: float | None = None
+    ntnb_real: float | None = None
+    largest_credit_share: float | None = None
+    largest_property_share: float | None = None
+    properties: int | None = None
+    vacancy: float | None = None

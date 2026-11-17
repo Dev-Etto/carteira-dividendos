@@ -14,6 +14,17 @@ Grupos de limites:
 - sustentabilidade: fluxo de caixa livre ÷ proventos, média de 3 anos;
 - bancos (Basileia e inadimplência), seguradoras (índice combinado) e concessões (anos até o vencimento);
 - veredito: nota mínima para comprar e nota abaixo da qual evitar.
+
+Grupos de limites dos FIIs (prefixo fii_):
+- porte e negociação: patrimônio líquido mínimo, liquidez média diária mínima e anos de funcionamento;
+- isenção de IR dos rendimentos: número mínimo de cotistas;
+- P/VP por tipo (papel e tijolo): faixa ideal e desconto a partir do qual o fundo merece atenção;
+- estabilidade: proventos dos últimos 12 meses ÷ 12 meses anteriores (ideal e mínimo);
+- rendimento: papel compara o DY com o CDI líquido de IR (tolerância abaixo e spread que indica
+  estresse de crédito); tijolo compara com o juro real da NTN-B (spread ideal);
+- concentração: maior ativo de crédito ÷ patrimônio (papel) e maior imóvel ÷ receita (tijolo);
+- tijolo: número de imóveis e vacância física;
+- taxa de administração ao ano.
 """
 
 PRECO_TETO = {"yield_alvo": 0.06, "yield_alvo_exigente": 0.08, "margem_ok": 0.10}
@@ -32,6 +43,31 @@ SEGURADORAS = {"indice_combinado_ok": 85.0, "indice_combinado_max": 95.0}
 CONCESSOES = {"concessao_ok": 10, "concessao_min": 5}
 VEREDITO = {"nota_comprar": 70, "nota_evitar": 50}
 
+FII_PORTE = {"fii_pl_min": 500_000_000, "fii_liquidez_min": 1_000_000, "fii_anos_min": 4}
+FII_ISENCAO = {"fii_cotistas_min": 100}
+FII_PVP = {
+    "fii_pvp_papel_atencao": 0.75,
+    "fii_pvp_papel_min": 0.85,
+    "fii_pvp_papel_max": 1.08,
+    "fii_pvp_tijolo_atencao": 0.70,
+    "fii_pvp_tijolo_min": 0.85,
+    "fii_pvp_tijolo_max": 1.15,
+}
+FII_ESTABILIDADE = {"fii_estabilidade_ok": 0.90, "fii_estabilidade_min": 0.75}
+FII_RENDIMENTO = {
+    "fii_spread_papel_tolerancia": 0.02,
+    "fii_spread_papel_estresse": 0.06,
+    "fii_spread_tijolo_ok": 0.01,
+}
+FII_CONCENTRACAO = {
+    "fii_credito_ok": 0.06,
+    "fii_credito_max": 0.10,
+    "fii_imovel_ok": 0.25,
+    "fii_imovel_max": 0.40,
+}
+FII_TIJOLO = {"fii_imoveis_ok": 8, "fii_imoveis_min": 4, "fii_vacancia_ok": 0.10, "fii_vacancia_max": 0.20}
+FII_TAXA = {"fii_taxa_adm_ok": 0.010, "fii_taxa_adm_max": 0.015}
+
 DEFAULT_RULES: dict[str, float] = {
     **PRECO_TETO,
     **HISTORICO_PROVENTOS,
@@ -48,6 +84,14 @@ DEFAULT_RULES: dict[str, float] = {
     **SEGURADORAS,
     **CONCESSOES,
     **VEREDITO,
+    **FII_PORTE,
+    **FII_ISENCAO,
+    **FII_PVP,
+    **FII_ESTABILIDADE,
+    **FII_RENDIMENTO,
+    **FII_CONCENTRACAO,
+    **FII_TIJOLO,
+    **FII_TAXA,
 }
 
 
@@ -74,8 +118,18 @@ ORDERED_LIMITS: tuple[tuple[str, str], ...] = (
     ("indice_combinado_ok", "indice_combinado_max"),
     ("concessao_min", "concessao_ok"),
     ("nota_evitar", "nota_comprar"),
+    ("fii_pvp_papel_atencao", "fii_pvp_papel_min"),
+    ("fii_pvp_papel_min", "fii_pvp_papel_max"),
+    ("fii_pvp_tijolo_atencao", "fii_pvp_tijolo_min"),
+    ("fii_pvp_tijolo_min", "fii_pvp_tijolo_max"),
+    ("fii_estabilidade_min", "fii_estabilidade_ok"),
+    ("fii_credito_ok", "fii_credito_max"),
+    ("fii_imovel_ok", "fii_imovel_max"),
+    ("fii_imoveis_min", "fii_imoveis_ok"),
+    ("fii_vacancia_ok", "fii_vacancia_max"),
+    ("fii_taxa_adm_ok", "fii_taxa_adm_max"),
 )
-STRICTLY_POSITIVE = frozenset({"yield_alvo", "yield_alvo_exigente"})
+STRICTLY_POSITIVE = frozenset({"yield_alvo", "yield_alvo_exigente", "fii_pvp_papel_max", "fii_pvp_tijolo_max"})
 
 
 def rule_errors(cfg: dict[str, float]) -> list[str]:
