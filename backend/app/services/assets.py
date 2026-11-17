@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 from datetime import date, timedelta
+from itertools import chain, zip_longest
 from statistics import mean
 
 from sqlalchemy import func, select
@@ -106,11 +107,14 @@ def list_assets(
 
 
 def buy_opportunities(db: Session, limit: int) -> list[AssetRow]:
-    """Ações e FIIs com veredito "comprar", da maior nota para a menor."""
+    """Ações e FIIs com veredito "comprar", intercalando as classes (a melhor ação, o melhor FII, a
+    segunda ação...) para uma não esconder a outra; dentro de cada classe, da maior nota para a menor."""
     assets = {a.id: a for a in db.scalars(select(Asset).where(Asset.active, Asset.asset_class.in_(EVALUATED_CLASSES)))}
     evaluations = latest_evaluations(db, assets)
     buys = sorted((ev for ev in evaluations.values() if ev.verdict == "comprar"), key=lambda ev: -ev.score)
-    return [asset_row(assets[ev.asset_id], ev) for ev in buys[:limit]]
+    by_class = [[ev for ev in buys if assets[ev.asset_id].asset_class == cls] for cls in EVALUATED_CLASSES]
+    interleaved = [ev for ev in chain.from_iterable(zip_longest(*by_class)) if ev is not None]
+    return [asset_row(assets[ev.asset_id], ev) for ev in interleaved[:limit]]
 
 
 def _current_evaluation(db: Session, asset: Asset) -> Evaluation:
