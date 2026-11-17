@@ -1,14 +1,21 @@
-"""Monta o StockSnapshot do motor a partir do banco."""
+"""Monta os snapshots do motor (ações e FIIs) a partir do banco."""
 
 from collections import defaultdict
 from datetime import date, timedelta
 from statistics import mean
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Asset, Dividend, Fundamental, PriceDaily, SectorMetric
-from app.engine.types import StockSnapshot, YearFundamentals
+from app.db.models import Asset, Dividend, FiiQuarterlyReport, FiiReport, Fundamental, PriceDaily, SectorMetric
+from app.engine.types import FiiKind, FiiSnapshot, StockSnapshot, YearFundamentals
+from app.services.macro import latest_rate, ntnb_real_rate
+
+LIQUIDITY_WINDOW = 63
+"""Pregões (cerca de 3 meses) da média de volume diário em R$."""
+MIN_LIQUIDITY_SAMPLE = 20
+FII_KIND_BY_SECTOR: dict[str, FiiKind] = {"papel": "papel", "tijolo": "tijolo", "fof": "fof", "hibrido": "hibrido"}
 
 
 def _multiple(price: float, amount: float | None, shares: float) -> float | None:
@@ -42,6 +49,13 @@ def _multiples_history(
     return [v for v in pe if v is not None], [v for v in pb if v is not None]
 
 
+def _avg_daily_volume(points: list[tuple[float, float]]) -> float | None:
+    recent = points[-LIQUIDITY_WINDOW:]
+    if len(recent) < MIN_LIQUIDITY_SAMPLE:
+        return None
+    return mean(close * volume for close, volume in recent)
+
+
 def build_stock_snapshot(db: Session, asset: Asset, today: date | None = None) -> StockSnapshot:
     today = today or date.today()
     prices = db.execute(
@@ -57,8 +71,7 @@ def build_stock_snapshot(db: Session, asset: Asset, today: date | None = None) -
 
     price = asset.last_price or (prices[-1].close if prices else None)
 
-    recent = prices[-63:]
-    avg_vol = mean(p.close * p.volume for p in recent) if len(recent) >= 20 else None
+    avg_vol = _avg_daily_volume([(p.close, p.volume) for p in prices])
 
     by_year: dict[int, float] = defaultdict(float)
     ttm = 0.0
@@ -108,4 +121,82 @@ def build_stock_snapshot(db: Session, asset: Asset, today: date | None = None) -
         pe_history=pe_hist,
         pb_history=pb_hist,
         current_year=today.year,
+    )
+
+
+def _report_fields(report: FiiReport | None) -> dict[str, Any]:
+    """Campos do snapshot que vêm do informe mensal; vazio enquanto o informe não foi carregado."""
+    if report is None:
+        return {}
+    return {
+        "equity": report.equity,
+        "nav_per_share": report.nav_per_share,
+        "holders": report.holders,
+        "listed": report.listed,
+        "started_on": report.started_on,
+        "admin_fee_month": report.admin_fee,
+    }
+
+
+def _quarterly_fields(quarterly: FiiQuarterlyReport | None) -> dict[str, Any]:
+    if quarterly is None:
+        return {}
+    return {
+        "largest_property_share": quarterly.largest_property_share,
+        "properties": quarterly.properties,
+        "vacancy": quarterly.vacancy,
+    }
+
+
+def _dividends_windows(db: Session, asset_id: int, today: date) -> tuple[float | None, float | None]:
+    """Proventos por cota nos últimos 12 meses e nos 12 meses anteriores. Sem nenhum provento, (None, None)."""
+    divs = db.execute(
+        select(Dividend.ex_date, Dividend.amount).where(
+            Dividend.asset_id == asset_id, Dividend.kind != "amortizacao", Dividend.ex_date > today - timedelta(days=730)
+        )
+    ).all()
+    if not divs:
+        return None, None
+    year_ago = today - timedelta(days=365)
+    ttm = sum(d.amount for d in divs if d.ex_date > year_ago)
+    prev = sum(d.amount for d in divs if d.ex_date <= year_ago)
+    return ttm, prev
+
+
+def _credit_share(report: FiiReport | None, quarterly: FiiQuarterlyReport | None) -> float | None:
+    if report is None or quarterly is None or not report.equity or quarterly.largest_credit_value is None:
+        return None
+    return quarterly.largest_credit_value / report.equity
+
+
+def build_fii_snapshot(db: Session, asset: Asset, today: date | None = None) -> FiiSnapshot:
+    today = today or date.today()
+    prices = db.execute(
+        select(PriceDaily.close, PriceDaily.volume)
+        .where(PriceDaily.asset_id == asset.id, PriceDaily.date >= today - timedelta(days=120))
+        .order_by(PriceDaily.date)
+    ).all()
+    report = db.scalar(select(FiiReport).where(FiiReport.asset_id == asset.id).order_by(FiiReport.ref_date.desc()).limit(1))
+    quarterly = db.scalar(
+        select(FiiQuarterlyReport)
+        .where(FiiQuarterlyReport.asset_id == asset.id)
+        .order_by(FiiQuarterlyReport.ref_date.desc())
+        .limit(1)
+    )
+    ttm, prev = _dividends_windows(db, asset.id, today)
+    return FiiSnapshot(
+        ticker=asset.ticker,
+        name=asset.name,
+        kind=FII_KIND_BY_SECTOR.get(asset.sector, "hibrido"),
+        today=today,
+        segment=asset.segment,
+        price=asset.last_price or (prices[-1].close if prices else None),
+        avg_daily_volume_brl=_avg_daily_volume([(p.close, p.volume) for p in prices]),
+        dividends_ttm=ttm,
+        dividends_prev_ttm=prev,
+        cdi=latest_rate(db, "cdi"),
+        ntnb_real=ntnb_real_rate(db),
+        largest_credit_share=_credit_share(report, quarterly),
+        **_report_fields(report),
+        **_quarterly_fields(quarterly),
     )
