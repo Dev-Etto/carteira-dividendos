@@ -143,6 +143,10 @@ export default function Aporte() {
             que você ainda não tem.
           </li>
           <li>No começo, cada ação fica com no máximo 20% das suas ações; cada setor, com 30%.</li>
+          <li>
+            Em FIIs, vale o mesmo: só os com veredito &quot;comprar&quot;, cada fundo com no máximo 20% dos seus FIIs e cada tipo
+            (papel ou tijolo) com 60%.
+          </li>
           <li>O app nunca sugere vender para rebalancear. O equilíbrio vem dos próximos aportes.</li>
         </ol>
       </Card>

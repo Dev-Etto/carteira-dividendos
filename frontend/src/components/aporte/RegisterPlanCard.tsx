@@ -69,7 +69,7 @@ function errorMessage(e: unknown): string {
 }
 
 /**
- * Checklist do que foi feito a partir do plano: compras de ações (quantidade e preço pagos) e aplicações
+ * Checklist do que foi feito a partir do plano: compras de ações e FIIs (quantidade e preço pagos) e aplicações
  * de renda fixa (valor aplicado). Tudo é registrado numa única chamada, ou nada é.
  */
 export function RegisterPlanCard({ plan, onRegistered }: { plan: Plan; onRegistered: (result: RegisterPlanOut) => void }) {
@@ -98,8 +98,8 @@ export function RegisterPlanCard({ plan, onRegistered }: { plan: Plan; onRegiste
   return (
     <Card title="Depois de comprar na corretora e aplicar no banco">
       <p className="mb-4 text-sm text-muted">
-        Marque o que você fez, ajuste os valores reais e registre tudo de uma vez: as ações entram na Carteira e as aplicações em
-        Renda fixa.
+        Marque o que você fez, ajuste os valores reais e registre tudo de uma vez: ações e FIIs entram na Carteira e as aplicações
+        em Renda fixa.
       </p>
       <ul className="divide-y divide-line">
         {plan.lines.map((line, i) => (
