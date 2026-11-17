@@ -17,6 +17,7 @@ import {
   signClass,
   VerdictBadge,
 } from "@/components/ui";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { Investidor10Link } from "@/components/Investidor10Link";
 import { api, type AssetRow } from "@/lib/api/client";
 import { brl, FII_KIND_LABEL, groupLabel, pct, SECTOR_LABEL } from "@/lib/format";
@@ -25,7 +26,7 @@ import { useSyncWatch } from "@/lib/useSyncWatch";
 
 const VERDICTS = ["", "comprar", "aguardar", "neutro", "evitar"];
 
-type AssetClass = "acao" | "fii";
+type AssetClass = "acao" | "fii" | "etf";
 
 type ClassView = {
   tab: string;
@@ -68,6 +69,20 @@ const VIEWS: Record<AssetClass, ClassView> = {
     ceilingHelp: "p-vp",
     empty: "Nenhum FII encontrado",
     add: "+ Adicionar FII",
+  },
+  etf: {
+    tab: "ETFs",
+    title: "Explorar ETFs",
+    subtitle:
+      "ETFs não recebem nota: o checklist mostra liquidez, tamanho, taxa e se pagam proventos. Marque com ★ os que você quer no aporte; a fatia de ETFs é dividida em partes iguais entre eles.",
+    noun: "ETF",
+    groupHeader: "Tipo",
+    groups: {},
+    allGroups: "Todos",
+    ceilingHeader: "",
+    ceilingHelp: "etf",
+    empty: "Nenhum ETF encontrado",
+    add: "+ Adicionar ETF",
   },
 };
 
@@ -119,9 +134,6 @@ export default function Explorar() {
             {VIEWS[cls].tab}
           </button>
         ))}
-        <span className="px-3 py-1.5 text-muted" title="Chega no próximo passo do roteiro">
-          ETFs (em breve)
-        </span>
         <Link href="/renda-fixa" className="px-3 py-1.5 text-muted hover:text-ink">
           Renda fixa
         </Link>
@@ -150,30 +162,43 @@ export default function Explorar() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select className={inputCls} value={sector} onChange={(e) => setSector(e.target.value)}>
-          <option value="">{view.allGroups}</option>
-          {Object.entries(view.groups).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
-        <select className={inputCls} value={verdict} onChange={(e) => setVerdict(e.target.value)}>
-          {VERDICTS.map((v) => (
-            <option key={v} value={v}>
-              {v ? v.charAt(0).toUpperCase() + v.slice(1) : "Todos os vereditos"}
-            </option>
-          ))}
-        </select>
+        {assetClass !== "etf" && (
+          <>
+            <select className={inputCls} value={sector} onChange={(e) => setSector(e.target.value)}>
+              <option value="">{view.allGroups}</option>
+              {Object.entries(view.groups).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <select className={inputCls} value={verdict} onChange={(e) => setVerdict(e.target.value)}>
+              {VERDICTS.map((v) => (
+                <option key={v} value={v}>
+                  {v ? v.charAt(0).toUpperCase() + v.slice(1) : "Todos os vereditos"}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
       </div>
 
-      <AssetsResult view={view} loading={loading} data={data} rows={rows} error={error} onRetry={reload} />
+      <AssetsResult
+        view={view}
+        isEtf={assetClass === "etf"}
+        loading={loading}
+        data={data}
+        rows={rows}
+        error={error}
+        onRetry={reload}
+      />
     </div>
   );
 }
 
 function AssetsResult({
   view,
+  isEtf,
   loading,
   data,
   rows,
@@ -181,6 +206,7 @@ function AssetsResult({
   onRetry,
 }: {
   view: ClassView;
+  isEtf: boolean;
   loading: boolean;
   data: AssetRow[] | null;
   rows: AssetRow[];
@@ -191,7 +217,59 @@ function AssetsResult({
   if (error) return <ErrorBox error={error} onRetry={onRetry} />;
   if (rows.length === 0)
     return <Empty title={view.empty}>Mude os filtros, ou rode a atualização de dados em Configurações.</Empty>;
+  if (isEtf) return <EtfTable rows={rows} onChange={onRetry} />;
   return <AssetsTable view={view} rows={rows} />;
+}
+
+/** Situação do ETF no checklist: só a liquidez reprova; o resto apenas informa. */
+function EtfStatus({ verdict }: { verdict: string | null }) {
+  if (!verdict) return <span className="text-xs text-muted">sem avaliação</span>;
+  if (verdict === "evitar")
+    return <span className="rounded-md bg-bad-soft px-2 py-0.5 text-xs font-medium text-bad">Evitar</span>;
+  return <span className="rounded-md bg-good-soft px-2 py-0.5 text-xs font-medium text-good">Apto</span>;
+}
+
+function EtfTable({ rows, onChange }: { rows: AssetRow[]; onChange: () => void }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-line bg-surface">
+      <table className="w-full min-w-[560px] text-sm">
+        <thead className="border-b border-line text-left text-xs text-muted">
+          <tr>
+            <th className="px-4 py-3 font-medium">ETF</th>
+            <th className="px-4 py-3 font-medium">Favorito</th>
+            <th className="px-4 py-3 font-medium">Situação</th>
+            <th className="px-4 py-3 text-right font-medium">Preço</th>
+            <th className="px-4 py-3 text-right font-medium">
+              <span className="inline-flex items-center gap-1">
+                DY 12m <Help slug="etf-distribui" />
+              </span>
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {rows.map((r) => (
+            <tr key={r.ticker} className="hover:bg-neutral-soft">
+              <td className="px-4 py-3">
+                <Link href={`/ativo/${r.ticker}`} className="font-semibold text-ink hover:text-accent">
+                  {r.ticker}
+                </Link>
+                <div className="text-xs text-muted">{r.name}</div>
+                <Investidor10Link ticker={r.ticker} assetClass={r.asset_class} compact />
+              </td>
+              <td className="px-4 py-3">
+                <FavoriteButton ticker={r.ticker} favorite={r.favorite} onChange={onChange} />
+              </td>
+              <td className="px-4 py-3">
+                <EtfStatus verdict={r.verdict} />
+              </td>
+              <td className="px-4 py-3 text-right tabular-nums">{brl(r.price)}</td>
+              <td className="px-4 py-3 text-right tabular-nums">{r.dividend_yield ? pct(r.dividend_yield) : "reinveste"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function AssetsTable({ view, rows }: { view: ClassView; rows: AssetRow[] }) {
@@ -263,6 +341,12 @@ const ADD_FORM: Record<AssetClass, { title: string; tickerHint: string; nameHint
     tickerHint: "RBRP11",
     nameHint: "RBR Properties",
     hint: "Ao adicionar, os informes da CVM e as cotações dele são coletados e avaliados na hora. O tipo (papel ou tijolo) vem da carteira do fundo.",
+  },
+  etf: {
+    title: "Adicionar ETF ao universo",
+    tickerHint: "HASH11",
+    nameHint: "Hashdex Nasdaq Crypto",
+    hint: "Ao adicionar, o patrimônio (cadastro da CVM) e as cotações dele são coletados na hora. A taxa de administração você informa na ficha.",
   },
 };
 

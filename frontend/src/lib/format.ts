@@ -87,9 +87,11 @@ export const FII_KIND_LABEL: Record<string, string> = {
   hibrido: "Híbrido",
 };
 
-/** Rótulo do grupo do ativo: o setor de uma ação ou o tipo de um FII. */
+const GROUP_LABELS: Record<string, Record<string, string>> = { fii: FII_KIND_LABEL, etf: { etf: "ETF" } };
+
+/** Rótulo do grupo do ativo: o setor de uma ação, o tipo de um FII ou "ETF". */
 export function groupLabel(assetClass: string, sector: string): string {
-  const labels = assetClass === "fii" ? FII_KIND_LABEL : SECTOR_LABEL;
+  const labels = GROUP_LABELS[assetClass] ?? SECTOR_LABEL;
   return labels[sector] ?? sector;
 }
 

@@ -64,6 +64,7 @@ describe("groupLabel", () => {
     ["fii", "tijolo", "Tijolo"],
     ["fii", "energia", "energia"],
     ["acao", "desconhecido", "desconhecido"],
+    ["etf", "etf", "ETF"],
   ])("%s/%s → %s", (assetClass, sector, label) => {
     expect(groupLabel(assetClass, sector)).toBe(label);
   });
