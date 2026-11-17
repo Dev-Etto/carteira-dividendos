@@ -21,7 +21,7 @@ import {
 } from "@/components/ui";
 import { Investidor10Link } from "@/components/Investidor10Link";
 import { api, type AssetRow, type Portfolio, type Transaction } from "@/lib/api/client";
-import { brl, dateBr, decimalStr, num, pct, SECTOR_LABEL, todayIso } from "@/lib/format";
+import { brl, dateBr, decimalStr, groupLabel, num, pct, todayIso } from "@/lib/format";
 import { decimalInput, scrollAndFocus } from "@/lib/inputs";
 import { useApi } from "@/lib/useApi";
 import { TickerOptions, useTickers } from "@/lib/useTickers";
@@ -135,7 +135,7 @@ function Carteira() {
                       <Link href={`/ativo/${p.ticker}`} className="font-semibold text-ink hover:text-accent">
                         {p.ticker}
                       </Link>
-                      <div className="text-xs text-muted">{SECTOR_LABEL[p.sector] ?? p.sector}</div>
+                      <div className="text-xs text-muted">{groupLabel(p.asset_class, p.sector)}</div>
                       <Investidor10Link ticker={p.ticker} assetClass={p.asset_class} compact />
                     </td>
                     <td className="py-2.5 pr-3 text-right tabular-nums">{num(p.quantity, 0)}</td>

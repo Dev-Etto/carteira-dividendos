@@ -177,19 +177,20 @@ def test_split_por_classe_sem_deficit_usa_pesos():
 
 
 def test_caixa_explica_de_onde_vem_o_dinheiro():
-    """Sem ações com veredito "comprar", a verba de ações e a de FIIs ficam em caixa, cada uma explicada."""
+    """Sem ações nem FIIs com veredito "comprar", as verbas ficam em caixa, cada uma explicada."""
     plan = build_plan(
         amount=1000,
         reserve_current=0,
         reserve_target=0,
         class_current={"renda_fixa": 0, "acoes": 0, "fiis": 0, "etfs": 0},
-        targets={"renda_fixa": 0, "acoes": 50, "fiis": 50, "etfs": 0},
+        targets={"renda_fixa": 0, "acoes": 40, "fiis": 40, "etfs": 20},
         stock_candidates=[],
     )
     [caixa] = [ln for ln in plan.lines if ln.asset_class == "caixa"]
     assert caixa.amount == 1000
-    assert "ações sem veredito 'comprar' hoje: R$ 500,00" in caixa.reason
-    assert "FIIs aguardando o motor da próxima fase: R$ 500,00" in caixa.reason
+    assert "ações sem veredito 'comprar' hoje: R$ 400,00" in caixa.reason
+    assert "FIIs sem veredito 'comprar' hoje: R$ 400,00" in caixa.reason
+    assert "ETFs aguardando o motor da próxima fase: R$ 200,00" in caixa.reason
     assert "sobra que não fecha uma cota" not in caixa.reason
 
 
@@ -204,3 +205,60 @@ def test_caixa_com_sobra_de_arredondamento():
     )
     [caixa] = [ln for ln in plan.lines if ln.asset_class == "caixa"]
     assert caixa.reason == "sobra que não fecha uma cota: R$ 10,00. Entra no próximo aporte."
+
+
+def fiis():
+    return [
+        Candidate("KNCR11", "Kinea Rendimentos", 100.0, 95, 0.07, "papel"),
+        Candidate("MXRF11", "Maxi Renda", 9.0, 92, 0.12, "papel"),
+        Candidate("HGLG11", "Pátria Log", 150.0, 90, 0.20, "tijolo"),
+    ]
+
+
+def test_aporte_compra_fiis_com_veredito_comprar():
+    plan = build_plan(
+        amount=1000,
+        reserve_current=0,
+        reserve_target=0,
+        class_current={"renda_fixa": 0, "acoes": 0, "fiis": 0, "etfs": 0},
+        targets={"renda_fixa": 0, "acoes": 0, "fiis": 100, "etfs": 0},
+        stock_candidates=[],
+        fii_candidates=fiis(),
+    )
+    compras = [ln for ln in plan.lines if ln.asset_class == "fiis"]
+    assert {ln.ticker for ln in compras} == {"KNCR11", "MXRF11", "HGLG11"}
+    assert all(ln.quantity and ln.quantity >= 1 for ln in compras)
+    assert "abaixo do preço máximo pelo P/VP" in compras[0].reason
+    assert sum(ln.amount for ln in plan.lines) == pytest.approx(1000)
+
+
+def test_aporte_limita_o_peso_de_um_tipo_de_fii():
+    """Com a carteira já cheia de papel, a verba nova vai para tijolo."""
+    plan = build_plan(
+        amount=1000,
+        reserve_current=0,
+        reserve_target=0,
+        class_current={"renda_fixa": 0, "acoes": 0, "fiis": 6000, "etfs": 0},
+        targets={"renda_fixa": 0, "acoes": 0, "fiis": 100, "etfs": 0},
+        stock_candidates=[],
+        fii_candidates=[
+            Candidate("KNCR11", "Kinea Rendimentos", 100.0, 95, 0.07, "papel", held_value=3000),
+            Candidate("MXRF11", "Maxi Renda", 9.0, 92, 0.12, "papel", held_value=3000),
+            Candidate("HGLG11", "Pátria Log", 150.0, 90, 0.20, "tijolo"),
+        ],
+    )
+    compras = {ln.ticker for ln in plan.lines if ln.asset_class == "fiis"}
+    assert compras == {"HGLG11"}
+
+
+def test_sem_fii_comprar_deixa_nota_e_caixa():
+    plan = build_plan(
+        amount=500,
+        reserve_current=0,
+        reserve_target=0,
+        class_current={"renda_fixa": 0, "acoes": 0, "fiis": 0, "etfs": 0},
+        targets={"renda_fixa": 0, "acoes": 0, "fiis": 100, "etfs": 0},
+        stock_candidates=[],
+    )
+    assert "Nenhum FII com veredito 'comprar' hoje. A parte de FIIs ficou em Tesouro Selic." in plan.notes
+    assert [ln.asset_class for ln in plan.lines] == ["caixa"]

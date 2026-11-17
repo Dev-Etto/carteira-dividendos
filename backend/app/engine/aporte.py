@@ -4,6 +4,7 @@ Nunca sugere vendas: a carteira se reequilibra pelos aportes.
 """
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from app.engine import fmt
@@ -11,10 +12,15 @@ from app.engine import fmt
 CLASS_LABEL = {"renda_fixa": "Renda fixa", "acoes": "Ações", "fiis": "FIIs", "etfs": "ETFs"}
 DEFAULT_LONG_TERM_FIXED_INCOME = "Tesouro IPCA+ (vencimento longo) ou CDB ≥ 100% do CDI"
 NEW_SECTOR_BOOST = 1.5
+MAX_FII_KIND_SHARE = 0.60
+"""Peso máximo de um tipo de FII (papel ou tijolo) na parte de FIIs: só há dois grupos relevantes."""
 
 
 @dataclass
 class Candidate:
+    """Ativo com veredito "comprar". sector: setor da ação ou tipo do FII (papel, tijolo...), o grupo
+    usado para limitar a concentração."""
+
     ticker: str
     name: str
     price: float
@@ -35,6 +41,39 @@ class PlanLine:
     reason: str
 
 
+@dataclass(frozen=True)
+class ClassPolicy:
+    """Como escolher os ativos de uma classe: limite por grupo (setor ou tipo) e os textos do plano."""
+
+    plan_class: str
+    max_group_share: float
+    margin_label: str
+    new_group_label: str
+    empty_note: str
+    unspent_label: str
+
+
+def stock_policy(max_sector_share: float) -> ClassPolicy:
+    return ClassPolicy(
+        plan_class="acoes",
+        max_group_share=max_sector_share,
+        margin_label="abaixo do preço-teto",
+        new_group_label="setor ainda ausente na carteira",
+        empty_note="Nenhuma ação com veredito 'comprar' hoje. A parte de ações ficou em Tesouro Selic.",
+        unspent_label="ações sem veredito 'comprar' hoje",
+    )
+
+
+FII_POLICY = ClassPolicy(
+    plan_class="fiis",
+    max_group_share=MAX_FII_KIND_SHARE,
+    margin_label="abaixo do preço máximo pelo P/VP",
+    new_group_label="tipo de FII ainda ausente na carteira",
+    empty_note="Nenhum FII com veredito 'comprar' hoje. A parte de FIIs ficou em Tesouro Selic.",
+    unspent_label="FIIs sem veredito 'comprar' hoje",
+)
+
+
 @dataclass
 class Plan:
     amount: float
@@ -53,19 +92,19 @@ def split_by_class(total: float, current: dict[str, float], targets: dict[str, f
     return {k: amount * d / tot for k, d in deficits.items()}
 
 
-def _pick_stocks(
+def _pick_assets(
+    policy: ClassPolicy,
     budget: float,
     candidates: list[Candidate],
     class_target_value: float,
     max_asset_share: float,
-    max_sector_share: float,
     min_assets: int,
 ) -> tuple[list[PlanLine], float]:
-    """Escolhe as ações por nota × margem, respeitando os limites por ativo e por setor.
+    """Escolhe os ativos da classe por nota × margem, respeitando os limites por ativo e por grupo.
 
-    Enquanto a carteira tem menos de `min_assets` ações, setores ainda ausentes ganham prioridade
-    (NEW_SECTOR_BOOST). Com valores pequenos, se nenhuma cota cabe nos limites, compra um ativo novo
-    por vez e a diversificação acontece ao longo dos meses."""
+    Enquanto a classe tem menos de `min_assets` ativos na carteira, grupos ainda ausentes ganham
+    prioridade (NEW_SECTOR_BOOST). Com valores pequenos, se nenhuma cota cabe nos limites, compra um
+    ativo novo por vez e a diversificação acontece ao longo dos meses."""
     lines: list[PlanLine] = []
     held = {c.ticker: c.held_value for c in candidates}
     sector_val: dict[str, float] = {}
@@ -73,7 +112,7 @@ def _pick_stocks(
         sector_val[c.sector] = sector_val.get(c.sector, 0.0) + c.held_value
     n_held = sum(1 for v in held.values() if v > 0)
     cap_asset = class_target_value * max(max_asset_share, 1 / min_assets)
-    cap_sector = class_target_value * max_sector_share
+    cap_sector = class_target_value * policy.max_group_share
     held_sectors = {s for s, v in sector_val.items() if v > 0}
 
     def priority(c: Candidate) -> float:
@@ -94,10 +133,10 @@ def _pick_stocks(
         if qty < 1:
             continue
         value = qty * c.price
-        reason = f"nota {c.score}, {fmt.pct(c.margin)} abaixo do preço-teto" + (
-            ", setor ainda ausente na carteira" if c.sector not in held_sectors else ""
+        reason = f"nota {c.score}, {fmt.pct(c.margin)} {policy.margin_label}" + (
+            f", {policy.new_group_label}" if c.sector not in held_sectors else ""
         )
-        lines.append(PlanLine("acoes", c.name, c.ticker, qty, c.price, value, reason))
+        lines.append(PlanLine(policy.plan_class, c.name, c.ticker, qty, c.price, value, reason))
         held[c.ticker] += value
         sector_val[c.sector] = sector_val.get(c.sector, 0.0) + value
         held_sectors.add(c.sector)
@@ -105,21 +144,21 @@ def _pick_stocks(
     return lines, remaining
 
 
-def _add_stocks(
+def _add_assets(
     plan: Plan,
+    policy: ClassPolicy,
     budget: float,
-    stock_candidates: list[Candidate],
+    candidates: Sequence[Candidate],
     class_target_value: float,
     max_asset_share: float,
-    max_sector_share: float,
     min_assets: int,
 ) -> float:
-    """Acrescenta as compras de ações ao plano e devolve quanto do orçamento foi usado."""
-    eligible = [c for c in stock_candidates if c.price > 0]
-    lines, rest = _pick_stocks(budget, eligible, class_target_value, max_asset_share, max_sector_share, min_assets)
+    """Acrescenta as compras da classe ao plano e devolve quanto do orçamento foi usado."""
+    eligible = [c for c in candidates if c.price > 0]
+    lines, rest = _pick_assets(policy, budget, eligible, class_target_value, max_asset_share, min_assets)
     plan.lines += lines
     if not eligible:
-        plan.notes.append("Nenhuma ação com veredito 'comprar' hoje. A parte de ações ficou em Tesouro Selic.")
+        plan.notes.append(policy.empty_note)
     return budget - rest
 
 
@@ -130,14 +169,15 @@ def build_plan(
     reserve_target: float,
     class_current: dict[str, float],
     targets: dict[str, float],
-    stock_candidates: list[Candidate],
+    stock_candidates: Sequence[Candidate],
+    fii_candidates: Sequence[Candidate] = (),
     long_term_fixed_income: str = DEFAULT_LONG_TERM_FIXED_INCOME,
     max_asset_share: float = 0.10,
     max_sector_share: float = 0.30,
     min_assets: int = 5,
 ) -> Plan:
     """Monta o plano em duas etapas: primeiro completa a reserva de emergência; o que sobrar é
-    dividido entre as classes abaixo do alvo e, dentro de ações, entre os melhores ativos."""
+    dividido entre as classes abaixo do alvo e, dentro de ações e FIIs, entre os melhores ativos."""
     plan = Plan(amount=amount)
     missing = max(0.0, reserve_target - reserve_current)
     to_reserve = min(amount, missing) if missing > 0 else 0.0
@@ -162,6 +202,7 @@ def build_plan(
     per_class = split_by_class(total, class_current, targets, left)
     after_total = total + left
     parked: list[tuple[str, float]] = []
+    by_class = {"acoes": (stock_policy(max_sector_share), stock_candidates), "fiis": (FII_POLICY, fii_candidates)}
 
     for cls, budget in sorted(per_class.items(), key=lambda kv: -kv[1]):
         if budget < 1:
@@ -180,11 +221,12 @@ def build_plan(
             )
             left -= budget
             continue
-        if cls == "acoes":
+        if cls in by_class:
+            policy, candidates = by_class[cls]
             class_target_value = after_total * targets[cls] / 100
-            used = _add_stocks(plan, budget, stock_candidates, class_target_value, max_asset_share, max_sector_share, min_assets)
+            used = _add_assets(plan, policy, budget, candidates, class_target_value, max_asset_share, min_assets)
             left -= used
-            parked += _unspent_stock_budget(used, budget)
+            parked += _unspent_budget(policy, used, budget)
             continue
         parked.append((f"{CLASS_LABEL[cls]} aguardando o motor da próxima fase", budget))
         plan.notes.append(
@@ -199,15 +241,15 @@ def build_plan(
     return plan
 
 
-def _unspent_stock_budget(used: float, budget: float) -> list[tuple[str, float]]:
-    """A verba de ações fica em caixa inteira quando nenhuma ação pôde ser comprada."""
+def _unspent_budget(policy: ClassPolicy, used: float, budget: float) -> list[tuple[str, float]]:
+    """A verba da classe fica em caixa inteira quando nenhum ativo dela pôde ser comprado."""
     if used:
         return []
-    return [("ações sem veredito 'comprar' hoje", budget)]
+    return [(policy.unspent_label, budget)]
 
 
 def _cash_reason(parked: list[tuple[str, float]], cash: float) -> str:
-    """Explica de onde vem o dinheiro que fica em caixa: classes sem motor, ações sem compra e arredondamento."""
+    """Explica de onde vem o dinheiro que fica em caixa: classes sem motor, classes sem compra e arredondamento."""
     rounding = cash - sum(value for _, value in parked)
     reasons = [f"{label}: {fmt.brl(value)}" for label, value in parked]
     if rounding > 0.01:

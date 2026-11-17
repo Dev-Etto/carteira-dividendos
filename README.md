@@ -26,7 +26,7 @@ Este projeto existe para tirar esse trabalho braçal do caminho sem tirar o ente
 ┌──────────────────┐   ┌──────────────────────────────────┐   ┌──────────────────────┐
 │ Banco Central    │   │ providers  baixam e interpretam  │   │ Início   Explorar    │
 │ Tesouro Direto   │──▶│ sync       grava no SQLite       │──▶│ Ficha    Carteira    │
-│ CVM (balanços)   │   │ engine     regras puras (Barsi)  │   │ Aporte   Renda fixa  │
+│ CVM (DFP e FIIs) │   │ engine     regras ações e FIIs   │   │ Aporte   Renda fixa  │
 │ Yahoo / brapi    │   │ services   casos de uso + API    │   │ Aprender Config.     │
 └──────────────────┘   └──────────────────────────────────┘   └──────────────────────┘
 ```
@@ -73,15 +73,15 @@ CVM_YEARS=6             # anos de balanços da CVM a baixar
 | --- | --- |
 | Onboarding | Questionário de perfil, reserva de emergência (6 a 12 meses de gastos) e divisão-alvo da carteira |
 | Início | Próximo passo recomendado, reserva, renda passiva × meta, divisão atual × alvo, oportunidades, Selic/CDI/IPCA |
-| Explorar | Ranking das ações com nota, veredito, preço-teto e margem; adicionar novas ações |
+| Explorar | Ranking de ações e de FIIs com nota, veredito, preço-teto (ou preço máximo pelo P/VP) e margem; adicionar novos ativos |
 | Ficha do ativo | Checklist de regras com explicação, preço-teto, Bazin, Graham, gráficos, riscos e fonte de cada dado |
 | Carteira | Posições, preço médio, resultado, yield on cost, alertas de concentração e histórico de operações editável |
-| Aporte do mês | Plano de compras: reserva → classes abaixo do alvo → melhores ações; registra compras e aplicações de uma vez |
+| Aporte do mês | Plano de compras: reserva → classes abaixo do alvo → melhores ações e FIIs; registra compras e aplicações de uma vez |
 | Renda fixa | Reserva de emergência, aplicações, comparador isento × tributado e taxas do Tesouro Direto |
 | Aprender | Glossário com tudo o que aparece no app e a trilha "Comece aqui" |
 | Configurações | Atualização de dados, perfil, divisão-alvo e limites das regras |
 
-FIIs e ETFs ainda não são avaliados. Até lá, a parte do aporte destinada a eles fica em Tesouro Selic, identificada no plano.
+ETFs ainda não são avaliados. Até lá, a parte do aporte destinada a eles fica em Tesouro Selic, identificada no plano.
 
 ## Como as ações são avaliadas
 
@@ -107,6 +107,19 @@ TAEE11,concessao_anos,18,2026,manual
 
 Enquanto não estiverem cadastrados, essas regras aparecem como "sem dado" e não entram na nota.
 
+## Como os FIIs são avaliados
+
+O tipo do fundo (papel, tijolo, fundo de fundos ou híbrido) vem da carteira que ele declara à CVM, não do segmento informado, que muitas vezes não ajuda. As faixas mudam com o tipo:
+
+- **Filtro de entrada (eliminatórias):** patrimônio ≥ R$ 500 mi, liquidez ≥ R$ 1 mi por dia e ao menos 4 anos de funcionamento
+- **Isenção de IR:** negociado em bolsa e com pelo menos 100 cotistas
+- **Estabilidade:** rendimentos dos últimos 12 meses ÷ 12 meses anteriores ≥ 0,9
+- **Rendimento:** papel comparado ao CDI líquido de IR (render muito acima também é alerta de crédito arriscado); tijolo comparado ao juro real do Tesouro IPCA+
+- **Preço:** P/VP como faixa de segurança, não como ranking. Papel até 1,08 e tijolo até 1,15; desconto muito grande é sinal de problema, não de pechincha
+- **Carteira:** maior crédito ≤ 6% do patrimônio (papel); maior imóvel ≤ 25% da receita, 8 ou mais imóveis e vacância ≤ 10% (tijolo); taxa de administração ≤ 1% ao ano
+
+Os dados vêm dos informes mensal e trimestral da CVM. Quando um informe é contraditório (por exemplo, imóvel 100% vago gerando receita), a regra fica "sem dado" em vez de usar um número errado.
+
 ## De onde vêm os dados
 
 | Dado | Fonte |
@@ -115,10 +128,11 @@ Enquanto não estiverem cadastrados, essas regras aparecem como "sem dado" e nã
 | Tesouro Direto | Tesouro Transparente, CSV de preços e taxas |
 | Balanços (DRE, BP, DFC, DVA) | CVM Dados Abertos, DFP anual |
 | CNPJ ↔ ticker | CVM, FCA (valores mobiliários) |
+| FIIs: patrimônio, cotistas, composição, imóveis, vacância | CVM Dados Abertos, informes mensal e trimestral de FII |
 | Preços, proventos, desdobramentos | Yahoo Finance via `yfinance` (não oficial) |
 | Cotação do dia | brapi (plano gratuito, opcional) |
 
-As ações do universo inicial ficam em `backend/app/data/universo.csv`, e outras podem ser adicionadas pela tela Explorar.
+As ações e os FIIs do universo inicial ficam em `backend/app/data/universo.csv`, e outros podem ser adicionados pela tela Explorar.
 
 ## Desenvolvimento
 

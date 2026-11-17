@@ -1134,16 +1134,32 @@
       "type": "string",
       "title": "Name"
      },
-     "sector": {
+     "asset_class": {
       "type": "string",
       "enum": [
-       "bancos",
-       "seguros",
-       "energia",
-       "saneamento",
-       "telecom",
-       "perene",
-       "ciclico"
+       "acao",
+       "fii"
+      ],
+      "title": "Asset Class",
+      "default": "acao"
+     },
+     "sector": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "bancos",
+         "seguros",
+         "energia",
+         "saneamento",
+         "telecom",
+         "perene",
+         "ciclico"
+        ]
+       },
+       {
+        "type": "null"
+       }
       ],
       "title": "Sector"
      },
@@ -1173,10 +1189,10 @@
     "type": "object",
     "required": [
      "ticker",
-     "name",
-     "sector"
+     "name"
     ],
-    "title": "AssetCreate"
+    "title": "AssetCreate",
+    "description": "Ativo novo. Ação exige o setor; num FII o tipo (papel, tijolo...) vem do informe da CVM."
    },
    "AssetDetail": {
     "properties": {
@@ -1410,6 +1426,14 @@
       },
       "type": "array",
       "title": "Scores"
+     },
+     "nav": {
+      "items": {
+       "$ref": "#/components/schemas/PricePointOut"
+      },
+      "type": "array",
+      "title": "Nav",
+      "default": []
      }
     },
     "type": "object",
@@ -1418,7 +1442,8 @@
      "dividends_by_year",
      "scores"
     ],
-    "title": "AssetHistory"
+    "title": "AssetHistory",
+    "description": "nav: valor patrimonial da cota mês a mês (só FIIs), para comparar com o preço."
    },
    "AssetRow": {
     "properties": {

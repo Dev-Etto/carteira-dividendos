@@ -8,9 +8,12 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Asset, Evaluation, RuleConfig
 from app.engine.acoes import evaluate_stock
+from app.engine.fii import evaluate_fii
 from app.engine.types import Evaluation as EvalModel
-from app.services.snapshot import build_stock_snapshot
+from app.services.snapshot import build_fii_snapshot, build_stock_snapshot
 from app.services.upsert import upsert
+
+EVALUATED_CLASSES = ("acao", "fii")
 
 
 def rule_overrides(db: Session) -> dict[str, float]:
@@ -18,8 +21,10 @@ def rule_overrides(db: Session) -> dict[str, float]:
 
 
 def evaluate_asset(db: Session, asset: Asset, overrides: dict[str, float] | None = None) -> EvalModel:
-    snap = build_stock_snapshot(db, asset)
-    return evaluate_stock(snap, overrides if overrides is not None else rule_overrides(db))
+    rules = overrides if overrides is not None else rule_overrides(db)
+    if asset.asset_class == "fii":
+        return evaluate_fii(build_fii_snapshot(db, asset), rules)
+    return evaluate_stock(build_stock_snapshot(db, asset), rules)
 
 
 def save_evaluation(db: Session, asset: Asset, ev: EvalModel, day: date | None = None) -> None:
@@ -59,7 +64,7 @@ def save_evaluation(db: Session, asset: Asset, ev: EvalModel, day: date | None =
 def evaluate_all(db: Session) -> int:
     overrides = rule_overrides(db)
     n = 0
-    for asset in db.scalars(select(Asset).where(Asset.active, Asset.asset_class == "acao")):
+    for asset in db.scalars(select(Asset).where(Asset.active, Asset.asset_class.in_(EVALUATED_CLASSES))):
         save_evaluation(db, asset, evaluate_asset(db, asset, overrides))
         n += 1
     db.commit()

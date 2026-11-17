@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AllocationBars } from "@/components/AllocationBars";
 import { Card, ErrorBox, Loading, PageHeader, ProgressBar, ScorePill, Stat, VerdictBadge } from "@/components/ui";
 import type { Dashboard } from "@/lib/api/client";
-import { brl, dateBr, pct, PROFILE_LABEL, SECTOR_LABEL } from "@/lib/format";
+import { brl, dateBr, groupLabel, pct, PROFILE_LABEL } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
 export default function Inicio() {
@@ -103,7 +103,8 @@ export default function Inicio() {
                         {a.ticker} <span className="font-normal text-muted">· {a.name}</span>
                       </div>
                       <div className="text-xs text-muted">
-                        {SECTOR_LABEL[a.sector]} · DY {pct(a.dividend_yield)} · {pct(a.margin_pct)} abaixo do teto
+                        {groupLabel(a.asset_class, a.sector)} · DY {pct(a.dividend_yield)} · {pct(a.margin_pct)} abaixo do{" "}
+                        {a.asset_class === "fii" ? "preço máximo" : "teto"}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">

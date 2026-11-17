@@ -1,4 +1,4 @@
-"""Orquestra a coleta. Ordem: universo → macro → Tesouro → CVM → cotações/histórico → avaliações.
+"""Orquestra a coleta. Ordem: universo → macro → Tesouro → CVM (ações) → CVM (FIIs) → cotações/histórico → avaliações.
 
 Cada etapa é registrada em sync_runs. Uma etapa que falha não impede as outras.
 Só roda um sync por vez: `_lock` garante isso e também responde à tela de Configurações se há um rodando.
@@ -20,6 +20,8 @@ from app.core.errors import BusinessRuleError
 from app.db.models import (
     Asset,
     Dividend,
+    FiiQuarterlyReport,
+    FiiReport,
     Fundamental,
     MacroRate,
     PriceDaily,
@@ -29,7 +31,8 @@ from app.db.models import (
     TreasuryBond,
 )
 from app.db.session import SessionLocal
-from app.providers import bcb, cvm, market, tesouro
+from app.engine import fii
+from app.providers import bcb, cvm, cvm_fii, market, tesouro
 from app.providers.base import DOWNLOAD_ERRORS, DividendEvent, PricePoint, Quote, SplitInfo
 from app.schemas.api import SyncRunOut, SyncStatus
 from app.services.evaluation import evaluate_all
@@ -54,7 +57,25 @@ FUNDAMENTAL_FIELDS = (
 INCREMENTAL_OVERLAP_DAYS = 10
 MarketHistory = tuple[list[PricePoint], list[DividendEvent], list[SplitInfo], float | None]
 
-STEPS = ("universo", "macro", "tesouro", "cvm", "mercado", "avaliacoes")
+FII_REPORT_FIELDS = (
+    "equity",
+    "shares",
+    "nav_per_share",
+    "holders",
+    "admin_fee",
+    "paper",
+    "brick",
+    "fof",
+    "cash",
+    "started_on",
+    "listed",
+)
+FII_QUARTERLY_FIELDS = ("properties", "vacancy", "largest_property_share", "largest_credit_value")
+ASSET_FIELDS = ["name", "asset_class", "sector", "segment", "economic_group"]
+FII_SEED_FIELDS = ["name", "asset_class", "economic_group"]
+"""Num FII, tipo (sector) e segmento vêm do informe da CVM; o universo.csv só dá o palpite inicial."""
+
+STEPS = ("universo", "macro", "tesouro", "cvm", "fiis", "mercado", "avaliacoes")
 
 _lock = threading.Lock()
 _current_step: str | None = None
@@ -122,7 +143,10 @@ def seed_universe(db: Session) -> int:
             for r in csv.DictReader(f)
             if r.get("ticker")
         ]
-    n += upsert(db, Asset, rows, keys=["ticker"], update=["name", "asset_class", "sector", "segment", "economic_group"])
+    stocks = [r for r in rows if r["asset_class"] != "fii"]
+    funds = [r for r in rows if r["asset_class"] == "fii"]
+    n += upsert(db, Asset, stocks, keys=["ticker"], update=ASSET_FIELDS)
+    n += upsert(db, Asset, funds, keys=["ticker"], update=FII_SEED_FIELDS)
     db.commit()
     return n
 
@@ -211,6 +235,68 @@ async def sync_cvm(db: Session) -> int:
     return total
 
 
+async def _fii_monthly(year: int, tickers: set[str]) -> dict[str, list[cvm_fii.FiiMonthly]]:
+    try:
+        return await cvm_fii.fetch_monthly(year, tickers)
+    except DOWNLOAD_ERRORS:
+        log.warning("informe mensal de FII %s indisponível", year)
+        return {}
+
+
+async def _fii_quarterly(year: int, cnpjs: set[str]) -> dict[str, cvm_fii.FiiQuarterly]:
+    try:
+        return await cvm_fii.fetch_quarterly(year, cnpjs)
+    except DOWNLOAD_ERRORS:
+        log.warning("informe trimestral de FII %s indisponível", year)
+        return {}
+
+
+def _apply_fii_report(asset: Asset, history: list[cvm_fii.FiiMonthly]) -> list[dict[str, object]]:
+    """Atualiza CNPJ, tipo e segmento pelo informe mais recente e devolve as linhas de fii_reports."""
+    latest = max(history, key=lambda r: r.ref_date)
+    asset.cnpj = latest.cnpj
+    asset.sector = fii.classify(latest.paper, latest.brick, latest.fof)
+    asset.segment = latest.segment
+    return [
+        {"asset_id": asset.id, "ref_date": r.ref_date} | {k: getattr(r, k) for k in FII_REPORT_FIELDS}
+        for r in history
+        if r.cnpj == latest.cnpj
+    ]
+
+
+async def _sync_fii_quarterly(db: Session, assets: list[Asset], today: date) -> int:
+    """Informe trimestral do ano corrente; quem ainda não tem, tenta o do ano anterior (começo de ano)."""
+    by_cnpj = {a.cnpj: a for a in assets if a.cnpj}
+    found: dict[str, cvm_fii.FiiQuarterly] = {}
+    for year in (today.year, today.year - 1):
+        missing = set(by_cnpj) - set(found)
+        if missing:
+            found |= await _fii_quarterly(year, missing)
+    rows = [
+        {"asset_id": by_cnpj[cnpj].id, "ref_date": q.ref_date} | {k: getattr(q, k) for k in FII_QUARTERLY_FIELDS}
+        for cnpj, q in found.items()
+    ]
+    n = upsert(db, FiiQuarterlyReport, rows, keys=["asset_id", "ref_date"], update=list(FII_QUARTERLY_FIELDS))
+    db.commit()
+    return n
+
+
+async def sync_fii(db: Session) -> int:
+    """Informes mensais dos FIIs do universo (ano anterior e corrente) e o trimestral mais recente."""
+    today = date.today()
+    assets = {a.ticker: a for a in db.scalars(select(Asset).where(Asset.asset_class == "fii"))}
+    if not assets:
+        return 0
+    history: dict[str, list[cvm_fii.FiiMonthly]] = {}
+    for year in (today.year - 1, today.year):
+        for ticker, reports in (await _fii_monthly(year, set(assets))).items():
+            history.setdefault(ticker, []).extend(reports)
+    rows = [row for ticker, reports in history.items() for row in _apply_fii_report(assets[ticker], reports)]
+    n = upsert(db, FiiReport, rows, keys=["asset_id", "ref_date"], update=list(FII_REPORT_FIELDS))
+    db.commit()
+    return n + await _sync_fii_quarterly(db, list(assets.values()), today)
+
+
 async def _history(db: Session, asset: Asset) -> MarketHistory:
     """Histórico incremental (últimos dias). O Yahoo reajusta todo o histórico depois de um desdobramento;
     quando aparece um no trecho novo, apaga o que havia e baixa tudo de novo."""
@@ -292,6 +378,7 @@ async def _run_steps(db: Session, only: set[str] | None, tickers: set[str] | Non
         "macro": lambda: sync_macro(db),
         "tesouro": lambda: sync_treasury(db),
         "cvm": lambda: sync_cvm(db),
+        "fiis": lambda: sync_fii(db),
         "mercado": lambda: sync_market(db, tickers),
         "avaliacoes": lambda: _sync_wrap(evaluate_all(db)),
     }

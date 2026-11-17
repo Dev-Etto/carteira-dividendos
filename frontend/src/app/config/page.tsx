@@ -9,10 +9,11 @@ import { CLASS_LABEL, num, parseNumber, PROFILE_LABEL } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
 const STEP_LABEL: Record<string, string> = {
-  universo: "Lista de ações",
+  universo: "Lista de ativos",
   macro: "Selic, CDI e IPCA (Banco Central)",
   tesouro: "Tesouro Direto",
   cvm: "Balanços (CVM)",
+  fiis: "Informes de FIIs (CVM)",
   mercado: "Preços e proventos",
   avaliacoes: "Avaliações",
 };
@@ -31,10 +32,59 @@ const RULE_LABEL: Record<string, string> = {
   liquidez_min: "Liquidez diária mínima (R$)",
   nota_comprar: "Nota mínima para comprar",
   nota_evitar: "Nota abaixo da qual evitar",
+  fii_pl_min: "Patrimônio mínimo (R$)",
+  fii_liquidez_min: "Liquidez diária mínima (R$)",
+  fii_anos_min: "Anos de funcionamento (mínimo)",
+  fii_pvp_papel_min: "Papel: P/VP mínimo ideal",
+  fii_pvp_papel_max: "Papel: P/VP máximo",
+  fii_pvp_papel_atencao: "Papel: P/VP de atenção",
+  fii_pvp_tijolo_min: "Tijolo: P/VP mínimo ideal",
+  fii_pvp_tijolo_max: "Tijolo: P/VP máximo",
+  fii_pvp_tijolo_atencao: "Tijolo: P/VP de atenção",
+  fii_estabilidade_ok: "Rendimentos 12m ÷ anteriores, ideal (%)",
+  fii_estabilidade_min: "Rendimentos 12m ÷ anteriores, mínimo (%)",
+  fii_spread_papel_tolerancia: "Papel: tolerância abaixo do CDI líquido (p.p.)",
+  fii_spread_papel_estresse: "Papel: spread que indica estresse (p.p.)",
+  fii_spread_tijolo_ok: "Tijolo: spread ideal sobre a NTN-B (p.p.)",
+  fii_credito_ok: "Papel: maior crédito, ideal (% do PL)",
+  fii_credito_max: "Papel: maior crédito, máximo (% do PL)",
+  fii_imovel_ok: "Tijolo: maior imóvel, ideal (% da receita)",
+  fii_imovel_max: "Tijolo: maior imóvel, máximo (% da receita)",
+  fii_imoveis_ok: "Tijolo: número de imóveis (ideal)",
+  fii_imoveis_min: "Tijolo: número de imóveis (mínimo)",
+  fii_vacancia_ok: "Tijolo: vacância ideal (%)",
+  fii_vacancia_max: "Tijolo: vacância máxima (%)",
+  fii_taxa_adm_ok: "Taxa de administração ideal (% a.a.)",
+  fii_taxa_adm_max: "Taxa de administração máxima (% a.a.)",
 };
 
+const FII_PREFIX = "fii_";
+const RULE_SECTIONS = [
+  { title: "Ações", matches: (key: string) => !key.startsWith(FII_PREFIX) },
+  { title: "FIIs", matches: (key: string) => key.startsWith(FII_PREFIX) },
+];
+
 /** Limites guardados como fração (0,06) que a tela mostra e recebe em porcentagem (6). */
-const PERCENT_RULES = new Set(["yield_alvo", "yield_alvo_exigente", "margem_ok", "roe_ok", "roe_min"]);
+const PERCENT_RULES = new Set([
+  "yield_alvo",
+  "yield_alvo_exigente",
+  "margem_ok",
+  "roe_ok",
+  "roe_min",
+  "fii_estabilidade_ok",
+  "fii_estabilidade_min",
+  "fii_spread_papel_tolerancia",
+  "fii_spread_papel_estresse",
+  "fii_spread_tijolo_ok",
+  "fii_credito_ok",
+  "fii_credito_max",
+  "fii_imovel_ok",
+  "fii_imovel_max",
+  "fii_vacancia_ok",
+  "fii_vacancia_max",
+  "fii_taxa_adm_ok",
+  "fii_taxa_adm_max",
+]);
 
 /** Valor da regra como o usuário vê: em % para as frações, com vírgula decimal e sem separador de milhar. */
 function ruleText(key: string, value: number): string {
@@ -212,7 +262,7 @@ function RulesCard() {
       await api.put("/api/regras", body);
       setEdits({});
       void reload();
-      setMsg("Regras salvas e ações reavaliadas.");
+      setMsg("Regras salvas e ativos reavaliados.");
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
@@ -232,22 +282,32 @@ function RulesCard() {
   return (
     <Card title="Limites das regras" help="veredito">
       <p className="mb-4 text-sm text-muted">
-        Os padrões seguem o método Barsi. Mude com cuidado: regras mais frouxas aprovam mais ações, mas com mais risco.
+        Os padrões seguem o método Barsi nas ações e um filtro de segurança nos FIIs. Mude com cuidado: regras mais frouxas
+        aprovam mais ativos, mas com mais risco.
       </p>
-      <div className="grid gap-3 sm:grid-cols-3">
-        {shown.map((r) => (
-          <Field
-            key={r.key}
-            label={RULE_LABEL[r.key] ?? r.key}
-            hint={r.value !== r.default ? `padrão: ${ruleText(r.key, r.default)}` : undefined}
-          >
-            <input
-              className={inputCls}
-              inputMode="decimal"
-              value={edits[r.key] ?? ruleText(r.key, r.value)}
-              onChange={(e) => setEdits((s) => ({ ...s, [r.key]: e.target.value }))}
-            />
-          </Field>
+      <div className="space-y-5">
+        {RULE_SECTIONS.map((section) => (
+          <section key={section.title}>
+            <h3 className="mb-2 text-sm font-semibold text-ink">{section.title}</h3>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {shown
+                .filter((r) => section.matches(r.key))
+                .map((r) => (
+                  <Field
+                    key={r.key}
+                    label={RULE_LABEL[r.key] ?? r.key}
+                    hint={r.value !== r.default ? `padrão: ${ruleText(r.key, r.default)}` : undefined}
+                  >
+                    <input
+                      className={inputCls}
+                      inputMode="decimal"
+                      value={edits[r.key] ?? ruleText(r.key, r.value)}
+                      onChange={(e) => setEdits((s) => ({ ...s, [r.key]: e.target.value }))}
+                    />
+                  </Field>
+                ))}
+            </div>
+          </section>
         ))}
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3">

@@ -3,12 +3,29 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import MacroRate
+from app.db.models import MacroRate, TreasuryBond
 from app.schemas.api import MacroOut
 
 
 def _latest(db: Session, series: str) -> MacroRate | None:
     return db.scalar(select(MacroRate).where(MacroRate.series == series).order_by(MacroRate.date.desc()).limit(1))
+
+
+def latest_rate(db: Session, series: str) -> float | None:
+    row = _latest(db, series)
+    return row.value if row else None
+
+
+def ntnb_real_rate(db: Session) -> float | None:
+    """Juro real do Tesouro IPCA+ de vencimento mais longo na data mais recente: a referência de
+    retorno sem risco acima da inflação, com a qual se compara o rendimento de um FII de tijolo."""
+    day = db.scalar(select(TreasuryBond.date).order_by(TreasuryBond.date.desc()).limit(1))
+    return db.scalar(
+        select(TreasuryBond.buy_rate)
+        .where(TreasuryBond.date == day, TreasuryBond.name.like("%IPCA+%"), TreasuryBond.buy_rate.is_not(None))
+        .order_by(TreasuryBond.maturity.desc())
+        .limit(1)
+    )
 
 
 def latest_macro(db: Session) -> MacroOut:

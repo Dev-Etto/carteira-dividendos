@@ -270,3 +270,35 @@ def test_sync_status_e_etapa_invalida(client):
     r = client.post("/api/sync", params={"etapas": "macro,banana"})
     assert r.status_code == 422
     assert "banana" in r.json()["detail"]
+
+
+def test_lista_os_fiis_do_universo(client):
+    fiis = client.get("/api/ativos", params={"classe": "fii"}).json()
+    tickers = {f["ticker"] for f in fiis}
+    assert {"KNCR11", "HGLG11"} <= tickers
+    assert {f["asset_class"] for f in fiis} == {"fii"}
+
+
+def test_ficha_de_fii_sem_dados_mostra_fontes_da_cvm(client):
+    ficha = client.get("/api/ativos/HGLG11").json()
+    assert ficha["asset_class"] == "fii"
+    assert ficha["verdict"] == "neutro"
+    assert {"Informe mensal", "Informe trimestral"} <= set(ficha["data_sources"])
+    assert "Balanços" not in ficha["data_sources"]
+    assert any("vacância" in r for r in ficha["risks"])
+    assert client.get("/api/ativos/HGLG11/historico").json()["nav"] == []
+
+
+def test_novo_fii_dispara_etapa_de_fiis(client, monkeypatch):
+    chamadas = []
+    monkeypatch.setattr("app.services.assets.start_background_sync", lambda only, tickers: chamadas.append((only, tickers)))
+    r = client.post("/api/ativos", json={"ticker": "rbrp11", "name": "RBR Properties", "asset_class": "fii"})
+    assert r.status_code == 201, r.text
+    assert r.json()["sector"] == "hibrido"
+    assert chamadas == [({"fiis", "mercado", "avaliacoes"}, {"RBRP11"})]
+
+
+def test_acao_nova_exige_setor(client):
+    r = client.post("/api/ativos", json={"ticker": "wege3", "name": "WEG"})
+    assert r.status_code == 422
+    assert "setor" in r.text

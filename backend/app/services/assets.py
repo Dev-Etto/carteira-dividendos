@@ -2,16 +2,17 @@
 
 from collections import defaultdict
 from datetime import date, timedelta
+from itertools import chain, zip_longest
 from statistics import mean
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import ConflictError, NotFoundError
-from app.db.models import Asset, Dividend, Evaluation, Fundamental, PriceDaily
+from app.db.models import Asset, Dividend, Evaluation, FiiQuarterlyReport, FiiReport, Fundamental, PriceDaily
 from app.engine.types import RuleResult
 from app.schemas.api import AssetCreate, AssetDetail, AssetHistory, AssetRow, DividendYearOut, PricePointOut, ScorePointOut
-from app.services.evaluation import evaluate_asset, latest_evaluation, latest_evaluations, save_evaluation
+from app.services.evaluation import EVALUATED_CLASSES, evaluate_asset, latest_evaluation, latest_evaluations, save_evaluation
 from app.services.sync import start_background_sync
 
 SECTOR_RISKS = {
@@ -23,12 +24,20 @@ SECTOR_RISKS = {
     "ciclico": "Setor cíclico: lucro e dividendos podem cair muito quando a economia ou o preço das commodities cai.",
     "perene": "Mesmo setores estáveis enfrentam concorrência e mudanças de hábito dos consumidores.",
 }
+FII_KIND_RISKS = {
+    "papel": "FIIs de papel dependem de os devedores pagarem os CRIs em dia; o rendimento também cai quando o CDI ou o IPCA caem.",
+    "tijolo": "FIIs de tijolo sofrem com vacância e inquilinos inadimplentes; com juros altos, as cotas tendem a cair.",
+    "fof": "Fundos de fundos somam a taxa deles à dos fundos que compram, e o resultado depende das vendas de cotas.",
+    "hibrido": "Fundos híbridos misturam os riscos de crédito (CRIs) e de imóveis (vacância e inadimplência).",
+}
 VERDICT_ORDER = {"comprar": 0, "aguardar": 1, "neutro": 2, "evitar": 3}
 VOLUME_WINDOW_DAYS = 63
 VOLUME_MIN_DAYS = 20
 MAX_WARN_RISKS = 3
 CHART_EVERY_N_DAYS = 5
-NEW_ASSET_SYNC_STEPS = {"cvm", "mercado", "avaliacoes"}
+NEW_ASSET_SYNC_STEPS = {"acao": {"cvm", "mercado", "avaliacoes"}, "fii": {"fiis", "mercado", "avaliacoes"}}
+NEW_FII_KIND = "hibrido"
+"""Tipo provisório de um FII recém-cadastrado, até o informe da CVM dizer se é papel ou tijolo."""
 
 
 def get_asset(db: Session, ticker: str) -> Asset:
@@ -98,11 +107,14 @@ def list_assets(
 
 
 def buy_opportunities(db: Session, limit: int) -> list[AssetRow]:
-    """Ações com veredito "comprar", da maior nota para a menor."""
-    assets = {a.id: a for a in db.scalars(select(Asset).where(Asset.active, Asset.asset_class == "acao"))}
+    """Ações e FIIs com veredito "comprar", intercalando as classes (a melhor ação, o melhor FII, a
+    segunda ação...) para uma não esconder a outra; dentro de cada classe, da maior nota para a menor."""
+    assets = {a.id: a for a in db.scalars(select(Asset).where(Asset.active, Asset.asset_class.in_(EVALUATED_CLASSES)))}
     evaluations = latest_evaluations(db, assets)
     buys = sorted((ev for ev in evaluations.values() if ev.verdict == "comprar"), key=lambda ev: -ev.score)
-    return [asset_row(assets[ev.asset_id], ev) for ev in buys[:limit]]
+    by_class = [[ev for ev in buys if assets[ev.asset_id].asset_class == cls] for cls in EVALUATED_CLASSES]
+    interleaved = [ev for ev in chain.from_iterable(zip_longest(*by_class)) if ev is not None]
+    return [asset_row(assets[ev.asset_id], ev) for ev in interleaved[:limit]]
 
 
 def _current_evaluation(db: Session, asset: Asset) -> Evaluation:
@@ -118,7 +130,8 @@ def _current_evaluation(db: Session, asset: Asset) -> Evaluation:
 def _risks(asset: Asset, rules: list[RuleResult]) -> list[str]:
     failed = [f"{r.label}: {r.explanation}" for r in rules if r.status == "fail"]
     warned = [f"{r.label}: {r.explanation}" for r in rules if r.status == "warn"][:MAX_WARN_RISKS]
-    sector = [SECTOR_RISKS[asset.sector]] if asset.sector in SECTOR_RISKS else []
+    risks = FII_KIND_RISKS if asset.asset_class == "fii" else SECTOR_RISKS
+    sector = [risks[asset.sector]] if asset.sector in risks else []
     return failed + warned + sector
 
 
@@ -129,13 +142,27 @@ def _balance_source(fund: Fundamental | None) -> str | None:
     return f"CVM, DFP {fund.year}{published}"
 
 
-def _data_sources(db: Session, asset: Asset, ev: Evaluation) -> dict[str, str | None]:
+def _fii_sources(db: Session, asset: Asset) -> dict[str, str | None]:
+    monthly = db.scalar(select(func.max(FiiReport.ref_date)).where(FiiReport.asset_id == asset.id))
+    quarterly = db.scalar(select(func.max(FiiQuarterlyReport.ref_date)).where(FiiQuarterlyReport.asset_id == asset.id))
+    return {
+        "Informe mensal": f"CVM, referência {monthly:%m/%Y}" if monthly else None,
+        "Informe trimestral": f"CVM, trimestre encerrado em {quarterly:%d/%m/%Y}" if quarterly else None,
+    }
+
+
+def _stock_sources(db: Session, asset: Asset) -> dict[str, str | None]:
     last_fund = db.scalar(select(Fundamental).where(Fundamental.asset_id == asset.id).order_by(Fundamental.year.desc()).limit(1))
+    return {"Balanços": _balance_source(last_fund)}
+
+
+def _data_sources(db: Session, asset: Asset, ev: Evaluation) -> dict[str, str | None]:
     last_div = db.scalar(select(func.max(Dividend.ex_date)).where(Dividend.asset_id == asset.id))
     quote = f"{asset.price_source or '—'} em {asset.last_price_at:%d/%m/%Y %H:%M}" if asset.last_price_at else None
+    reports = _fii_sources(db, asset) if asset.asset_class == "fii" else _stock_sources(db, asset)
     return {
         "Cotação": quote,
-        "Balanços": _balance_source(last_fund),
+        **reports,
         "Proventos": f"Yahoo Finance, último em {last_div:%d/%m/%Y}" if last_div else None,
         "Avaliação": f"motor {ev.engine_version} em {ev.date:%d/%m/%Y}",
     }
@@ -183,8 +210,18 @@ def _dividends_by_year(db: Session, asset_id: int, since: date) -> list[Dividend
     ]
 
 
+def _nav_history(db: Session, asset_id: int, start: date) -> list[PricePointOut]:
+    reports = db.execute(
+        select(FiiReport.ref_date, FiiReport.nav_per_share)
+        .where(FiiReport.asset_id == asset_id, FiiReport.ref_date >= start, FiiReport.nav_per_share.is_not(None))
+        .order_by(FiiReport.ref_date)
+    ).all()
+    return [PricePointOut(date=r.ref_date, close=r.nav_per_share) for r in reports]
+
+
 def asset_history(db: Session, ticker: str, years: int) -> AssetHistory:
-    """Preços dos últimos `years` anos; proventos desde cinco anos antes disso, para comparar ciclos."""
+    """Preços dos últimos `years` anos; proventos desde cinco anos antes disso, para comparar ciclos.
+    Em FIIs, também o valor patrimonial da cota mês a mês."""
     asset = get_asset(db, ticker)
     start = date.today() - timedelta(days=365 * years)
     scores = db.scalars(select(Evaluation).where(Evaluation.asset_id == asset.id).order_by(Evaluation.date))
@@ -192,25 +229,26 @@ def asset_history(db: Session, ticker: str, years: int) -> AssetHistory:
         prices=_weekly_prices(db, asset.id, start),
         dividends_by_year=_dividends_by_year(db, asset.id, date(start.year - 5, 1, 1)),
         scores=[ScorePointOut(date=e.date, score=e.score, verdict=e.verdict) for e in scores],
+        nav=_nav_history(db, asset.id, start),
     )
 
 
 def create_asset(db: Session, body: AssetCreate) -> AssetRow:
-    """Cadastra a ação e já dispara, em segundo plano, a coleta de balanços, preços e a avaliação dela.
-    Se outra atualização estiver rodando, os dados chegam na próxima."""
+    """Cadastra a ação ou o FII e já dispara, em segundo plano, a coleta dos dados dele (balanços ou
+    informes da CVM, preços) e a avaliação. Se outra atualização estiver rodando, os dados chegam na próxima."""
     ticker = body.ticker.strip().upper()
     if db.scalar(select(Asset).where(Asset.ticker == ticker)):
         raise ConflictError("Ativo já cadastrado")
     asset = Asset(
         ticker=ticker,
         name=body.name,
-        asset_class="acao",
-        sector=body.sector,
+        asset_class=body.asset_class,
+        sector=body.sector or NEW_FII_KIND,
         segment=body.segment,
         economic_group=body.economic_group,
         active=True,
     )
     db.add(asset)
     db.commit()
-    start_background_sync(NEW_ASSET_SYNC_STEPS, {ticker})
+    start_background_sync(NEW_ASSET_SYNC_STEPS[body.asset_class], {ticker})
     return asset_row(asset, None)

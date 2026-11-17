@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { brl, dateBr, decimalStr, num, parseNumber, pct } from "./format";
+import { brl, dateBr, decimalStr, groupLabel, num, parseNumber, pct } from "./format";
 
 const NBSP_INTL = "\u00a0";
 
@@ -54,5 +54,17 @@ describe("formatação", () => {
     expect(dateBr("2026-11-17")).toBe("17/11/2026");
     expect(dateBr("2026-11-17T19:07:00")).toBe("17/11/2026");
     expect(dateBr(null)).toBe("—");
+  });
+});
+
+describe("groupLabel", () => {
+  it.each([
+    ["acao", "energia", "Energia"],
+    ["fii", "papel", "Papel"],
+    ["fii", "tijolo", "Tijolo"],
+    ["fii", "energia", "energia"],
+    ["acao", "desconhecido", "desconhecido"],
+  ])("%s/%s → %s", (assetClass, sector, label) => {
+    expect(groupLabel(assetClass, sector)).toBe(label);
   });
 });
