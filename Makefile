@@ -1,4 +1,4 @@
-.PHONY: setup dev api web sync test lint format types types-check check
+.PHONY: setup dev api web sync test lint format types types-check check up down logs
 
 setup: ## instala dependências e cria os arquivos .env
 	cd backend && uv sync
@@ -45,3 +45,13 @@ types-check: types ## falha se openapi.json ou schema.d.ts estavam desatualizado
 	git diff --exit-code -- openapi.json frontend/src/lib/api/schema.d.ts
 
 check: lint test ## tudo o que a CI roda
+
+up: ## sobe API (8000) e telas (3000) no Docker; na primeira vez baixa os dados sozinho
+	docker compose up -d --build --wait
+	@echo "Pronto: http://localhost:3000 (telas) e http://localhost:8000/docs (API)"
+
+down: ## para os containers (os dados ficam no volume)
+	docker compose down
+
+logs: ## acompanha os logs da API e do front
+	docker compose logs -f
