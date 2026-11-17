@@ -9,14 +9,51 @@ import pytest
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.models import Asset, Base, Dividend, Fundamental, MacroRate, PriceDaily, SyncRun, TreasuryBond
+from app.db.models import (
+    Asset,
+    Base,
+    Dividend,
+    Evaluation,
+    FiiQuarterlyReport,
+    FiiReport,
+    Fundamental,
+    MacroRate,
+    PriceDaily,
+    SyncRun,
+    TreasuryBond,
+)
 from app.providers.base import DividendEvent, PricePoint, SplitInfo
 from app.providers.cvm import AnnualStatement
+from app.providers.cvm_fii import FiiMonthly, FiiQuarterly
 from app.providers.tesouro import BondQuote
 from app.services import sync
 
 TODAY = date.today()
 TAEE_CNPJ = "07859971000130"
+KNCR_CNPJ = "16706958000132"
+HGLG_CNPJ = "11728688000147"
+
+
+def informe(cnpj: str, ticker: str, month: int, **kw) -> FiiMonthly:
+    base = {
+        "cnpj": cnpj,
+        "ref_date": date(TODAY.year, month, 1),
+        "ticker": ticker,
+        "name": ticker,
+        "started_on": date(2012, 1, 1),
+        "listed": True,
+        "segment": "Multicategoria",
+        "holders": 500_000,
+        "equity": 10e9,
+        "shares": 1e8,
+        "nav_per_share": 100.0,
+        "admin_fee": 0.0008,
+        "paper": 0.8,
+        "brick": 0.0,
+        "fof": 0.1,
+        "cash": 0.1,
+    }
+    return FiiMonthly(**(base | kw))
 
 
 @pytest.fixture
@@ -72,12 +109,32 @@ def yahoo(monkeypatch) -> FakeYahoo:
     async def brapi_quote(ticker: str) -> None:
         return None
 
+    async def fetch_monthly(year: int, tickers: set[str]) -> dict[str, list[FiiMonthly]]:
+        if year != TODAY.year:
+            return {}
+        reports = {
+            "KNCR11": [informe(KNCR_CNPJ, "KNCR11", 1), informe(KNCR_CNPJ, "KNCR11", 2, nav_per_share=101.0)],
+            "HGLG11": [informe(HGLG_CNPJ, "HGLG11", 1, paper=0.0, brick=0.95, fof=0.0, cash=0.05, segment="Logística")],
+        }
+        return {t: r for t, r in reports.items() if t in tickers}
+
+    async def fetch_quarterly(year: int, cnpjs: set[str]) -> dict[str, FiiQuarterly]:
+        if year == TODAY.year:
+            raise httpx.HTTPStatusError("404", request=httpx.Request("GET", "https://cvm"), response=httpx.Response(404))
+        reports = {
+            KNCR_CNPJ: FiiQuarterly(KNCR_CNPJ, date(year, 12, 31), None, None, None, 400e6),
+            HGLG_CNPJ: FiiQuarterly(HGLG_CNPJ, date(year, 12, 31), 30, 0.05, 0.08, None),
+        }
+        return {c: q for c, q in reports.items() if c in cnpjs}
+
     monkeypatch.setattr(sync.bcb, "fetch_series", fetch_series)
     monkeypatch.setattr(sync.tesouro, "fetch_bonds", fetch_bonds)
     monkeypatch.setattr(sync.cvm, "fetch_ticker_map", fetch_ticker_map)
     monkeypatch.setattr(sync.cvm, "fetch_dfp", fetch_dfp)
     monkeypatch.setattr(sync.market, "yahoo_history", fake)
     monkeypatch.setattr(sync.market, "brapi_quote", brapi_quote)
+    monkeypatch.setattr(sync.cvm_fii, "fetch_monthly", fetch_monthly)
+    monkeypatch.setattr(sync.cvm_fii, "fetch_quarterly", fetch_quarterly)
     return fake
 
 
@@ -196,3 +253,55 @@ def test_carga_inicial_so_quando_nunca_houve_sync(db):
     db.add(SyncRun(source="macro", started_at=datetime.now(), status="error"))
     db.commit()
     assert not sync.needs_initial_sync(db)
+
+
+def _asset(db: Session, ticker: str) -> Asset:
+    asset = db.scalar(select(Asset).where(Asset.ticker == ticker))
+    assert asset is not None
+    return asset
+
+
+def test_seed_nao_sobrescreve_o_tipo_do_fii(db):
+    kncr = _asset(db, "KNCR11")
+    assert (kncr.asset_class, kncr.sector) == ("fii", "papel")
+    kncr.sector, kncr.segment = "hibrido", "Multicategoria"
+    db.commit()
+    sync.seed_universe(db)
+    assert (_asset(db, "KNCR11").sector, _asset(db, "KNCR11").segment) == ("hibrido", "Multicategoria")
+
+
+async def test_sync_fii_grava_informes_e_classifica_pela_carteira(db, yahoo):
+    await sync.sync_fii(db)
+    kncr, hglg = _asset(db, "KNCR11"), _asset(db, "HGLG11")
+    assert (kncr.cnpj, kncr.sector) == (KNCR_CNPJ, "papel")
+    assert (hglg.cnpj, hglg.sector, hglg.segment) == (HGLG_CNPJ, "tijolo", "Logística")
+    navs = db.scalars(select(FiiReport.nav_per_share).where(FiiReport.asset_id == kncr.id).order_by(FiiReport.ref_date))
+    assert list(navs) == [100.0, 101.0]
+    trimestral = db.scalar(select(FiiQuarterlyReport).where(FiiQuarterlyReport.asset_id == hglg.id))
+    assert trimestral is not None
+    assert trimestral.ref_date == date(TODAY.year - 1, 12, 31)
+    assert (trimestral.properties, trimestral.vacancy) == (30, 0.05)
+
+
+async def test_sync_fii_sem_fiis_nao_baixa_nada(db, monkeypatch):
+    for asset in db.scalars(select(Asset).where(Asset.asset_class == "fii")):
+        asset.asset_class = "acao"
+    db.commit()
+
+    async def nao_chamar(*_: object) -> None:
+        raise AssertionError("não deveria baixar informes")
+
+    monkeypatch.setattr(sync.cvm_fii, "fetch_monthly", nao_chamar)
+    assert await sync.sync_fii(db) == 0
+
+
+async def test_sync_completo_avalia_os_fiis(db, yahoo):
+    assert await sync.run_full_sync(db) is True
+    kncr = _asset(db, "KNCR11")
+    avaliacao = db.scalar(select(Evaluation).where(Evaluation.asset_id == kncr.id))
+    assert avaliacao is not None
+    assert avaliacao.engine_version.startswith("fii-")
+    regras = {r["id"]: r for r in avaliacao.rules}
+    assert regras["fii-patrimonio"]["status"] == "ok"
+    assert regras["fii-concentracao-credito"]["value"] == pytest.approx(400e6 / 10e9)
+    assert avaliacao.extras["valor_patrimonial_cota"] == 101.0
