@@ -2,7 +2,7 @@
 
 import threading
 from collections.abc import Iterator
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import httpx
 import pytest
@@ -189,3 +189,10 @@ def test_sync_em_segundo_plano_roda_em_outra_thread(session_factory, yahoo, monk
     assert not sync.is_running()
     with session_factory() as s:
         assert _runs(s)["macro"].status == "ok"
+
+
+def test_carga_inicial_so_quando_nunca_houve_sync(db):
+    assert sync.needs_initial_sync(db)
+    db.add(SyncRun(source="macro", started_at=datetime.now(), status="error"))
+    db.commit()
+    assert not sync.needs_initial_sync(db)

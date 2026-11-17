@@ -67,3 +67,24 @@ jobs:
       - run: cd backend && uv sync --locked
       - run: cd frontend && npm ci
       - run: make types-check
+
+  docker:
+    name: Imagens Docker
+    env:
+      INITIAL_SYNC: "false"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build das imagens
+        run: docker compose build
+      - name: Sobe e confere API e front
+        run: |
+          docker compose up -d --wait
+          curl -fsS http://localhost:3000/api/health
+          curl -fsS -o /dev/null http://localhost:3000/
+      - name: Logs em caso de falha
+        if: failure()
+        run: docker compose logs
+      - name: Derruba
+        if: always()
+        run: docker compose down -v
