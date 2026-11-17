@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { Card, inputCls, PageHeader } from "@/components/ui";
 import { GLOSSARIO, TRILHA_INICIO } from "@/content/glossario";
 
-const CATEGORIAS = ["básico", "ações", "setores", "renda fixa", "carteira"] as const;
+const CATEGORIAS = ["básico", "ações", "setores", "fiis", "renda fixa", "carteira"] as const;
 
 export default function Aprender() {
   const [q, setQ] = useState("");

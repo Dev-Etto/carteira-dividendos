@@ -4,7 +4,7 @@ export type Termo = {
   curto: string;
   explicacao: string;
   exemplo?: string;
-  categoria: "básico" | "ações" | "renda fixa" | "carteira" | "setores";
+  categoria: "básico" | "ações" | "fiis" | "renda fixa" | "carteira" | "setores";
 };
 
 export const GLOSSARIO: Termo[] = [
@@ -166,7 +166,9 @@ export const GLOSSARIO: Termo[] = [
     slug: "p-vp",
     termo: "P/VP (preço ÷ valor patrimonial)",
     curto: "Quanto você paga em relação ao patrimônio da empresa.",
-    explicacao: "P/VP 1 = você paga exatamente o valor do patrimônio. É o múltiplo mais usado para bancos e FIIs.",
+    explicacao:
+      "P/VP 1 = você paga exatamente o valor do patrimônio. É o múltiplo mais usado para bancos e FIIs. Em FIIs, o app usa o P/VP como faixa de segurança, não como ranking: acima do máximo o fundo está caro; um desconto muito grande costuma indicar problema (calote, vacância, gestão), não uma pechincha. Estudos com FIIs brasileiros não acharam vantagem em comprar sempre os de menor P/VP.",
+    exemplo: "Cota a R$ 95 com valor patrimonial de R$ 100: P/VP de 0,95, ou 5% de desconto sobre o patrimônio.",
     categoria: "ações",
   },
   {
@@ -314,6 +316,89 @@ export const GLOSSARIO: Termo[] = [
     explicacao:
       "Cada regra vale ✅ (1 ponto), ⚠️ (meio ponto) ou ❌ (zero), multiplicado pelo peso. Nota ≥ 70 com preço dentro do limite = comprar; nota ≥ 70 com preço alto = aguardar; nota < 50 ou regra eliminatória reprovada = evitar. Não é recomendação: é a aplicação de regras que você pode ver e ajustar.",
     categoria: "carteira",
+  },
+  {
+    slug: "fii",
+    termo: "FII (fundo imobiliário)",
+    curto: "Fundo negociado na bolsa que investe em imóveis ou em dívidas ligadas a imóveis.",
+    explicacao:
+      "Ao comprar uma cota, você vira sócio de uma carteira de galpões, shoppings, escritórios ou de títulos de crédito imobiliário (CRI). Por regra, o fundo distribui ao menos 95% do resultado do semestre, e a maioria paga todo mês. Para pessoa física, esse rendimento costuma ser isento de IR.",
+    exemplo: "100 cotas de um FII que paga R$ 0,90 por cota no mês rendem R$ 90 naquele mês.",
+    categoria: "fiis",
+  },
+  {
+    slug: "fii-papel-tijolo",
+    termo: "FII de papel × FII de tijolo",
+    curto: "Papel investe em dívidas imobiliárias (CRI); tijolo, em imóveis de verdade.",
+    explicacao:
+      "Fundos de papel rendem juros de CRIs, em geral atrelados ao CDI ou ao IPCA: o rendimento acompanha esses índices e o risco é o devedor não pagar. Fundos de tijolo vivem de aluguel: o risco é vacância e inquilino inadimplente, e os aluguéis são reajustados pela inflação. O app descobre o tipo pela carteira declarada à CVM, porque o segmento informado pelo próprio fundo muitas vezes não ajuda. FoF (fundo de fundos) compra cotas de outros FIIs.",
+    categoria: "fiis",
+  },
+  {
+    slug: "patrimonio-fii",
+    termo: "Patrimônio líquido do FII",
+    curto: "Quanto valem, somados, os imóveis e títulos do fundo, descontadas as dívidas.",
+    explicacao:
+      "Fundos grandes tendem a ter mais imóveis ou créditos, gestão mais estruturada e mais liquidez. Num fundo pequeno, um único imóvel vago ou um crédito em atraso pesa muito no rendimento. O app exige patrimônio mínimo de R$ 500 milhões (regra eliminatória, ajustável).",
+    categoria: "fiis",
+  },
+  {
+    slug: "historico-fii",
+    termo: "Tempo de funcionamento",
+    curto: "Há quantos anos o fundo existe.",
+    explicacao:
+      "Um fundo que já atravessou ciclos de juros altos e baixos mostra como a gestão reage em momentos ruins. Fundos muito novos ainda não têm esse histórico. O app exige ao menos 4 anos (regra eliminatória, ajustável).",
+    categoria: "fiis",
+  },
+  {
+    slug: "isencao-fii",
+    termo: "Isenção de IR nos rendimentos de FII",
+    curto: "O rendimento mensal é isento para pessoa física, se o fundo cumprir algumas condições.",
+    explicacao:
+      "Pela Lei 11.033/2004, o rendimento é isento quando o fundo tem pelo menos 100 cotistas, as cotas são negociadas em bolsa ou balcão organizado, e você tem menos de 10% das cotas. Já o lucro na venda das cotas paga 20% de IR, sem a isenção de R$ 20 mil por mês que existe para ações.",
+    categoria: "fiis",
+  },
+  {
+    slug: "estabilidade-rendimentos",
+    termo: "Estabilidade dos rendimentos",
+    curto: "Se o fundo continua pagando o mesmo que pagava um ano antes.",
+    explicacao:
+      "O app compara a soma dos rendimentos dos últimos 12 meses com a dos 12 meses anteriores. Uma queda forte indica que algo mudou: um inquilino saiu, um crédito atrasou ou o índice dos CRIs caiu. O ideal é manter pelo menos 90% do que pagava.",
+    exemplo: "Pagou R$ 11,00 por cota nos últimos 12 meses e R$ 12,00 nos 12 anteriores: 92%, dentro do ideal.",
+    categoria: "fiis",
+  },
+  {
+    slug: "spread-fii",
+    termo: "Rendimento × alternativa sem risco",
+    curto: "Quanto o FII rende a mais que a renda fixa equivalente.",
+    explicacao:
+      "Um FII só compensa se render mais que uma alternativa sem risco. Fundos de papel são comparados ao CDI já descontado o IR de 15%, porque o rendimento do FII é isento. Fundos de tijolo são comparados ao juro real do Tesouro IPCA+, porque os aluguéis sobem com a inflação. Em fundos de papel, render muito acima do CDI também acende um alerta: costuma indicar créditos mais arriscados.",
+    exemplo: "CDI de 13,65% vira 11,6% líquido de IR. Um FII de papel com DY de 12,5% rende 0,9 ponto a mais.",
+    categoria: "fiis",
+  },
+  {
+    slug: "taxa-administracao",
+    termo: "Taxa de administração",
+    curto: "O que o fundo paga por ano ao administrador e ao gestor, em % do patrimônio.",
+    explicacao:
+      "Sai todo mês do resultado que seria distribuído aos cotistas. Em FIIs, até 1% ao ano é comum. Acima disso, uma parte relevante do seu rendimento fica com a gestão.",
+    categoria: "fiis",
+  },
+  {
+    slug: "concentracao-fii",
+    termo: "Concentração do FII",
+    curto: "Quanto o fundo depende de um único crédito, imóvel ou inquilino.",
+    explicacao:
+      "Em fundos de papel, o app mede o maior CRI em relação ao patrimônio: até 6% é o ideal. Em fundos de tijolo, mede o peso do maior imóvel na receita (até 25%) e o número de imóveis (8 ou mais). Os informes da CVM não trazem o nome dos inquilinos, por isso a concentração é medida por imóvel. Contratos atípicos longos, com aluguel garantido por anos, podem justificar menos imóveis.",
+    categoria: "fiis",
+  },
+  {
+    slug: "vacancia",
+    termo: "Vacância",
+    curto: "Percentual da área dos imóveis que está sem inquilino.",
+    explicacao:
+      "Área vaga não gera aluguel e ainda custa condomínio e IPTU ao fundo. O app calcula a vacância física média, ponderada pela área de cada imóvel, a partir do informe trimestral da CVM. Até 10% é o ideal. Quando o informe do fundo é contraditório (por exemplo, um imóvel 100% vago que ainda gera receita), o app mostra “sem dado” em vez de um número errado.",
+    categoria: "fiis",
   },
 ];
 
