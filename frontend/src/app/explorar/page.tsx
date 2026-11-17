@@ -17,6 +17,7 @@ import {
   signClass,
   VerdictBadge,
 } from "@/components/ui";
+import { Investidor10Link } from "@/components/Investidor10Link";
 import { api, type AssetRow } from "@/lib/api/client";
 import { brl, pct, SECTOR_LABEL } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -167,6 +168,7 @@ function AssetsTable({ rows }: { rows: AssetRow[] }) {
                   {r.ticker}
                 </Link>
                 <div className="text-xs text-muted">{r.name}</div>
+                <Investidor10Link ticker={r.ticker} assetClass={r.asset_class} compact />
               </td>
               <td className="px-4 py-3 text-muted">{SECTOR_LABEL[r.sector] ?? r.sector}</td>
               <td className="px-4 py-3">
