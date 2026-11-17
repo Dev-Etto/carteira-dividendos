@@ -1,4 +1,4 @@
-"""Monta os snapshots do motor (ações e FIIs) a partir do banco."""
+"""Monta os snapshots do motor (ações, FIIs e ETFs) a partir do banco."""
 
 from collections import defaultdict
 from datetime import date, timedelta
@@ -8,8 +8,8 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Asset, Dividend, FiiQuarterlyReport, FiiReport, Fundamental, PriceDaily, SectorMetric
-from app.engine.types import FiiKind, FiiSnapshot, StockSnapshot, YearFundamentals
+from app.db.models import Asset, Dividend, EtfReport, FiiQuarterlyReport, FiiReport, Fundamental, PriceDaily, SectorMetric
+from app.engine.types import EtfSnapshot, FiiKind, FiiSnapshot, StockSnapshot, YearFundamentals
 from app.services.macro import latest_rate, ntnb_real_rate
 
 LIQUIDITY_WINDOW = 63
@@ -199,4 +199,28 @@ def build_fii_snapshot(db: Session, asset: Asset, today: date | None = None) -> 
         largest_credit_share=_credit_share(report, quarterly),
         **_report_fields(report),
         **_quarterly_fields(quarterly),
+    )
+
+
+def build_etf_snapshot(db: Session, asset: Asset, today: date | None = None) -> EtfSnapshot:
+    """Sem nenhum provento em 2 anos, mas com histórico de preços, o ETF reinveste: proventos = 0."""
+    today = today or date.today()
+    prices = db.execute(
+        select(PriceDaily.close, PriceDaily.volume)
+        .where(PriceDaily.asset_id == asset.id, PriceDaily.date >= today - timedelta(days=120))
+        .order_by(PriceDaily.date)
+    ).all()
+    equity = db.scalar(
+        select(EtfReport.equity).where(EtfReport.asset_id == asset.id).order_by(EtfReport.ref_date.desc()).limit(1)
+    )
+    ttm, _ = _dividends_windows(db, asset.id, today)
+    reinvests = ttm is None and bool(prices)
+    return EtfSnapshot(
+        ticker=asset.ticker,
+        name=asset.name,
+        price=asset.last_price or (prices[-1].close if prices else None),
+        avg_daily_volume_brl=_avg_daily_volume([(p.close, p.volume) for p in prices]),
+        equity=equity,
+        admin_fee=asset.admin_fee,
+        dividends_ttm=0.0 if reinvests else ttm,
     )

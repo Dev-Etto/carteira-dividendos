@@ -5,9 +5,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.models import Asset, Base, Dividend, FiiQuarterlyReport, FiiReport, MacroRate, PriceDaily, TreasuryBond
+from app.db.models import Asset, Base, Dividend, EtfReport, FiiQuarterlyReport, FiiReport, MacroRate, PriceDaily, TreasuryBond
 from app.services.macro import ntnb_real_rate
-from app.services.snapshot import build_fii_snapshot
+from app.services.snapshot import build_etf_snapshot, build_fii_snapshot
 
 HOJE = date(2026, 11, 17)
 
@@ -95,3 +95,31 @@ def test_ntnb_usa_o_vencimento_mais_longo_do_dia_mais_recente(db):
     )
     db.commit()
     assert ntnb_real_rate(db) == 0.0754
+
+
+def _etf(db: Session) -> Asset:
+    asset = Asset(ticker="BOVA11", name="iShares Ibovespa", asset_class="etf", sector="etf", admin_fee=0.001, last_price=150.0)
+    db.add(asset)
+    db.flush()
+    return asset
+
+
+def test_snapshot_etf_que_reinveste(db):
+    asset = _etf(db)
+    db.add_all(
+        [
+            EtfReport(asset_id=asset.id, ref_date=date(2026, 11, 13), equity=18e9),
+            *[
+                PriceDaily(asset_id=asset.id, date=HOJE - timedelta(days=i), close=150.0, volume=1e6, source="yahoo")
+                for i in range(25)
+            ],
+        ]
+    )
+    db.commit()
+    snap = build_etf_snapshot(db, asset, HOJE)
+    assert (snap.equity, snap.admin_fee, snap.dividends_ttm) == (18e9, 0.001, 0.0)
+
+
+def test_snapshot_etf_sem_historico_fica_sem_dado(db):
+    snap = build_etf_snapshot(db, _etf(db), HOJE)
+    assert (snap.equity, snap.dividends_ttm, snap.avg_daily_volume_brl) == (None, None, None)
