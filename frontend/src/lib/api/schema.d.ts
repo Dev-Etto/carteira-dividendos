@@ -383,17 +383,23 @@ export interface components {
             /** Weight Pct */
             weight_pct: number;
         };
-        /** AssetCreate */
+        /**
+         * AssetCreate
+         * @description Ativo novo. Ação exige o setor; num FII o tipo (papel, tijolo...) vem do informe da CVM.
+         */
         AssetCreate: {
             /** Ticker */
             ticker: string;
             /** Name */
             name: string;
             /**
-             * Sector
+             * Asset Class
+             * @default acao
              * @enum {string}
              */
-            sector: "bancos" | "seguros" | "energia" | "saneamento" | "telecom" | "perene" | "ciclico";
+            asset_class: "acao" | "fii";
+            /** Sector */
+            sector?: ("bancos" | "seguros" | "energia" | "saneamento" | "telecom" | "perene" | "ciclico") | null;
             /** Segment */
             segment?: string | null;
             /** Economic Group */
@@ -446,7 +452,10 @@ export interface components {
             /** Risks */
             risks: string[];
         };
-        /** AssetHistory */
+        /**
+         * AssetHistory
+         * @description nav: valor patrimonial da cota mês a mês (só FIIs), para comparar com o preço.
+         */
         AssetHistory: {
             /** Prices */
             prices: components["schemas"]["PricePointOut"][];
@@ -454,6 +463,11 @@ export interface components {
             dividends_by_year: components["schemas"]["DividendYearOut"][];
             /** Scores */
             scores: components["schemas"]["ScorePointOut"][];
+            /**
+             * Nav
+             * @default []
+             */
+            nav: components["schemas"]["PricePointOut"][];
         };
         /** AssetRow */
         AssetRow: {

@@ -40,11 +40,20 @@ class AssetDetail(AssetRow):
 
 
 class AssetCreate(BaseModel):
+    """Ativo novo. Ação exige o setor; num FII o tipo (papel, tijolo...) vem do informe da CVM."""
+
     ticker: str = Field(min_length=4, max_length=12)
     name: str
-    sector: Literal["bancos", "seguros", "energia", "saneamento", "telecom", "perene", "ciclico"]
+    asset_class: Literal["acao", "fii"] = "acao"
+    sector: Literal["bancos", "seguros", "energia", "saneamento", "telecom", "perene", "ciclico"] | None = None
     segment: str | None = None
     economic_group: str | None = None
+
+    @model_validator(mode="after")
+    def _stock_needs_sector(self) -> "AssetCreate":
+        if self.asset_class == "acao" and self.sector is None:
+            raise ValueError("Informe o setor da ação")
+        return self
 
 
 class PricePointOut(BaseModel):
@@ -65,9 +74,12 @@ class ScorePointOut(BaseModel):
 
 
 class AssetHistory(BaseModel):
+    """nav: valor patrimonial da cota mês a mês (só FIIs), para comparar com o preço."""
+
     prices: list[PricePointOut]
     dividends_by_year: list[DividendYearOut]
     scores: list[ScorePointOut]
+    nav: list[PricePointOut] = []
 
 
 class QuestionOption(BaseModel):
