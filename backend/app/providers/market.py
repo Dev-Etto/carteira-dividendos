@@ -89,3 +89,16 @@ async def yahoo_history(
     df, shares = await asyncio.to_thread(_yahoo_sync, ticker, start)
     prices, divs, splits = history_to_points(df)
     return prices, divs, splits, shares
+
+
+def _yahoo_long_name_sync(ticker: str) -> str | None:
+    """Nome completo no Yahoo; nos ETFs é a denominação social registrada na CVM. Opcional: qualquer erro vira None."""
+    try:
+        name = yf.Ticker(f"{ticker}.SA").info.get("longName")
+    except Exception:  # noqa: BLE001
+        return None
+    return str(name) if name else None
+
+
+async def yahoo_long_name(ticker: str) -> str | None:
+    return await asyncio.to_thread(_yahoo_long_name_sync, ticker)
