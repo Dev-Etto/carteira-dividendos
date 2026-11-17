@@ -12,7 +12,7 @@ from app.core.errors import DomainError
 from app.db.migrate import upgrade_db
 from app.db.session import SessionLocal
 from app.jobs.scheduler import start_scheduler
-from app.services.sync import load_sector_metrics, seed_universe
+from app.services.sync import load_sector_metrics, needs_initial_sync, seed_universe, start_background_sync
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -23,7 +23,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     with SessionLocal() as db:
         seed_universe(db)
         load_sector_metrics(db)
-    scheduler = start_scheduler() if get_settings().enable_scheduler else None
+        first_run = needs_initial_sync(db)
+    settings = get_settings()
+    if settings.initial_sync and first_run:
+        start_background_sync()
+    scheduler = start_scheduler() if settings.enable_scheduler else None
     yield
     if scheduler:
         scheduler.shutdown(wait=False)

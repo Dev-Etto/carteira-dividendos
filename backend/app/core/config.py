@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     sync_hour: hora local da atualização automática diária, enquanto a API estiver rodando.
     cvm_years: quantos anos de balanços da CVM baixar.
+    initial_sync: baixa todos os dados ao subir a API quando o banco nunca foi atualizado.
     """
 
     model_config = SettingsConfigDict(env_file=BACKEND_DIR / ".env", extra="ignore")
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000"]
     sync_hour: int = 19
     enable_scheduler: bool = True
+    initial_sync: bool = True
     cvm_years: int = 6
 
 

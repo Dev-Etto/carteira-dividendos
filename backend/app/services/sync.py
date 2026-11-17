@@ -74,6 +74,11 @@ def sync_status(db: Session) -> SyncStatus:
     return SyncStatus(running=is_running(), step=current_step(), runs=[SyncRunOut.model_validate(r) for r in runs])
 
 
+def needs_initial_sync(db: Session) -> bool:
+    """Verdadeiro quando nenhuma atualização de dados foi feita ainda (banco recém-criado)."""
+    return db.scalar(select(SyncRun.id).limit(1)) is None
+
+
 def is_running() -> bool:
     return _lock.locked()
 
