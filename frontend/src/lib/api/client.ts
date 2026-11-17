@@ -20,7 +20,7 @@ export type RuleConfigItem = S["RuleConfigItem"];
 export type AllocationItem = S["AllocationItem"];
 export type SyncStatus = S["SyncStatus"];
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export class ApiError extends Error {
   constructor(
@@ -56,7 +56,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       cache: "no-store",
     });
   } catch {
-    throw new ApiError(0, "Não consegui falar com a API. Ela está rodando? (make dev ou uv run uvicorn app.main:app)");
+    throw new ApiError(0, "Não consegui falar com a API. Ela está rodando? (make dev ou docker compose up)");
   }
   if (!res.ok) throw new ApiError(res.status, errorMessage(await readErrorBody(res), res.status));
   if (res.status === 204) return undefined as T;
