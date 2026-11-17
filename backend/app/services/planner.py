@@ -41,10 +41,11 @@ def _bond_label(bond: TreasuryBond | None) -> str:
     return f"{bond.name} {bond.maturity.year} (IPCA + {fmt.pct(bond.buy_rate, 2)})"
 
 
-def stock_candidates(db: Session, state: PortfolioState) -> list[Candidate]:
-    """Ações com veredito "comprar" e preço conhecido, com o quanto já há de cada uma na carteira."""
+def buy_candidates(db: Session, state: PortfolioState, asset_class: str) -> list[Candidate]:
+    """Ativos da classe (acao | fii) com veredito "comprar" e preço conhecido, com o quanto já há de
+    cada um na carteira. O grupo de concentração é o setor da ação ou o tipo do FII."""
     held = {p.ticker: p.value for p in state.positions}
-    assets = {a.id: a for a in db.scalars(select(Asset).where(Asset.active, Asset.asset_class == "acao"))}
+    assets = {a.id: a for a in db.scalars(select(Asset).where(Asset.active, Asset.asset_class == asset_class))}
     evaluations = latest_evaluations(db, assets)
     return [
         Candidate(
@@ -120,7 +121,8 @@ def make_plan(db: Session, amount: float) -> PlanOut:
         reserve_target=reserve_target(profile),
         class_current=state.class_values,
         targets=targets(db),
-        stock_candidates=stock_candidates(db, state),
+        stock_candidates=buy_candidates(db, state, "acao"),
+        fii_candidates=buy_candidates(db, state, "fii"),
         long_term_fixed_income=_bond_label(bond),
     )
     return PlanOut(
