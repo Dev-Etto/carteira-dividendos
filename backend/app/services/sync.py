@@ -1,4 +1,4 @@
-"""Orquestra a coleta. Ordem: universo → macro → Tesouro → CVM (ações) → CVM (FIIs) → cotações/histórico → avaliações.
+"""Orquestra a coleta. Ordem: universo → macro → Tesouro → CVM (ações) → CVM (FIIs) → CVM (ETFs) → cotações/histórico → avaliações.
 
 Cada etapa é registrada em sync_runs. Uma etapa que falha não impede as outras.
 Só roda um sync por vez: `_lock` garante isso e também responde à tela de Configurações se há um rodando.
@@ -20,6 +20,7 @@ from app.core.errors import BusinessRuleError
 from app.db.models import (
     Asset,
     Dividend,
+    EtfReport,
     FiiQuarterlyReport,
     FiiReport,
     Fundamental,
@@ -32,7 +33,7 @@ from app.db.models import (
 )
 from app.db.session import SessionLocal
 from app.engine import fii
-from app.providers import bcb, cvm, cvm_fii, market, tesouro
+from app.providers import bcb, cvm, cvm_etf, cvm_fii, market, tesouro
 from app.providers.base import DOWNLOAD_ERRORS, DividendEvent, PricePoint, Quote, SplitInfo
 from app.schemas.api import SyncRunOut, SyncStatus
 from app.services.evaluation import evaluate_all
@@ -75,7 +76,7 @@ ASSET_FIELDS = ["name", "asset_class", "sector", "segment", "economic_group"]
 FII_SEED_FIELDS = ["name", "asset_class", "economic_group"]
 """Num FII, tipo (sector) e segmento vêm do informe da CVM; o universo.csv só dá o palpite inicial."""
 
-STEPS = ("universo", "macro", "tesouro", "cvm", "fiis", "mercado", "avaliacoes")
+STEPS = ("universo", "macro", "tesouro", "cvm", "fiis", "etfs", "mercado", "avaliacoes")
 
 _lock = threading.Lock()
 _current_step: str | None = None
@@ -297,6 +298,37 @@ async def sync_fii(db: Session) -> int:
     return n + await _sync_fii_quarterly(db, list(assets.values()), today)
 
 
+async def _etf_fund(
+    asset: Asset, by_name: dict[str, cvm_etf.IndexFund], by_cnpj: dict[str, cvm_etf.IndexFund]
+) -> cvm_etf.IndexFund | None:
+    """Fundo da CVM do ETF: pelo CNPJ já conhecido ou, na primeira vez, pelo nome que o Yahoo mostra."""
+    known = by_cnpj.get(asset.cnpj or "")
+    if known is not None:
+        return known
+    long_name = await market.yahoo_long_name(asset.ticker)
+    return by_name.get(cvm_etf.name_key(long_name or asset.name))
+
+
+async def sync_etf(db: Session) -> int:
+    """Patrimônio dos ETFs do universo no cadastro de fundos da CVM."""
+    assets = list(db.scalars(select(Asset).where(Asset.asset_class == "etf")))
+    if not assets:
+        return 0
+    by_name = await cvm_etf.fetch_index_funds()
+    by_cnpj = {fund.cnpj: fund for fund in by_name.values()}
+    rows = []
+    for asset in assets:
+        fund = await _etf_fund(asset, by_name, by_cnpj)
+        if fund is None:
+            log.warning("ETF %s não encontrado no cadastro da CVM", asset.ticker)
+            continue
+        asset.cnpj = fund.cnpj
+        rows.append({"asset_id": asset.id, "ref_date": fund.equity_date or date.today(), "equity": fund.equity})
+    n = upsert(db, EtfReport, rows, keys=["asset_id", "ref_date"], update=["equity"])
+    db.commit()
+    return n
+
+
 async def _history(db: Session, asset: Asset) -> MarketHistory:
     """Histórico incremental (últimos dias). O Yahoo reajusta todo o histórico depois de um desdobramento;
     quando aparece um no trecho novo, apaga o que havia e baixa tudo de novo."""
@@ -379,6 +411,7 @@ async def _run_steps(db: Session, only: set[str] | None, tickers: set[str] | Non
         "tesouro": lambda: sync_treasury(db),
         "cvm": lambda: sync_cvm(db),
         "fiis": lambda: sync_fii(db),
+        "etfs": lambda: sync_etf(db),
         "mercado": lambda: sync_market(db, tickers),
         "avaliacoes": lambda: _sync_wrap(evaluate_all(db)),
     }
