@@ -22,7 +22,7 @@ import { brl, brlCompact, dateBr, groupLabel, num, pct, SEGMENT_LABEL } from "@/
 import { withNav } from "@/lib/series";
 import { useApi } from "@/lib/useApi";
 
-import { EtfFeeCard, EtfHeader, EtfStats } from "./EtfParts";
+import { EtfHeader, EtfInfoCard, EtfStats } from "./EtfParts";
 
 type Group = { key: string; title: string; help?: string };
 type Extras = Record<string, number | null | undefined>;
@@ -271,7 +271,14 @@ export function AtivoView() {
               </p>
             )}
           </Card>
-          {isEtf && <EtfFeeCard key={String(ex.taxa_adm_ano)} data={data} ex={ex} onChange={() => void reload()} />}
+          {isEtf && (
+            <EtfInfoCard
+              key={`${String(ex.taxa_adm_ano)}-${String(data.extras.distribui)}`}
+              data={data}
+              ex={ex}
+              onChange={() => void reload()}
+            />
+          )}
           <Card title="O que pode dar errado">
             <ul className="space-y-2 text-sm text-ink">
               {data.risks.map((r) => (

@@ -263,7 +263,7 @@ function EtfTable({ rows, onChange }: { rows: AssetRow[]; onChange: () => void }
                 <EtfStatus verdict={r.verdict} />
               </td>
               <td className="px-4 py-3 text-right tabular-nums">{brl(r.price)}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{r.dividend_yield ? pct(r.dividend_yield) : "reinveste"}</td>
+              <td className="px-4 py-3 text-right tabular-nums">{r.dividend_yield ? pct(r.dividend_yield) : "—"}</td>
             </tr>
           ))}
         </tbody>

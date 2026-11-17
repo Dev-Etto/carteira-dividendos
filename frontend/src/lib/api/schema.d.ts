@@ -513,15 +513,18 @@ export interface components {
         };
         /**
          * AssetUpdate
-         * @description Ajustes do usuário num ETF. Só os campos enviados mudam; admin_fee null apaga a taxa informada.
+         * @description Ajustes do usuário num ETF. Só os campos enviados mudam; null apaga o valor informado.
          *
          *     admin_fee: taxa de administração ao ano, em fração (0,005 = 0,5%).
+         *     distributes: se o ETF repassa os proventos (true) ou reinveste (false).
          */
         AssetUpdate: {
             /** Favorite */
             favorite?: boolean | null;
             /** Admin Fee */
             admin_fee?: number | null;
+            /** Distributes */
+            distributes?: boolean | null;
         };
         /** ClassSlice */
         ClassSlice: {

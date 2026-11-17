@@ -33,16 +33,23 @@ export function EtfHeader({ data, onChange }: { data: AssetDetail; onChange: () 
   );
 }
 
+/** DY quando a fonte traz proventos; senão, o que o usuário informou sobre a distribuição. */
+function distributionValue(data: AssetDetail): string {
+  if (data.dividend_yield) return pct(data.dividend_yield);
+  if (data.extras.distribui === true) return "distribui";
+  if (data.extras.distribui === false) return "reinveste";
+  return "—";
+}
+
 export function EtfStats({ data, ex }: { data: AssetDetail; ex: Extras }) {
-  const reinvests = ex.rendimentos_12m === 0;
   return (
     <>
       <Stat label="Preço atual" value={brl(data.price)} hint={data.price_at ? `em ${dateBr(data.price_at)}` : undefined} />
       <Stat
         label="Dividend yield 12m"
         help="etf-distribui"
-        value={reinvests ? "reinveste" : pct(data.dividend_yield)}
-        hint={reinvests ? "não paga proventos" : undefined}
+        value={distributionValue(data)}
+        hint={data.dividend_yield ? undefined : "o Yahoo não traz proventos de ETFs"}
       />
       <Stat label="Patrimônio" help="etf" value={brlCompact(ex.patrimonio)} />
       <Stat
@@ -63,16 +70,32 @@ function feeFraction(text: string): number | null {
   return n / 100;
 }
 
-/** A taxa de administração não tem fonte gratuita estruturada: o usuário informa a do site da gestora. */
-export function EtfFeeCard({ data, ex, onChange }: { data: AssetDetail; ex: Extras; onChange: () => void }) {
+const DISTRIBUTES_OPTIONS = [
+  { value: "", label: "Não sei" },
+  { value: "sim", label: "Sim, repassa os proventos" },
+  { value: "nao", label: "Não, reinveste" },
+];
+
+function distributesText(value: boolean | null | undefined): string {
+  if (value === true) return "sim";
+  if (value === false) return "nao";
+  return "";
+}
+
+/**
+ * O que o usuário informa sobre o ETF: a taxa de administração e se ele distribui proventos. Nenhuma
+ * fonte gratuita estruturada traz esses dados (o Yahoo não informa proventos de ETFs brasileiros).
+ */
+export function EtfInfoCard({ data, ex, onChange }: { data: AssetDetail; ex: Extras; onChange: () => void }) {
   const current = ex.taxa_adm_ano;
-  const [text, setText] = useState(current === null || current === undefined ? "" : num(current * 100, 2));
+  const [fee, setFee] = useState(current === null || current === undefined ? "" : num(current * 100, 2));
+  const [distributes, setDistributes] = useState(distributesText(data.extras.distribui as boolean | null | undefined));
   const [err, setErr] = useState<string | null>(null);
 
-  async function save(adminFee: number | null) {
+  async function save(body: { admin_fee: number | null; distributes: boolean | null }) {
     setErr(null);
     try {
-      await api.patch(`/api/ativos/${data.ticker}`, { admin_fee: adminFee });
+      await api.patch(`/api/ativos/${data.ticker}`, body);
       onChange();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -80,25 +103,37 @@ export function EtfFeeCard({ data, ex, onChange }: { data: AssetDetail; ex: Extr
   }
 
   function submit() {
-    if (!text.trim()) return void save(null);
-    const fee = feeFraction(text);
-    if (fee === null) return setErr(`Informe a taxa em % ao ano, entre 0 e ${MAX_FEE_PCT}.`);
-    void save(fee);
+    const adminFee = fee.trim() ? feeFraction(fee) : null;
+    if (fee.trim() && adminFee === null) return setErr(`Informe a taxa em % ao ano, entre 0 e ${MAX_FEE_PCT}.`);
+    void save({ admin_fee: adminFee, distributes: distributes ? distributes === "sim" : null });
   }
 
   return (
-    <Card title="Taxa de administração" help="taxa-administracao">
-      <p className="mb-3 text-sm text-muted">Está no site da gestora ou no regulamento do ETF. Deixe em branco para apagar.</p>
-      <div className="flex items-end gap-3">
-        <Field label="% ao ano">
+    <Card title="Informado por você" help="etf-distribui">
+      <p className="mb-3 text-sm text-muted">
+        Taxa e distribuição estão no site da gestora ou no regulamento do ETF. Deixe em branco o que não souber.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Taxa de administração (% ao ano)">
           <input
             className={inputCls}
             inputMode="decimal"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+            value={fee}
+            onChange={(e) => setFee(e.target.value)}
             placeholder="0,50"
           />
         </Field>
+        <Field label="Distribui proventos?">
+          <select className={inputCls} value={distributes} onChange={(e) => setDistributes(e.target.value)}>
+            {DISTRIBUTES_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <div className="mt-3">
         <Button onClick={submit}>Salvar</Button>
       </div>
       {err && (

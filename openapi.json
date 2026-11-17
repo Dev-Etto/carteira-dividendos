@@ -1680,11 +1680,22 @@
        }
       ],
       "title": "Admin Fee"
+     },
+     "distributes": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Distributes"
      }
     },
     "type": "object",
     "title": "AssetUpdate",
-    "description": "Ajustes do usuário num ETF. Só os campos enviados mudam; admin_fee null apaga a taxa informada.\n\nadmin_fee: taxa de administração ao ano, em fração (0,005 = 0,5%)."
+    "description": "Ajustes do usuário num ETF. Só os campos enviados mudam; null apaga o valor informado.\n\nadmin_fee: taxa de administração ao ano, em fração (0,005 = 0,5%).\ndistributes: se o ETF repassa os proventos (true) ou reinveste (false)."
    },
    "ClassSlice": {
     "properties": {
