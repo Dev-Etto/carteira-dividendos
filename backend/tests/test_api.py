@@ -302,3 +302,36 @@ def test_acao_nova_exige_setor(client):
     r = client.post("/api/ativos", json={"ticker": "wege3", "name": "WEG"})
     assert r.status_code == 422
     assert "setor" in r.text
+
+
+def test_etf_favorito_e_taxa(client):
+    assert client.get("/api/ativos/BOVA11").json()["favorite"] is False
+    r = client.patch("/api/ativos/bova11", json={"favorite": True, "admin_fee": 0.001})
+    assert r.status_code == 200, r.text
+    ficha = r.json()
+    assert ficha["favorite"] is True
+    assert ficha["extras"]["taxa_adm_ano"] == 0.001
+    assert ficha["data_sources"]["Taxa de administração"] == "informada por você"
+    assert any("índice" in risco for risco in ficha["risks"])
+    assert {e["ticker"] for e in client.get("/api/ativos", params={"classe": "etf"}).json() if e["favorite"]} == {"BOVA11"}
+    apagada = client.patch("/api/ativos/BOVA11", json={"admin_fee": None}).json()
+    assert (apagada["favorite"], apagada["extras"]["taxa_adm_ano"]) == (True, None)
+
+
+def test_favorito_so_vale_para_etf(client):
+    r = client.patch("/api/ativos/TAEE11", json={"favorite": True})
+    assert r.status_code == 422
+    assert "ETFs" in r.json()["detail"]
+
+
+def test_taxa_absurda_e_recusada(client):
+    assert client.patch("/api/ativos/BOVA11", json={"admin_fee": 5}).status_code == 422
+
+
+def test_novo_etf_dispara_etapa_de_etfs(client, monkeypatch):
+    chamadas = []
+    monkeypatch.setattr("app.services.assets.start_background_sync", lambda only, tickers: chamadas.append((only, tickers)))
+    r = client.post("/api/ativos", json={"ticker": "hash11", "name": "Hashdex Nasdaq Crypto", "asset_class": "etf"})
+    assert r.status_code == 201, r.text
+    assert r.json()["sector"] == "etf"
+    assert chamadas == [({"etfs", "mercado", "avaliacoes"}, {"HASH11"})]

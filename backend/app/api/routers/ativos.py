@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.api import AssetCreate, AssetDetail, AssetHistory, AssetRow
+from app.schemas.api import AssetCreate, AssetDetail, AssetHistory, AssetRow, AssetUpdate
 from app.services import assets
 
 router = APIRouter(prefix="/api/ativos", tags=["ativos"])
@@ -33,3 +33,8 @@ def asset_history(ticker: str, anos: int = Query(default=5, ge=1, le=20), db: Se
 @router.post("", response_model=AssetRow, status_code=201)
 def create_asset(body: AssetCreate, db: Session = Depends(get_db)) -> AssetRow:
     return assets.create_asset(db, body)
+
+
+@router.patch("/{ticker}", response_model=AssetDetail)
+def update_asset(ticker: str, body: AssetUpdate, db: Session = Depends(get_db)) -> AssetDetail:
+    return assets.update_asset(db, ticker, body)

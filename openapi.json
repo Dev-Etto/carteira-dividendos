@@ -246,6 +246,56 @@
       }
      }
     }
+   },
+   "patch": {
+    "tags": [
+     "ativos"
+    ],
+    "summary": "Update Asset",
+    "operationId": "update_asset_api_ativos__ticker__patch",
+    "parameters": [
+     {
+      "name": "ticker",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Ticker"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AssetUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AssetDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
    }
   },
   "/api/ativos/{ticker}/historico": {
@@ -1138,7 +1188,8 @@
       "type": "string",
       "enum": [
        "acao",
-       "fii"
+       "fii",
+       "etf"
       ],
       "title": "Asset Class",
       "default": "acao"
@@ -1323,6 +1374,11 @@
        }
       ],
       "title": "Evaluated On"
+     },
+     "favorite": {
+      "type": "boolean",
+      "title": "Favorite",
+      "default": false
      },
      "summary": {
       "anyOf": [
@@ -1574,6 +1630,11 @@
        }
       ],
       "title": "Evaluated On"
+     },
+     "favorite": {
+      "type": "boolean",
+      "title": "Favorite",
+      "default": false
      }
     },
     "type": "object",
@@ -1593,6 +1654,37 @@
      "evaluated_on"
     ],
     "title": "AssetRow"
+   },
+   "AssetUpdate": {
+    "properties": {
+     "favorite": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Favorite"
+     },
+     "admin_fee": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 0.1,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Admin Fee"
+     }
+    },
+    "type": "object",
+    "title": "AssetUpdate",
+    "description": "Ajustes do usuário num ETF. Só os campos enviados mudam; admin_fee null apaga a taxa informada.\n\nadmin_fee: taxa de administração ao ano, em fração (0,005 = 0,5%)."
    },
    "ClassSlice": {
     "properties": {
