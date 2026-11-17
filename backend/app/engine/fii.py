@@ -261,7 +261,7 @@ def rule_desconto(s: FiiSnapshot, c: Rules) -> RuleResult:
     base = {
         "id": "fii-desconto",
         "label": "Desconto sobre o patrimônio",
-        "learn_more": "pvp",
+        "learn_more": "p-vp",
         "weight": 2,
         "threshold": f"P/VP ≥ {fmt.num(minimum)} (atenção a partir de {fmt.num(attention)})",
     }
@@ -281,7 +281,7 @@ def rule_pvp(s: FiiSnapshot, c: Rules) -> tuple[RuleResult, float | None, float 
     base = {
         "id": "fii-preco",
         "label": "Preço pelo P/VP",
-        "learn_more": "pvp",
+        "learn_more": "p-vp",
         "weight": 2,
         "group": "preco",
         "threshold": f"P/VP ≤ {fmt.num(maximum)}",
