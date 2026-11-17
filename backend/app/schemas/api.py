@@ -58,12 +58,14 @@ class AssetCreate(BaseModel):
 
 
 class AssetUpdate(BaseModel):
-    """Ajustes do usuário num ETF. Só os campos enviados mudam; admin_fee null apaga a taxa informada.
+    """Ajustes do usuário num ETF. Só os campos enviados mudam; null apaga o valor informado.
 
-    admin_fee: taxa de administração ao ano, em fração (0,005 = 0,5%)."""
+    admin_fee: taxa de administração ao ano, em fração (0,005 = 0,5%).
+    distributes: se o ETF repassa os proventos (true) ou reinveste (false)."""
 
     favorite: bool | None = None
     admin_fee: float | None = Field(default=None, ge=0, le=0.1)
+    distributes: bool | None = None
 
 
 class PricePointOut(BaseModel):

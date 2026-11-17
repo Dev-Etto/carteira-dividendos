@@ -42,9 +42,19 @@ def test_liquidez_baixa_leva_a_evitar():
     assert ev.verdict == "evitar"
 
 
-def test_etf_que_reinveste_e_alerta_nao_reprovacao():
-    r = etf.rule_distribui(divo(dividends_ttm=0.0))
-    assert (r.status, r.value_display) == ("warn", "reinveste")
+@pytest.mark.parametrize(
+    ("ttm", "distribui", "status", "display"),
+    [
+        (6.0, None, "ok", "DY 6,0%"),
+        (None, True, "ok", "distribui"),
+        (None, False, "warn", "reinveste"),
+        (0.0, False, "warn", "reinveste"),
+        (None, None, "na", "sem dado"),
+    ],
+)
+def test_distribuicao_pelos_proventos_ou_pelo_informado(ttm, distribui, status, display):
+    r = etf.rule_distribui(divo(dividends_ttm=ttm, distributes=distribui))
+    assert (r.status, r.value_display) == (status, display)
 
 
 @pytest.mark.parametrize(

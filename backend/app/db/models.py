@@ -41,6 +41,7 @@ class Asset(Base):
     segment: em energia, transmissao | geracao | distribuicao | integrada; em FIIs, o segmento declarado à CVM.
     favorite: ETF escolhido pelo usuário para receber aportes.
     admin_fee: taxa de administração ao ano (fração) informada pelo usuário; usada nos ETFs.
+    distributes: se o ETF repassa os proventos, informado pelo usuário (o Yahoo não traz proventos de ETFs).
     """
 
     __tablename__ = "assets"
@@ -60,6 +61,7 @@ class Asset(Base):
     price_source: Mapped[str | None] = mapped_column(String(20))
     favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     admin_fee: Mapped[float | None] = mapped_column(Float)
+    distributes: Mapped[bool | None] = mapped_column(Boolean)
 
     evaluations: Mapped[list["Evaluation"]] = relationship(back_populates="asset")
 

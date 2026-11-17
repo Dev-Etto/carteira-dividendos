@@ -104,8 +104,9 @@ def _etf(db: Session) -> Asset:
     return asset
 
 
-def test_snapshot_etf_que_reinveste(db):
+def test_snapshot_etf_usa_a_distribuicao_informada(db):
     asset = _etf(db)
+    asset.distributes = False
     db.add_all(
         [
             EtfReport(asset_id=asset.id, ref_date=date(2026, 11, 13), equity=18e9),
@@ -117,7 +118,7 @@ def test_snapshot_etf_que_reinveste(db):
     )
     db.commit()
     snap = build_etf_snapshot(db, asset, HOJE)
-    assert (snap.equity, snap.admin_fee, snap.dividends_ttm) == (18e9, 0.001, 0.0)
+    assert (snap.equity, snap.admin_fee, snap.dividends_ttm, snap.distributes) == (18e9, 0.001, None, False)
 
 
 def test_snapshot_etf_sem_historico_fica_sem_dado(db):

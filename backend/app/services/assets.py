@@ -51,6 +51,7 @@ NEW_ASSET_SYNC_STEPS = {
     "etf": {"etfs", "mercado", "avaliacoes"},
 }
 NEW_ASSET_SECTOR = {"fii": "hibrido", "etf": "etf"}
+REEVALUATING_FIELDS = {"admin_fee", "distributes"}
 """Grupo de um ativo novo sem setor: o FII fica híbrido até o informe da CVM dizer se é papel ou tijolo."""
 
 
@@ -169,7 +170,12 @@ def _fii_sources(db: Session, asset: Asset) -> dict[str, str | None]:
 def _etf_sources(db: Session, asset: Asset) -> dict[str, str | None]:
     day = db.scalar(select(func.max(EtfReport.ref_date)).where(EtfReport.asset_id == asset.id))
     fee = "informada por você" if asset.admin_fee is not None else None
-    return {"Patrimônio": f"CVM, cadastro de fundos em {day:%d/%m/%Y}" if day else None, "Taxa de administração": fee}
+    distributes = "informada por você" if asset.distributes is not None else None
+    return {
+        "Patrimônio": f"CVM, cadastro de fundos em {day:%d/%m/%Y}" if day else None,
+        "Taxa de administração": fee,
+        "Distribuição de proventos": distributes,
+    }
 
 
 def _stock_sources(db: Session, asset: Asset) -> dict[str, str | None]:
@@ -277,7 +283,7 @@ def create_asset(db: Session, body: AssetCreate) -> AssetRow:
 
 
 def update_asset(db: Session, ticker: str, body: AssetUpdate) -> AssetDetail:
-    """Marca o ETF como favorito e/ou guarda a taxa informada; mudar a taxa já reavalia o ETF."""
+    """Marca o ETF como favorito e/ou guarda a taxa e a distribuição informadas; mudar uma delas reavalia o ETF."""
     asset = get_asset(db, ticker)
     if asset.asset_class != "etf":
         raise BusinessRuleError("Favorito e taxa de administração só valem para ETFs")
@@ -285,7 +291,7 @@ def update_asset(db: Session, ticker: str, body: AssetUpdate) -> AssetDetail:
     for field, value in changes.items():
         setattr(asset, field, value)
     db.commit()
-    if "admin_fee" in changes:
+    if changes.keys() & REEVALUATING_FIELDS:
         save_evaluation(db, asset, evaluate_asset(db, asset))
         db.commit()
     return asset_detail(db, ticker)

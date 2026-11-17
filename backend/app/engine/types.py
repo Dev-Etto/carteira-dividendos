@@ -148,7 +148,8 @@ class EtfSnapshot:
 
     equity: patrimônio em R$ (cadastro da CVM). admin_fee: taxa de administração ao ano, em fração,
     informada pelo usuário (não há fonte gratuita estruturada). dividends_ttm: proventos por cota nos
-    últimos 12 meses; zero indica um ETF que reinveste os dividendos.
+    últimos 12 meses, quando a fonte de cotações os traz (o Yahoo costuma não trazer para ETFs).
+    distributes: se o ETF repassa os proventos, informado pelo usuário; None quando não informado.
     """
 
     ticker: str
@@ -158,3 +159,4 @@ class EtfSnapshot:
     equity: float | None = None
     admin_fee: float | None = None
     dividends_ttm: float | None = None
+    distributes: bool | None = None

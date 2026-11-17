@@ -203,7 +203,7 @@ def build_fii_snapshot(db: Session, asset: Asset, today: date | None = None) -> 
 
 
 def build_etf_snapshot(db: Session, asset: Asset, today: date | None = None) -> EtfSnapshot:
-    """Sem nenhum provento em 2 anos, mas com histórico de preços, o ETF reinveste: proventos = 0."""
+    """Proventos só quando a fonte de cotações os traz; se o ETF distribui, quem diz é o usuário."""
     today = today or date.today()
     prices = db.execute(
         select(PriceDaily.close, PriceDaily.volume)
@@ -214,7 +214,6 @@ def build_etf_snapshot(db: Session, asset: Asset, today: date | None = None) -> 
         select(EtfReport.equity).where(EtfReport.asset_id == asset.id).order_by(EtfReport.ref_date.desc()).limit(1)
     )
     ttm, _ = _dividends_windows(db, asset.id, today)
-    reinvests = ttm is None and bool(prices)
     return EtfSnapshot(
         ticker=asset.ticker,
         name=asset.name,
@@ -222,5 +221,6 @@ def build_etf_snapshot(db: Session, asset: Asset, today: date | None = None) -> 
         avg_daily_volume_brl=_avg_daily_volume([(p.close, p.volume) for p in prices]),
         equity=equity,
         admin_fee=asset.admin_fee,
-        dividends_ttm=0.0 if reinvests else ttm,
+        dividends_ttm=ttm,
+        distributes=asset.distributes,
     )

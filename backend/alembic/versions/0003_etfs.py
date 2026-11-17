@@ -1,4 +1,4 @@
-"""ETFs: favoritos, taxa de administração e patrimônio
+"""ETFs: favoritos, taxa de administração, distribuição e patrimônio
 
 Revision ID: 0003
 Revises: 0002
@@ -23,6 +23,7 @@ def upgrade() -> None:
     with op.batch_alter_table("assets", schema=None) as batch_op:
         batch_op.add_column(sa.Column("favorite", sa.Boolean(), server_default=sa.false(), nullable=False))
         batch_op.add_column(sa.Column("admin_fee", sa.Float(), nullable=True))
+        batch_op.add_column(sa.Column("distributes", sa.Boolean(), nullable=True))
 
     op.create_table(
         "etf_reports",
@@ -44,5 +45,6 @@ def downgrade() -> None:
         batch_op.drop_index(batch_op.f("ix_etf_reports_asset_id"))
     op.drop_table("etf_reports")
     with op.batch_alter_table("assets", schema=None) as batch_op:
+        batch_op.drop_column("distributes")
         batch_op.drop_column("admin_fee")
         batch_op.drop_column("favorite")

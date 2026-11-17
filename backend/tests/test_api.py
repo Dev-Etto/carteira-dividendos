@@ -306,12 +306,14 @@ def test_acao_nova_exige_setor(client):
 
 def test_etf_favorito_e_taxa(client):
     assert client.get("/api/ativos/BOVA11").json()["favorite"] is False
-    r = client.patch("/api/ativos/bova11", json={"favorite": True, "admin_fee": 0.001})
+    r = client.patch("/api/ativos/bova11", json={"favorite": True, "admin_fee": 0.001, "distributes": False})
     assert r.status_code == 200, r.text
     ficha = r.json()
     assert ficha["favorite"] is True
     assert ficha["extras"]["taxa_adm_ano"] == 0.001
     assert ficha["data_sources"]["Taxa de administração"] == "informada por você"
+    assert ficha["extras"]["distribui"] is False
+    assert {r["id"]: r["value_display"] for r in ficha["rules"]}["etf-distribui"] == "reinveste"
     assert any("índice" in risco for risco in ficha["risks"])
     assert {e["ticker"] for e in client.get("/api/ativos", params={"classe": "etf"}).json() if e["favorite"]} == {"BOVA11"}
     apagada = client.patch("/api/ativos/BOVA11", json={"admin_fee": None}).json()

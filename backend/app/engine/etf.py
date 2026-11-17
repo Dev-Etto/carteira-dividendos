@@ -88,22 +88,29 @@ def rule_taxa(s: EtfSnapshot, c: Rules) -> RuleResult:
     )
 
 
+DISTRIBUTES_EXPLANATION = "Repassa os dividendos das empresas do índice: gera renda passiva em dinheiro."
+REINVESTS_EXPLANATION = "Reinveste os dividendos dentro do fundo: o retorno vem só da valorização da cota. Para renda mensal, prefira um que distribua."
+
+
 def rule_distribui(s: EtfSnapshot) -> RuleResult:
+    """Proventos vistos na fonte de cotações valem como prova; sem eles, vale o que o usuário informou."""
     base = {
         "id": "etf-distribui",
         "label": "Distribui proventos",
         "learn_more": "etf-distribui",
         "weight": 1,
-        "threshold": "pagou proventos nos últimos 12 meses",
+        "threshold": "repassa os proventos aos cotistas",
     }
-    if s.dividends_ttm is None:
-        return _na(base, "Histórico de proventos ainda não carregado.")
-    if s.dividends_ttm > 0:
-        dy = dividend_yield(s)
-        exp = "Repassa os dividendos das empresas do índice: gera renda passiva em dinheiro."
-        return RuleResult(**base, status="ok", value=dy, value_display=f"DY {fmt.pct(dy)}", explanation=exp)
-    exp = "Reinveste os dividendos dentro do fundo: o retorno vem só da valorização da cota. Para renda mensal, prefira um que distribua."
-    return RuleResult(**base, status="warn", value=0.0, value_display="reinveste", explanation=exp)
+    dy = dividend_yield(s)
+    if dy:
+        return RuleResult(**base, status="ok", value=dy, value_display=f"DY {fmt.pct(dy)}", explanation=DISTRIBUTES_EXPLANATION)
+    if s.distributes is None:
+        return _na(
+            base, "O Yahoo não informa proventos de ETFs brasileiros. Diga na ficha se ele distribui (está no site da gestora)."
+        )
+    if s.distributes:
+        return RuleResult(**base, status="ok", value=None, value_display="distribui", explanation=DISTRIBUTES_EXPLANATION)
+    return RuleResult(**base, status="warn", value=0.0, value_display="reinveste", explanation=REINVESTS_EXPLANATION)
 
 
 def _verdict(rules: list[RuleResult], has_price: bool) -> tuple[Verdict, str]:
@@ -128,6 +135,11 @@ def evaluate_etf(s: EtfSnapshot, overrides: dict[str, float] | None = None) -> E
         summary=summary,
         dividend_yield=dividend_yield(s),
         rules=rules,
-        extras={"patrimonio": s.equity, "taxa_adm_ano": s.admin_fee, "rendimentos_12m": s.dividends_ttm},
+        extras={
+            "patrimonio": s.equity,
+            "taxa_adm_ano": s.admin_fee,
+            "rendimentos_12m": s.dividends_ttm,
+            "distribui": s.distributes,
+        },
         engine_version=ENGINE_VERSION,
     )
