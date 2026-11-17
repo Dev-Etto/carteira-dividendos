@@ -19,6 +19,7 @@ import {
   Stat,
   VerdictBadge,
 } from "@/components/ui";
+import { Investidor10Link } from "@/components/Investidor10Link";
 import { api, type AssetRow, type Portfolio, type Transaction } from "@/lib/api/client";
 import { brl, dateBr, decimalStr, num, pct, SECTOR_LABEL, todayIso } from "@/lib/format";
 import { decimalInput, scrollAndFocus } from "@/lib/inputs";
@@ -135,6 +136,7 @@ function Carteira() {
                         {p.ticker}
                       </Link>
                       <div className="text-xs text-muted">{SECTOR_LABEL[p.sector] ?? p.sector}</div>
+                      <Investidor10Link ticker={p.ticker} assetClass={p.asset_class} compact />
                     </td>
                     <td className="py-2.5 pr-3 text-right tabular-nums">{num(p.quantity, 0)}</td>
                     <td className="py-2.5 pr-3 text-right tabular-nums">{brl(p.avg_price)}</td>

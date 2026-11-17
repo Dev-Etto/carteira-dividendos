@@ -16,6 +16,7 @@ import {
   verdictTone,
   type ScoreTone,
 } from "@/components/ui";
+import { Investidor10Link } from "@/components/Investidor10Link";
 import type { AssetDetail, AssetHistory, RuleResult } from "@/lib/api/client";
 import { brl, brlCompact, dateBr, num, pct, SECTOR_LABEL, SEGMENT_LABEL } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -72,12 +73,15 @@ export function AtivoView() {
         title={`${data.ticker} · ${data.name}`}
         subtitle={`${SECTOR_LABEL[data.sector] ?? data.sector}${data.segment ? ` · ${SEGMENT_LABEL[data.segment] ?? data.segment}` : ""}${data.economic_group ? ` · grupo ${data.economic_group}` : ""}`}
       >
-        <Link
-          href={`/carteira?novo=${data.ticker}`}
-          className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink hover:bg-neutral-soft"
-        >
-          Registrar compra
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Investidor10Link ticker={data.ticker} assetClass={data.asset_class} />
+          <Link
+            href={`/carteira?novo=${data.ticker}`}
+            className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink hover:bg-neutral-soft"
+          >
+            Registrar compra
+          </Link>
+        </div>
       </PageHeader>
 
       <Card>
