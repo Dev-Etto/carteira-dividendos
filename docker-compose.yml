@@ -1,0 +1,26 @@
+name: carteira-dividendos
+
+services:
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      BRAPI_TOKEN: ${BRAPI_TOKEN:-}
+      SYNC_HOUR: ${SYNC_HOUR:-19}
+      CVM_YEARS: ${CVM_YEARS:-6}
+    volumes:
+      - dados:/app/data
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  dados:
