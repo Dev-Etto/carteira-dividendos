@@ -35,8 +35,9 @@ class Asset(Base):
     """Ativo do universo.
 
     asset_class: acao | fii | etf.
-    sector: bancos | seguros | energia | saneamento | telecom | perene | ciclico.
-    segment (só energia): transmissao | geracao | distribuicao | integrada.
+    sector: em ações, bancos | seguros | energia | saneamento | telecom | perene | ciclico;
+        em FIIs, o tipo pela carteira: papel | tijolo | fof | hibrido.
+    segment: em energia, transmissao | geracao | distribuicao | integrada; em FIIs, o segmento declarado à CVM.
     """
 
     __tablename__ = "assets"
@@ -140,6 +141,50 @@ class SectorMetric(Base):
     reference: Mapped[str | None] = mapped_column(String(20))
     source: Mapped[str] = mapped_column(String(40), default="manual")
     updated_at: Mapped[date] = mapped_column(Date)
+
+
+class FiiReport(Base):
+    """Informe mensal de um FII na CVM. Valores em R$; taxa de administração e composição em fração.
+
+    paper, brick, fof, cash: peso de crédito, imóveis, cotas de FII e caixa no ativo do fundo.
+    """
+
+    __tablename__ = "fii_reports"
+    __table_args__ = (UniqueConstraint("asset_id", "ref_date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
+    ref_date: Mapped[date] = mapped_column(Date)
+    equity: Mapped[float | None] = mapped_column(Float)
+    shares: Mapped[float | None] = mapped_column(Float)
+    nav_per_share: Mapped[float | None] = mapped_column(Float)
+    holders: Mapped[int | None] = mapped_column(Integer)
+    admin_fee: Mapped[float | None] = mapped_column(Float)
+    paper: Mapped[float] = mapped_column(Float, default=0)
+    brick: Mapped[float] = mapped_column(Float, default=0)
+    fof: Mapped[float] = mapped_column(Float, default=0)
+    cash: Mapped[float] = mapped_column(Float, default=0)
+    started_on: Mapped[date | None] = mapped_column(Date)
+    listed: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class FiiQuarterlyReport(Base):
+    """Informe trimestral de um FII na CVM: imóveis e maior ativo de crédito (R$).
+
+    vacancy: vacância física ponderada pela área; None quando o informe é inconsistente.
+    largest_property_share: maior participação de um imóvel na receita do fundo.
+    """
+
+    __tablename__ = "fii_quarterly_reports"
+    __table_args__ = (UniqueConstraint("asset_id", "ref_date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
+    ref_date: Mapped[date] = mapped_column(Date)
+    properties: Mapped[int | None] = mapped_column(Integer)
+    vacancy: Mapped[float | None] = mapped_column(Float)
+    largest_property_share: Mapped[float | None] = mapped_column(Float)
+    largest_credit_value: Mapped[float | None] = mapped_column(Float)
 
 
 class MacroRate(Base):
