@@ -1,49 +1,98 @@
 # Carteira de Dividendos
 
-Assistente local para montar e manter uma carteira focada em dividendos pelo **método Barsi**. Ele avalia ações por regras explícitas, explica cada nota em linguagem simples, cuida da reserva de emergência e diz onde colocar o aporte do mês.
+Assistente **local e de código aberto** para montar e manter uma carteira de renda passiva com dividendos, seguindo o **método Barsi**. Ele avalia ações por regras explícitas, explica cada nota em português simples, cuida da reserva de emergência e diz onde colocar o aporte do mês.
 
-> O app aplica regras e explica o resultado. **Não é recomendação de investimento**: a decisão é sua.
+> O app aplica regras e mostra o porquê de cada resultado. **Não é recomendação de investimento**: a decisão é sempre sua.
 
-## Como rodar (macOS)
+## Propósito
 
-Pré-requisitos: [uv](https://docs.astral.sh/uv/) (`brew install uv`) e Node 22+.
+Investir para viver de dividendos é simples de explicar e difícil de manter: comprar boas pagadoras de proventos, a preço justo, todo mês, sem se deixar levar pelo humor do mercado. Na prática, isso exige olhar balanços, calcular preço-teto, acompanhar a reserva e decidir para onde vai cada aporte.
 
-```bash
-make setup     # instala dependências e cria backend/.env e frontend/.env.local
-make sync      # primeira carga de dados (alguns minutos)
-make dev       # API em http://localhost:8000/docs e telas em http://localhost:3000
+Este projeto existe para tirar esse trabalho braçal do caminho sem tirar o entendimento. Ele foi pensado para quem está começando e quer aprender o método enquanto aplica, e para quem já investe e quer disciplina e transparência no processo.
+
+## Abordagem
+
+- **Regras explícitas, não caixa-preta.** Cada ação passa por um checklist (✓ ok, ! atenção, ✕ reprovada). A nota é a soma ponderada dessas regras, e cada linha diz qual dado foi usado, de onde veio e por que passou ou não.
+- **Método Barsi como base.** Setores perenes (bancos, energia, saneamento, seguros, telecom), longo histórico de proventos, lucro consistente, dívida controlada e compra só abaixo do preço-teto. Em cima disso entram regras por setor e a sustentabilidade do dividendo.
+- **Você no controle.** Todos os limites (yield-alvo, ROE mínimo, dívida máxima, notas de corte) são editáveis na tela de Configurações.
+- **Reserva primeiro.** O plano de aporte completa a reserva de emergência antes de qualquer ação, depois equilibra as classes abaixo da divisão-alvo e só então escolhe as melhores ações.
+- **Local e privado.** Tudo roda na sua máquina, num SQLite. Não há conta, nuvem nem envio da sua carteira para lugar nenhum.
+- **Dados públicos.** Banco Central, Tesouro Transparente, CVM e Yahoo Finance; nenhuma assinatura obrigatória.
+
+## Como funciona
+
+```
+ fontes públicas              API (FastAPI)                         telas (Next.js)
+┌──────────────────┐   ┌──────────────────────────────────┐   ┌──────────────────────┐
+│ Banco Central    │   │ providers  baixam e interpretam  │   │ Início   Explorar    │
+│ Tesouro Direto   │──▶│ sync       grava no SQLite       │──▶│ Ficha    Carteira    │
+│ CVM (balanços)   │   │ engine     regras puras (Barsi)  │   │ Aporte   Renda fixa  │
+│ Yahoo / brapi    │   │ services   casos de uso + API    │   │ Aprender Config.     │
+└──────────────────┘   └──────────────────────────────────┘   └──────────────────────┘
 ```
 
-Depois disso, a API atualiza os dados sozinha todo dia às 19h enquanto estiver rodando. Você também pode atualizar pela tela **Configurações**.
+1. **Coleta:** a API baixa os dados ao subir pela primeira vez e depois todo dia às 19h (ou quando você pede, em Configurações).
+2. **Avaliação:** o motor de regras recalcula nota, veredito e preço-teto de cada ação a cada atualização.
+3. **Uso:** no onboarding você responde um questionário de perfil; o app sugere a divisão-alvo e o tamanho da reserva. A partir daí, a cada mês, informa quanto vai aportar e recebe um plano de compras, que registra na carteira com um clique depois de executar na corretora.
 
-**Token da brapi (opcional):** crie um token gratuito em [brapi.dev](https://brapi.dev) e coloque em `backend/.env` (`BRAPI_TOKEN=...`) para cotações mais frescas. Sem ele, o app usa o fechamento diário do Yahoo Finance.
+## Como rodar
 
-## O que já funciona (Fase 1)
+O único requisito é o [Docker](https://docs.docker.com/get-docker/) (Docker Desktop no macOS e no Windows).
+
+```bash
+git clone https://github.com/Dev-Etto/carteira-dividendos.git
+cd carteira-dividendos
+docker compose up -d --build
+```
+
+Pronto:
+
+- **Telas:** http://localhost:3000
+- **API e documentação:** http://localhost:8000/docs
+
+Na primeira vez, a API baixa todos os dados sozinha. Isso leva alguns minutos; o andamento aparece em **Configurações**. Os dados ficam num volume do Docker e sobrevivem a `docker compose down` e a atualizações da imagem.
+
+| Comando | O que faz |
+| --- | --- |
+| `docker compose up -d --build` (ou `make up`) | sobe ou atualiza API e telas |
+| `docker compose down` (ou `make down`) | para tudo, mantendo os dados |
+| `docker compose logs -f` (ou `make logs`) | acompanha os logs |
+| `docker compose down -v` | para tudo e **apaga** os dados, para começar do zero |
+
+**Configuração opcional:** crie um arquivo `.env` na raiz do projeto.
+
+```env
+BRAPI_TOKEN=seu_token   # token gratuito de https://brapi.dev para cotações mais frescas (sem ele, usa o fechamento do Yahoo)
+SYNC_HOUR=19            # hora da atualização automática diária
+CVM_YEARS=6             # anos de balanços da CVM a baixar
+```
+
+## Telas
 
 | Tela | O que faz |
 | --- | --- |
 | Onboarding | Questionário de perfil, reserva de emergência (6 a 12 meses de gastos) e divisão-alvo da carteira |
 | Início | Próximo passo recomendado, reserva, renda passiva × meta, divisão atual × alvo, oportunidades, Selic/CDI/IPCA |
 | Explorar | Ranking das ações com nota, veredito, preço-teto e margem; adicionar novas ações |
-| Ficha do ativo | Checklist de regras (✓ ! ✕) com explicação, preço-teto, Bazin, Graham, gráficos, riscos e fonte de cada dado |
-| Carteira | Posições, preço médio, resultado, yield on cost, alertas de concentração, operações |
-| Aporte do mês | Plano de compras: reserva → classes abaixo do alvo → melhores ações; registra as compras |
-| Renda fixa | Reserva de emergência, aplicações, comparador isento × tributado, taxas do Tesouro Direto |
-| Aprender | Glossário com tudo o que aparece no app e trilha "Comece aqui" |
+| Ficha do ativo | Checklist de regras com explicação, preço-teto, Bazin, Graham, gráficos, riscos e fonte de cada dado |
+| Carteira | Posições, preço médio, resultado, yield on cost, alertas de concentração e histórico de operações editável |
+| Aporte do mês | Plano de compras: reserva → classes abaixo do alvo → melhores ações; registra compras e aplicações de uma vez |
+| Renda fixa | Reserva de emergência, aplicações, comparador isento × tributado e taxas do Tesouro Direto |
+| Aprender | Glossário com tudo o que aparece no app e a trilha "Comece aqui" |
 | Configurações | Atualização de dados, perfil, divisão-alvo e limites das regras |
 
-FIIs e ETFs entram na Fase 2. Até lá, a parte do aporte destinada a eles fica em Tesouro Selic, identificada no plano.
+FIIs e ETFs ainda não são avaliados. Até lá, a parte do aporte destinada a eles fica em Tesouro Selic, identificada no plano.
 
 ## Como as ações são avaliadas
 
-Regras do método Barsi + regras setoriais + sustentabilidade do dividendo. Cada regra tem peso e pode ser **eliminatória**:
+Regras do método Barsi, regras setoriais e sustentabilidade do dividendo. Cada regra tem peso e pode ser **eliminatória**:
 
-- **Qualidade:** setor perene (BESST), histórico de proventos (eliminatória, ≥ 10 anos ideal / 5 mínimo), consistência, lucro, ROE médio 5 anos, endividamento, payout, liquidez (eliminatória)
+- **Qualidade:** setor perene, histórico de proventos (eliminatória; 10 anos ideal, 5 no mínimo), consistência, lucro, ROE médio de 5 anos, endividamento, payout e liquidez (eliminatória)
 - **Setor:** Basileia e inadimplência (bancos), índice combinado (seguros), segmento e concessões (energia e saneamento), limite de dívida maior para setores regulados
 - **Sustentabilidade:** fluxo de caixa livre × proventos, provento pago com dívida
-- **Preço:** preço-teto Barsi (média de proventos de 5 anos ÷ 6%), DY fora do normal, barato em relação ao próprio histórico
+- **Preço:** preço-teto Barsi (média de proventos de 5 anos ÷ yield-alvo de 6%), DY fora do normal, preço em relação ao próprio histórico
 
-Nota = soma ponderada (✓ = 1, ! = 0,5, ✕ = 0) sobre as regras com dado. **Comprar**: nota ≥ 70 e preço abaixo do teto. **Aguardar**: nota ≥ 70 e preço acima do teto. **Evitar**: nota < 50 ou eliminatória reprovada. Todos os limites são editáveis em Configurações.
+**Nota** = soma ponderada (✓ = 1, ! = 0,5, ✕ = 0) sobre as regras que têm dado. **Comprar:** nota alta e preço abaixo do teto. **Aguardar:** nota alta e preço acima do teto. **Evitar:** nota baixa ou eliminatória reprovada. As notas de corte (70 e 50 por padrão) e os demais limites são editáveis em Configurações.
 
 Indicadores setoriais (Basileia, inadimplência, índice combinado, vencimento de concessões) ainda são cadastrados à mão em `backend/app/data/sector_metrics.csv`. Formato (valores ilustrativos, confira no RI de cada empresa):
 
@@ -69,30 +118,34 @@ Enquanto não estiverem cadastrados, essas regras aparecem como "sem dado" e nã
 | Preços, proventos, desdobramentos | Yahoo Finance via `yfinance` (não oficial) |
 | Cotação do dia | brapi (plano gratuito, opcional) |
 
-Ações do universo inicial ficam em `backend/app/data/universo.csv` e podem ser adicionadas pela tela Explorar.
-
-## Estrutura
-
-```
-backend/            FastAPI + SQLAlchemy + Alembic (SQLite em backend/data/)
-  app/api/routers/  endpoints REST finos (documentação em /docs)
-  app/services/     casos de uso: ativos, carteira, operações, renda fixa, perfil, aporte, painel, sync
-  app/engine/       motor de regras puro (ações, renda fixa, carteira, aporte, perfil)
-  app/providers/    coletores: bcb, tesouro, cvm, market (brapi + Yahoo)
-  app/core/         configuração e erros de domínio
-  tools/            verificador das regras da casa e exportação do OpenAPI
-  tests/            pytest: motor, carteira, aporte, renda fixa, parsers, sync, API e regras da casa
-frontend/           Next.js + Tailwind + Recharts; tipos gerados do OpenAPI (make types); testes com Vitest
-```
+As ações do universo inicial ficam em `backend/app/data/universo.csv`, e outras podem ser adicionadas pela tela Explorar.
 
 ## Desenvolvimento
 
+Para mexer no código sem Docker, você precisa de [uv](https://docs.astral.sh/uv/) e Node 22+.
+
 ```bash
+make setup    # instala dependências e cria backend/.env e frontend/.env.local
+make dev      # API em http://localhost:8000/docs e telas em http://localhost:3000, com recarga automática
+make sync     # força uma atualização de dados (ex.: make sync ETAPAS=macro,mercado)
 make check    # lint + testes, o mesmo que a CI roda
-make lint     # ruff, mypy e regras da casa (back); eslint, tsc e prettier (front)
-make test     # pytest com cobertura mínima (back) e vitest (front)
 make format   # aplica ruff format e prettier
 make types    # regenera os tipos do front após mudar schemas da API
 ```
 
-Os padrões de código (sem comentários de linha, sem `else`/`elif`, sem `if` aninhado) e a arquitetura estão em [CONTRIBUTING.md](CONTRIBUTING.md).
+```
+backend/            FastAPI + SQLAlchemy + Alembic (SQLite em backend/data/)
+  app/api/routers/  endpoints REST finos
+  app/services/     casos de uso: ativos, carteira, operações, renda fixa, perfil, aporte, painel, sync
+  app/engine/       motor de regras puro (ações, renda fixa, carteira, aporte, perfil)
+  app/providers/    coletores: bcb, tesouro, cvm, market (brapi + Yahoo)
+  tests/            pytest: motor, carteira, aporte, renda fixa, parsers, sync, API e regras da casa
+frontend/           Next.js + Tailwind + Recharts; tipos gerados do OpenAPI; testes com Vitest
+docker-compose.yml  API e telas prontas para uso
+```
+
+Os padrões de código e a arquitetura estão em [CONTRIBUTING.md](CONTRIBUTING.md). Contribuições são bem-vindas: abra uma issue ou um pull request.
+
+## Licença
+
+[MIT](LICENSE). Use, modifique e distribua à vontade, mantendo o aviso de copyright.
