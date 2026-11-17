@@ -62,6 +62,27 @@ def buy_candidates(db: Session, state: PortfolioState, asset_class: str) -> list
     ]
 
 
+def favorite_etfs(db: Session, state: PortfolioState) -> list[Candidate]:
+    """ETFs marcados como favoritos, com preço e sem reprovação eliminatória (veredito "evitar")."""
+    held = {p.ticker: p.value for p in state.positions}
+    assets = list(db.scalars(select(Asset).where(Asset.active, Asset.asset_class == "etf", Asset.favorite)))
+    evaluations = latest_evaluations(db, [a.id for a in assets])
+    avoided = {asset_id for asset_id, ev in evaluations.items() if ev.verdict == "evitar"}
+    return [
+        Candidate(
+            ticker=asset.ticker,
+            name=asset.name,
+            price=asset.last_price,
+            score=evaluations[asset.id].score if asset.id in evaluations else 0,
+            margin=0.0,
+            sector="etf",
+            held_value=held.get(asset.ticker, 0.0),
+        )
+        for asset in assets
+        if asset.last_price and asset.id not in avoided
+    ]
+
+
 def _money(value: float) -> Decimal:
     return Decimal(str(round(value, 2)))
 
@@ -123,6 +144,7 @@ def make_plan(db: Session, amount: float) -> PlanOut:
         targets=targets(db),
         stock_candidates=buy_candidates(db, state, "acao"),
         fii_candidates=buy_candidates(db, state, "fii"),
+        etf_candidates=favorite_etfs(db, state),
         long_term_fixed_income=_bond_label(bond),
     )
     return PlanOut(

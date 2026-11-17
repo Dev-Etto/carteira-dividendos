@@ -43,7 +43,10 @@ class PlanLine:
 
 @dataclass(frozen=True)
 class ClassPolicy:
-    """Como escolher os ativos de uma classe: limite por grupo (setor ou tipo) e os textos do plano."""
+    """Como escolher os ativos de uma classe: limite por grupo (setor ou tipo) e os textos do plano.
+
+    equal_weight: em vez de ranquear por nota × margem, divide a classe em partes iguais entre os
+    candidatos (ETFs favoritos do usuário)."""
 
     plan_class: str
     max_group_share: float
@@ -51,6 +54,7 @@ class ClassPolicy:
     new_group_label: str
     empty_note: str
     unspent_label: str
+    equal_weight: bool = False
 
 
 def stock_policy(max_sector_share: float) -> ClassPolicy:
@@ -71,6 +75,17 @@ FII_POLICY = ClassPolicy(
     new_group_label="tipo de FII ainda ausente na carteira",
     empty_note="Nenhum FII com veredito 'comprar' hoje. A parte de FIIs ficou em Tesouro Selic.",
     unspent_label="FIIs sem veredito 'comprar' hoje",
+)
+
+
+ETF_POLICY = ClassPolicy(
+    plan_class="etfs",
+    max_group_share=1.0,
+    margin_label="",
+    new_group_label="",
+    empty_note="Nenhum ETF favorito apto. Marque favoritos na aba ETFs do Explorar; a parte de ETFs ficou em Tesouro Selic.",
+    unspent_label="ETFs sem favorito apto",
+    equal_weight=True,
 )
 
 
@@ -144,6 +159,56 @@ def _pick_assets(
     return lines, remaining
 
 
+def _pick_equal(
+    policy: ClassPolicy,
+    budget: float,
+    candidates: list[Candidate],
+    class_target_value: float,
+    max_asset_share: float,
+    min_assets: int,
+) -> tuple[list[PlanLine], float]:
+    """Divide a classe em partes iguais entre os candidatos: cada um caminha para a mesma fatia do alvo,
+    e o mais distante dela compra primeiro. Se nenhuma cota cabe na fatia, compra o mais distante que
+    couber no orçamento, e o equilíbrio vem nos próximos aportes."""
+    if not candidates:
+        return [], budget
+    share = class_target_value / len(candidates)
+    by_distance = sorted(candidates, key=lambda c: c.held_value)
+    lines: list[PlanLine] = []
+    remaining = budget
+    for c in by_distance:
+        room = min(share - c.held_value, remaining)
+        qty = math.floor(room / c.price) if room > 0 else 0
+        if qty < 1:
+            continue
+        lines.append(
+            PlanLine(
+                policy.plan_class,
+                c.name,
+                c.ticker,
+                qty,
+                c.price,
+                qty * c.price,
+                f"favorito; cada ETF caminha para {fmt.brl(share)}",
+            )
+        )
+        remaining -= qty * c.price
+    if lines:
+        return lines, remaining
+    return _buy_cheapest_gap(policy, by_distance, remaining)
+
+
+def _buy_cheapest_gap(policy: ClassPolicy, by_distance: list[Candidate], budget: float) -> tuple[list[PlanLine], float]:
+    """Compra, com todo o orçamento, o candidato mais distante da sua fatia cuja cota caiba nele."""
+    affordable = [c for c in by_distance if c.price <= budget]
+    if not affordable:
+        return [], budget
+    c = affordable[0]
+    qty = math.floor(budget / c.price)
+    line = PlanLine(policy.plan_class, c.name, c.ticker, qty, c.price, qty * c.price, "favorito mais abaixo da sua fatia")
+    return [line], budget - qty * c.price
+
+
 def _add_assets(
     plan: Plan,
     policy: ClassPolicy,
@@ -155,7 +220,8 @@ def _add_assets(
 ) -> float:
     """Acrescenta as compras da classe ao plano e devolve quanto do orçamento foi usado."""
     eligible = [c for c in candidates if c.price > 0]
-    lines, rest = _pick_assets(policy, budget, eligible, class_target_value, max_asset_share, min_assets)
+    pick = _pick_equal if policy.equal_weight else _pick_assets
+    lines, rest = pick(policy, budget, eligible, class_target_value, max_asset_share, min_assets)
     plan.lines += lines
     if not eligible:
         plan.notes.append(policy.empty_note)
@@ -171,13 +237,15 @@ def build_plan(
     targets: dict[str, float],
     stock_candidates: Sequence[Candidate],
     fii_candidates: Sequence[Candidate] = (),
+    etf_candidates: Sequence[Candidate] = (),
     long_term_fixed_income: str = DEFAULT_LONG_TERM_FIXED_INCOME,
     max_asset_share: float = 0.10,
     max_sector_share: float = 0.30,
     min_assets: int = 5,
 ) -> Plan:
     """Monta o plano em duas etapas: primeiro completa a reserva de emergência; o que sobrar é
-    dividido entre as classes abaixo do alvo e, dentro de ações e FIIs, entre os melhores ativos."""
+    dividido entre as classes abaixo do alvo; dentro de ações e FIIs, entre os melhores ativos, e
+    dentro de ETFs, em partes iguais entre os favoritos aptos."""
     plan = Plan(amount=amount)
     missing = max(0.0, reserve_target - reserve_current)
     to_reserve = min(amount, missing) if missing > 0 else 0.0
@@ -202,7 +270,11 @@ def build_plan(
     per_class = split_by_class(total, class_current, targets, left)
     after_total = total + left
     parked: list[tuple[str, float]] = []
-    by_class = {"acoes": (stock_policy(max_sector_share), stock_candidates), "fiis": (FII_POLICY, fii_candidates)}
+    by_class = {
+        "acoes": (stock_policy(max_sector_share), stock_candidates),
+        "fiis": (FII_POLICY, fii_candidates),
+        "etfs": (ETF_POLICY, etf_candidates),
+    }
 
     for cls, budget in sorted(per_class.items(), key=lambda kv: -kv[1]):
         if budget < 1:
@@ -228,10 +300,7 @@ def build_plan(
             left -= used
             parked += _unspent_budget(policy, used, budget)
             continue
-        parked.append((f"{CLASS_LABEL[cls]} aguardando o motor da próxima fase", budget))
-        plan.notes.append(
-            f"{CLASS_LABEL[cls]}: o motor desta classe chega na próxima fase; {fmt.brl(budget)} ficam em Tesouro Selic até lá."
-        )
+        parked.append((f"{CLASS_LABEL.get(cls, cls)} sem regra de compra", budget))
 
     if left > 0.01:
         plan.lines.append(
