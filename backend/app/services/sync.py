@@ -143,6 +143,7 @@ def seed_universe(db: Session) -> int:
                 "sector": r["setor"].strip(),
                 "segment": r["segmento"].strip() or None,
                 "economic_group": r["grupo"].strip() or None,
+                "region": (r.get("regiao") or "").strip() or "nacional",
                 "active": True,
             }
             for r in csv.DictReader(f)
