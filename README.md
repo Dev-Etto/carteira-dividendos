@@ -176,7 +176,7 @@ Thiago Nigro (_Do Mil ao Milhão_, 2018) divide a carteira em quatro classes:
 | **C**aixa                 | renda fixa (a reserva de emergência continua à parte) | 25%          |
 | **A**tivos internacionais | ETFs de índice estrangeiro (IVVB11…)                  | 25%          |
 
-Cada classe pode ficar entre 10% e 40%. Na ficha de cada ETF você diz se o índice é brasileiro ou estrangeiro; o aporte da classe internacional é dividido entre os ETFs estrangeiros favoritos. O método não diz quando rebalancear, então o app equilibra só pelos aportes. Conta no exterior, câmbio e BDRs ficam de fora.
+Cada classe pode ficar entre 10% e 40%. Na ficha de cada ETF você diz se o índice é brasileiro ou estrangeiro; o aporte da classe internacional é dividido entre os ETFs estrangeiros favoritos. Na classe de ações, 20% do aporte (editável em Configurações, grupo ETFs) vai para os ETFs brasileiros favoritos, em partes iguais, e o resto para as ações pela nota; quando essa parte não paga uma cota e o ETF está abaixo da fatia dele, o plano completa a cota com a parte das ações. O método não diz quando rebalancear, então o app equilibra só pelos aportes. Conta no exterior, câmbio e BDRs ficam de fora.
 
 ## Como os FIIs são avaliados
 

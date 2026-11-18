@@ -9,8 +9,9 @@ from sqlalchemy.orm import Session
 from app.db.models import Asset, TreasuryBond
 from app.engine import fmt
 from app.engine.aporte import Candidate, PlanLine, build_plan
+from app.engine.config import merged_rules
 from app.schemas.api import FixedIncomeIn, PlanLineOut, PlanOut, RegisterPlanIn, RegisterPlanOut
-from app.services.evaluation import latest_evaluations
+from app.services.evaluation import latest_evaluations, rule_overrides
 from app.services.fixed_income import add_holdings, consume_cash_to_invest, holding_out
 from app.services.portfolio import PortfolioState, load_portfolio
 from app.services.profile import current_allocation, get_profile, reserve_target, targets
@@ -144,7 +145,9 @@ def make_plan(db: Session, amount: float) -> PlanOut:
     profile = get_profile(db)
     state = load_portfolio(db)
     bond = best_long_treasury(db)
-    liquid = current_allocation(db).liquid_fixed_income
+    division = current_allocation(db)
+    liquid = division.liquid_fixed_income
+    folds_etfs = "etfs" not in division.classes
     plan = build_plan(
         amount=amount + state.cash_to_invest,
         reserve_current=state.reserve,
@@ -155,6 +158,8 @@ def make_plan(db: Session, amount: float) -> PlanOut:
         fii_candidates=buy_candidates(db, state, "fii"),
         etf_candidates=favorite_etfs(db, state),
         international_candidates=favorite_etfs(db, state, "internacional"),
+        national_etf_candidates=favorite_etfs(db, state, "nacional") if folds_etfs else [],
+        national_etf_share=merged_rules(rule_overrides(db))["etf_fatia_nacional_acoes"],
         long_term_fixed_income=LIQUID_FIXED_INCOME if liquid else _bond_label(bond),
     )
     notes = [f"Inclui {fmt.brl(state.cash_to_invest)} do caixa a investir de aportes anteriores."] if state.cash_to_invest else []
