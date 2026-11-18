@@ -31,6 +31,31 @@ WEGE3,WEG,acao,perene,,
 KLBN11,Klabin,acao,ciclico,,
 PETR4,Petrobras,acao,ciclico,,
 VALE3,Vale,acao,ciclico,,
+SUZB3,Suzano,acao,ciclico,,Suzano
+GGBR4,Gerdau,acao,ciclico,,Gerdau
+GOAU4,Metalúrgica Gerdau,acao,ciclico,,Gerdau
+CSNA3,CSN,acao,ciclico,,CSN
+CMIN3,CSN Mineração,acao,ciclico,,CSN
+USIM5,Usiminas,acao,ciclico,,Usiminas
+PRIO3,PRIO,acao,ciclico,,PRIO
+CSAN3,Cosan,acao,ciclico,,Cosan
+RAIL3,Rumo,acao,ciclico,,Cosan
+UGPA3,Ultrapar,acao,ciclico,,Ultrapar
+VBBR3,Vibra Energia,acao,ciclico,,Vibra
+EMBJ3,Embraer,acao,ciclico,,Embraer
+CYRE3,Cyrela,acao,ciclico,,Cyrela
+EZTC3,EZTEC,acao,ciclico,,EZTEC
+SLCE3,SLC Agrícola,acao,ciclico,,SLC
+SMTO3,São Martinho,acao,ciclico,,São Martinho
+RENT3,Localiza,acao,ciclico,,Localiza
+LREN3,Lojas Renner,acao,ciclico,,Renner
+MULT3,Multiplan,acao,ciclico,,Multiplan
+RADL3,Raia Drogasil,acao,perene,,RD Saúde
+HYPE3,Hypera,acao,perene,,Hypera
+TOTS3,TOTVS,acao,perene,,TOTVS
+ASAI3,Assaí,acao,perene,,Assaí
+RDOR3,Rede D'Or,acao,perene,,Rede D'Or
+FLRY3,Fleury,acao,perene,,Fleury
 KNCR11,Kinea Rendimentos Imobiliários,fii,papel,,
 KNIP11,Kinea Índices de Preços,fii,papel,,
 KNSC11,Kinea Securities,fii,papel,,

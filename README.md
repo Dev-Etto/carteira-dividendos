@@ -97,8 +97,8 @@ A escolha fica em Configurações e muda vereditos, recomendações e o plano de
 | Perfil de risco (questionário do app) | divisão | disponível, padrão |
 | Bazin (Décio Bazin)                   | seleção | disponível         |
 | Graham (Benjamin Graham)              | seleção | disponível         |
-| Fórmula Mágica (Joel Greenblatt)      | seleção | próxima            |
-| ARCA (Thiago Nigro)                   | divisão | planejada          |
+| Fórmula Mágica (Joel Greenblatt)      | seleção | disponível         |
+| ARCA (Thiago Nigro)                   | divisão | próxima            |
 
 Como criar uma metodologia nova está em [`backend/app/engine/README.md`](backend/app/engine/README.md#metodologias-metodos).
 
@@ -153,6 +153,16 @@ Os critérios do investidor defensivo de Benjamin Graham (_O Investidor Intelige
 | P/L × P/VP          | ≤ 22,5                                    | ≤ 22,5                                                        |
 
 Os dois critérios de preço decidem entre comprar e aguardar, sem mexer na nota. O preço-teto é o valor de Graham, √(22,5 × LPA × VPA). Os limites ficam em Configurações, na seção "Ações pelo Graham".
+
+## Como as ações entram na Fórmula Mágica
+
+Joel Greenblatt (_The Little Book That Beats the Market_, 2005) não avalia cada ação sozinha: ele monta um ranking.
+
+1. Ficam de fora bancos, seguradoras, energia e saneamento, como no livro, e as ações que reprovam em liquidez.
+2. Cada ação recebe duas posições: **earnings yield** (EBIT ÷ valor de mercado + dívida líquida) e **retorno sobre o capital** (EBIT ÷ capital de giro líquido + imobilizado), com os números do último balanço.
+3. A soma das posições dá o ranking. O primeiro terço recebe "comprar"; o resto fica "neutro". Não há "evitar".
+
+O método busca valorização e ignora dividendos, e o livro manda trocar a carteira a cada ano; o app só avisa, nunca sugere vender. Como quase todas as ações do BEST ficam de fora, o universo inclui também ações líquidas de outros setores.
 
 ## Como os FIIs são avaliados
 

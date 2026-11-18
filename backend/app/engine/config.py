@@ -33,6 +33,8 @@ Limites do método Graham (prefixo graham_), critérios do investidor defensivo 
 receita mínima, liquidez corrente, anos seguidos com lucro e com proventos, crescimento do lucro ao ano,
 P/L máximo (fixo ou ligado ao juro real: 1 liga, 0 usa o fixo) e P/L × P/VP máximo.
 
+Limites da Fórmula Mágica (prefixo fm_): fração do ranking que recebe "comprar" (o primeiro terço).
+
 Limites dos ETFs (prefixo etf_): liquidez média diária (ideal e mínima, eliminatória), patrimônio
 (ideal e mínimo) e taxa de administração ao ano (ideal e máxima). ETFs não têm nota Barsi: o
 checklist só informa, e o aporte escolhe entre os favoritos do usuário.
@@ -92,6 +94,8 @@ GRAHAM = {
     "graham_pl_x_pvp_max": 22.5,
 }
 
+FORMULA_MAGICA = {"fm_fracao_comprar": 1 / 3}
+
 ETF_LIMITES = {
     "etf_liquidez_ok": 5_000_000,
     "etf_liquidez_min": 1_000_000,
@@ -128,6 +132,7 @@ DEFAULT_RULES: dict[str, float] = {
     **ETF_LIMITES,
     **BAZIN,
     **GRAHAM,
+    **FORMULA_MAGICA,
 }
 
 
@@ -178,6 +183,7 @@ STRICTLY_POSITIVE = frozenset(
         "bazin_yield_alvo",
         "graham_pl_max",
         "graham_pl_x_pvp_max",
+        "fm_fracao_comprar",
     }
 )
 

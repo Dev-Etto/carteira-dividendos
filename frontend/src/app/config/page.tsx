@@ -77,12 +77,14 @@ const RULE_LABEL: Record<string, string> = {
   graham_pl_max: "P/L máximo fixo",
   graham_pl_ligado_juros: "P/L máximo ligado ao juro real (1 = sim, 0 = usa o fixo)",
   graham_pl_x_pvp_max: "P/L × P/VP máximo",
+  fm_fracao_comprar: "Parte do ranking que recebe comprar (%)",
 };
 
 /** Seções da tela de limites. Cada uma, menos a das ações pelo Barsi, junta as chaves de um prefixo. */
 const PREFIXED_SECTIONS = [
   { title: "Ações pelo Bazin", prefix: "bazin_" },
   { title: "Ações pelo Graham", prefix: "graham_" },
+  { title: "Ações pela Fórmula Mágica", prefix: "fm_" },
   { title: "FIIs", prefix: "fii_" },
   { title: "ETFs", prefix: "etf_" },
 ];
@@ -119,6 +121,7 @@ const PERCENT_RULES = new Set([
   "bazin_yield_alvo",
   "bazin_yield_venda",
   "graham_crescimento_min",
+  "fm_fracao_comprar",
 ]);
 
 /** Limites em reais (liquidez e patrimônio). */
