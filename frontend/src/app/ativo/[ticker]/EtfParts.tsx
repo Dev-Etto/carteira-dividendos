@@ -15,19 +15,19 @@ const MAX_FEE_PCT = 10;
 export function EtfHeader({ data, onChange }: { data: AssetDetail; onChange: () => void }) {
   const avoid = data.verdict === "evitar";
   return (
-    <div className="flex items-start gap-3">
-      <FavoriteButton ticker={data.ticker} favorite={data.favorite} onChange={onChange} />
+    <div className="flex items-center gap-4">
+      <FavoriteButton ticker={data.ticker} favorite={data.favorite} onChange={onChange} large />
       <div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <span
-            className={`rounded-md px-2 py-0.5 text-xs font-medium ${avoid ? "bg-bad-soft text-bad" : "bg-good-soft text-good"}`}
+            className={`inline-flex h-[26px] items-center rounded-full px-2.5 text-[13px] font-semibold ${avoid ? "bg-bad-soft text-bad" : "bg-good-soft text-good"}`}
           >
             {avoid ? "Evitar" : "Apto"}
           </span>
-          <span className="text-xs text-muted">{data.favorite ? "favorito: recebe aportes" : "não é favorito"}</span>
+          <span className="text-[13px] text-subtle">{data.favorite ? "favorito: recebe aportes" : "não é favorito"}</span>
           <Help slug="etf" />
         </div>
-        <p className="mt-1 max-w-xl text-sm text-ink">{data.summary}</p>
+        <p className="mt-1.5 max-w-2xl text-base text-ink">{data.summary}</p>
       </div>
     </div>
   );
@@ -109,8 +109,8 @@ export function EtfInfoCard({ data, ex, onChange }: { data: AssetDetail; ex: Ext
   }
 
   return (
-    <Card title="Informado por você" help="etf-distribui">
-      <p className="mb-3 text-sm text-muted">
+    <Card title="Informado por você" help="etf-distribui" className="border-accent/30">
+      <p className="mb-4 text-sm text-muted">
         Taxa e distribuição estão no site da gestora ou no regulamento do ETF. Deixe em branco o que não souber.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -133,7 +133,7 @@ export function EtfInfoCard({ data, ex, onChange }: { data: AssetDetail; ex: Ext
           </select>
         </Field>
       </div>
-      <div className="mt-3">
+      <div className="mt-4">
         <Button onClick={submit}>Salvar</Button>
       </div>
       {err && (
