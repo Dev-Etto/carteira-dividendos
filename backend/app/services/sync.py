@@ -1,4 +1,4 @@
-"""Orquestra a coleta. Ordem: universo → macro → Tesouro → CVM (ações) → CVM (FIIs) → CVM (ETFs) → cotações/histórico → avaliações.
+"""Orquestra a coleta. Ordem: universo → macro → Tesouro → CVM (ações) → CVM (FIIs) → CVM (ETFs) → cotações/histórico → proventos da B3 → avaliações.
 
 Cada etapa é registrada em sync_runs. Uma etapa que falha não impede as outras.
 Só roda um sync por vez: `_lock` garante isso e também responde à tela de Configurações se há um rodando.
@@ -35,7 +35,7 @@ from app.db.models import (
 )
 from app.db.session import SessionLocal
 from app.engine import fii
-from app.providers import bcb, bcb_ifdata, cvm, cvm_etf, cvm_fii, cvm_ipe, market, tesouro
+from app.providers import b3, bcb, bcb_ifdata, cvm, cvm_etf, cvm_fii, cvm_ipe, market, tesouro
 from app.providers.base import DOWNLOAD_ERRORS, DividendEvent, PricePoint, Quote, SplitInfo
 from app.schemas.api import SyncRunOut, SyncStatus
 from app.services.evaluation import evaluate_all
@@ -82,7 +82,20 @@ ASSET_FIELDS = ["name", "asset_class", "sector", "segment", "economic_group"]
 FII_SEED_FIELDS = ["name", "asset_class", "economic_group"]
 """Num FII, tipo (sector) e segmento vêm do informe da CVM; o universo.csv só dá o palpite inicial."""
 
-STEPS = ("universo", "macro", "tesouro", "cvm", "itr", "bancos", "comunicados", "fiis", "etfs", "mercado", "avaliacoes")
+STEPS = (
+    "universo",
+    "macro",
+    "tesouro",
+    "cvm",
+    "itr",
+    "bancos",
+    "comunicados",
+    "fiis",
+    "etfs",
+    "mercado",
+    "proventos",
+    "avaliacoes",
+)
 
 _lock = threading.Lock()
 _current_step: str | None = None
@@ -541,6 +554,54 @@ async def sync_market(db: Session, tickers: set[str] | None = None) -> int:
     return total
 
 
+B3_HISTORY_YEARS = 20
+"""Limite de anos de proventos da B3; antes disso há troca de moeda e cotação por lote de mil ações."""
+
+
+async def _b3_cash_dividends(ticker: str) -> list[b3.CashDividend] | None:
+    """Proventos da B3 do ticker; None quando a B3 não respondeu, para manter o que já estava gravado."""
+    try:
+        return await b3.fetch_cash_dividends(ticker)
+    except (*DOWNLOAD_ERRORS, ValueError):
+        log.warning("proventos da B3 indisponíveis para %s", ticker)
+        return None
+
+
+def _store_b3_dividends(db: Session, asset: Asset, found: list[b3.CashDividend]) -> int:
+    """Regrava os proventos da B3 que faltam no Yahoo. Recalcula tudo a cada vez: se o Yahoo passou a ter
+    o provento ou houve desdobramento novo, a linha antiga da B3 sai. Só preenche lacunas a partir do
+    primeiro provento do Yahoo, para não estender para trás o histórico que as regras de regularidade contam."""
+    yahoo_dates = list(db.scalars(select(Dividend.ex_date).where(Dividend.asset_id == asset.id, Dividend.source == "yahoo")))
+    splits = [SplitInfo(s.date, s.ratio) for s in db.scalars(select(Split).where(Split.asset_id == asset.id))]
+    cutoff = date(date.today().year - B3_HISTORY_YEARS, 1, 1)
+    since = max(cutoff, min(yahoo_dates, default=cutoff))
+    events = b3.missing_events(found, asset.ticker, yahoo_dates, splits, since)
+    db.query(Dividend).filter(Dividend.asset_id == asset.id, Dividend.source == "b3").delete()
+    n = upsert(
+        db,
+        Dividend,
+        [{"asset_id": asset.id, "ex_date": e.ex_date, "amount": e.amount, "kind": e.kind, "source": "b3"} for e in events],
+        keys=["asset_id", "ex_date", "kind", "amount"],
+    )
+    db.commit()
+    return n
+
+
+async def sync_b3_dividends(db: Session, tickers: set[str] | None = None) -> int:
+    """Completa os proventos das ações com a B3, que é a fonte oficial; o Yahoo continua sendo a principal.
+    Roda depois de `mercado`, porque compara com os proventos e desdobramentos que o Yahoo gravou."""
+    query = select(Asset).where(Asset.active, Asset.asset_class == "acao")
+    if tickers:
+        query = query.where(Asset.ticker.in_(tickers))
+    total = 0
+    for asset in list(db.scalars(query)):
+        found = await _b3_cash_dividends(asset.ticker)
+        if found is None:
+            continue
+        total += _store_b3_dividends(db, asset, found)
+    return total
+
+
 async def _run_steps(db: Session, only: set[str] | None, tickers: set[str] | None = None) -> None:
     global _current_step
     steps: dict[str, Callable[[], Awaitable[int]]] = {
@@ -554,6 +615,7 @@ async def _run_steps(db: Session, only: set[str] | None, tickers: set[str] | Non
         "fiis": lambda: sync_fii(db),
         "etfs": lambda: sync_etf(db),
         "mercado": lambda: sync_market(db, tickers),
+        "proventos": lambda: sync_b3_dividends(db, tickers),
         "avaliacoes": lambda: _sync_wrap(evaluate_all(db)),
     }
     try:

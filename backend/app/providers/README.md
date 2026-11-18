@@ -11,6 +11,7 @@ Cada provider baixa uma fonte e a transforma em objetos simples (dataclasses de 
 | `cvm_fii.py` | CVM: informes mensal e trimestral dos FIIs. |
 | `cvm_etf.py` | CVM: cadastro de classes de fundos, para o patrimônio dos ETFs. |
 | `market.py` | Yahoo Finance (preços, proventos, desdobramentos) e brapi (cotação). |
+| `b3.py` | B3, API de empresas listadas: proventos em dinheiro (dividendos e JCP), para completar o Yahoo. |
 
 ## Regras
 
