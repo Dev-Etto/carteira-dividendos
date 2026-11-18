@@ -53,12 +53,12 @@ Pronto:
 
 Na primeira vez, a API baixa todos os dados sozinha. Isso leva alguns minutos; o andamento aparece em **Configurações**. Os dados ficam num volume do Docker e sobrevivem a `docker compose down` e a atualizações da imagem.
 
-| Comando | O que faz |
-| --- | --- |
-| `docker compose up -d --build` (ou `make up`) | sobe ou atualiza API e telas |
-| `docker compose down` (ou `make down`) | para tudo, mantendo os dados |
-| `docker compose logs -f` (ou `make logs`) | acompanha os logs |
-| `docker compose down -v` | para tudo e **apaga** os dados, para começar do zero |
+| Comando                                       | O que faz                                            |
+| --------------------------------------------- | ---------------------------------------------------- |
+| `docker compose up -d --build` (ou `make up`) | sobe ou atualiza API e telas                         |
+| `docker compose down` (ou `make down`)        | para tudo, mantendo os dados                         |
+| `docker compose logs -f` (ou `make logs`)     | acompanha os logs                                    |
+| `docker compose down -v`                      | para tudo e **apaga** os dados, para começar do zero |
 
 **Configuração opcional:** crie um arquivo `.env` na raiz do projeto.
 
@@ -70,18 +70,17 @@ CVM_YEARS=6             # anos de balanços da CVM a baixar
 
 ## Telas
 
-| Tela | O que faz |
-| --- | --- |
-| Onboarding | Questionário de perfil, reserva de emergência (6 a 12 meses de gastos) e divisão-alvo da carteira |
-| Início | Próximo passo recomendado, reserva, renda passiva × meta, divisão atual × alvo, oportunidades, Selic/CDI/IPCA |
-| Explorar | Ranking de ações e de FIIs com nota, veredito, preço-teto (ou preço máximo pelo P/VP) e margem; ETFs com checklist e favoritos; adicionar novos ativos |
-| Ficha do ativo | Checklist de regras com explicação, preço-teto, Bazin, Graham, gráficos, riscos e fonte de cada dado |
-| Carteira | Posições, preço médio, resultado, yield on cost, alertas de concentração e histórico de operações editável |
-| Aporte do mês | Plano de compras: reserva → classes abaixo do alvo → melhores ações e FIIs e ETFs favoritos; registra compras e aplicações de uma vez |
-| Renda fixa | Reserva de emergência, aplicações, comparador isento × tributado e taxas do Tesouro Direto |
-| Aprender | Glossário com tudo o que aparece no app e a trilha "Comece aqui" |
-| Configurações | Atualização de dados, perfil, divisão-alvo e limites das regras |
-
+| Tela           | O que faz                                                                                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Onboarding     | Questionário de perfil, reserva de emergência (6 a 12 meses de gastos) e divisão-alvo da carteira                                                      |
+| Início         | Próximo passo recomendado, reserva, renda passiva × meta, divisão atual × alvo, oportunidades, Selic/CDI/IPCA                                          |
+| Explorar       | Ranking de ações e de FIIs com nota, veredito, preço-teto (ou preço máximo pelo P/VP) e margem; ETFs com checklist e favoritos; adicionar novos ativos |
+| Ficha do ativo | Checklist de regras com explicação, preço-teto, Bazin, Graham, gráficos, riscos e fonte de cada dado                                                   |
+| Carteira       | Posições, preço médio, resultado, yield on cost, alertas de concentração e histórico de operações editável                                             |
+| Aporte do mês  | Plano de compras: reserva → classes abaixo do alvo → melhores ações e FIIs e ETFs favoritos; registra compras e aplicações de uma vez                  |
+| Renda fixa     | Reserva de emergência, aplicações, comparador isento × tributado e taxas do Tesouro Direto                                                             |
+| Aprender       | Glossário com tudo o que aparece no app e a trilha "Comece aqui"                                                                                       |
+| Configurações  | Atualização de dados, perfil, divisão-alvo e limites das regras                                                                                        |
 
 ## Metodologias
 
@@ -92,14 +91,14 @@ Uma metodologia é um jeito de investir com nome e autor. O app separa dois tipo
 
 A escolha fica em Configurações e muda vereditos, recomendações e o plano de aporte. O app nunca sugere vender para rebalancear: o equilíbrio vem pelos aportes.
 
-| Metodologia | Tipo | Situação |
-| --- | --- | --- |
-| Barsi (Luiz Barsi Filho) | seleção | disponível, padrão |
+| Metodologia                           | Tipo    | Situação           |
+| ------------------------------------- | ------- | ------------------ |
+| Barsi (Luiz Barsi Filho)              | seleção | disponível, padrão |
 | Perfil de risco (questionário do app) | divisão | disponível, padrão |
-| Bazin (Décio Bazin) | seleção | próxima |
-| Graham (Benjamin Graham) | seleção | planejada |
-| Fórmula Mágica (Joel Greenblatt) | seleção | planejada |
-| ARCA (Thiago Nigro) | divisão | planejada |
+| Bazin (Décio Bazin)                   | seleção | disponível         |
+| Graham (Benjamin Graham)              | seleção | próxima            |
+| Fórmula Mágica (Joel Greenblatt)      | seleção | planejada          |
+| ARCA (Thiago Nigro)                   | divisão | planejada          |
 
 Como criar uma metodologia nova está em [`backend/app/engine/README.md`](backend/app/engine/README.md#metodologias-metodos).
 
@@ -127,6 +126,18 @@ TAEE11,concessao_anos,18,2026,manual
 
 Enquanto não estiverem cadastrados, essas regras aparecem como "sem dado" e não entram na nota.
 
+## Como as ações são avaliadas pelo método Bazin
+
+Décio Bazin (_Faça Fortuna com Ações_, 1992) olhava poucos números:
+
+- **Dividend yield dos últimos 12 meses ≥ 6%.** Decide entre comprar e aguardar, sem mexer na nota. O preço-teto é proventos de 12 meses ÷ 6%.
+- **Pagou proventos em cada um dos últimos 3 anos** (eliminatória).
+- **Dívida líquida ÷ patrimônio ≤ 1.** O livro só diz "dívida moderada"; a medida é escolha do app. Bancos e seguradoras ficam de fora desta regra.
+- **Liquidez** (eliminatória), como em todo o app.
+- **Yield abaixo de 4%** aparece como aviso: era quando o Bazin vendia. O app nunca sugere vender.
+
+Todos os limites ficam em Configurações, na seção "Ações pelo Bazin".
+
 ## Como os FIIs são avaliados
 
 O tipo do fundo (papel, tijolo, fundo de fundos ou híbrido) vem da carteira que ele declara à CVM, não do segmento informado, que muitas vezes não ajuda. As faixas mudam com o tipo:
@@ -153,30 +164,30 @@ Taxa e distribuição não estão em nenhuma fonte gratuita estruturada (o Yahoo
 
 ## De onde vêm os dados
 
-| Dado | Fonte |
-| --- | --- |
-| Selic, CDI, IPCA 12m | Banco Central, API SGS (séries 432, 4389, 13522) |
-| Tesouro Direto | Tesouro Transparente, CSV de preços e taxas |
-| Balanços (DRE, BP, DFC, DVA) | CVM Dados Abertos, DFP anual |
-| CNPJ ↔ ticker | CVM, FCA (valores mobiliários) |
-| FIIs: patrimônio, cotistas, composição, imóveis, vacância | CVM Dados Abertos, informes mensal e trimestral de FII |
-| ETFs: patrimônio | CVM Dados Abertos, cadastro de classes de fundos (ligado ao ticker pelo nome) |
-| Preços, proventos, desdobramentos | Yahoo Finance via `yfinance` (não oficial) |
-| Cotação do dia | brapi (plano gratuito, opcional) |
+| Dado                                                      | Fonte                                                                         |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Selic, CDI, IPCA 12m                                      | Banco Central, API SGS (séries 432, 4389, 13522)                              |
+| Tesouro Direto                                            | Tesouro Transparente, CSV de preços e taxas                                   |
+| Balanços (DRE, BP, DFC, DVA)                              | CVM Dados Abertos, DFP anual                                                  |
+| CNPJ ↔ ticker                                             | CVM, FCA (valores mobiliários)                                                |
+| FIIs: patrimônio, cotistas, composição, imóveis, vacância | CVM Dados Abertos, informes mensal e trimestral de FII                        |
+| ETFs: patrimônio                                          | CVM Dados Abertos, cadastro de classes de fundos (ligado ao ticker pelo nome) |
+| Preços, proventos, desdobramentos                         | Yahoo Finance via `yfinance` (não oficial)                                    |
+| Cotação do dia                                            | brapi (plano gratuito, opcional)                                              |
 
 As ações, os FIIs e os ETFs do universo inicial ficam em `backend/app/data/universo.csv`, e outros podem ser adicionados pela tela Explorar.
 
 ## Stacks
 
-| Camada | Tecnologias |
-| --- | --- |
-| API | Python 3.12, [FastAPI](https://fastapi.tiangolo.com/), [Pydantic](https://docs.pydantic.dev/) v2, [Uvicorn](https://www.uvicorn.org/) |
-| Dados | [SQLite](https://www.sqlite.org/), [SQLAlchemy](https://www.sqlalchemy.org/) 2, [Alembic](https://alembic.sqlalchemy.org/) para migrações |
-| Coleta | [httpx](https://www.python-httpx.org/) com [tenacity](https://tenacity.readthedocs.io/) (retry), [pandas](https://pandas.pydata.org/) para os CSVs da CVM, [yfinance](https://github.com/ranaroussi/yfinance), [APScheduler](https://apscheduler.readthedocs.io/) para a atualização diária, [Typer](https://typer.tiangolo.com/) para a CLI |
-| Telas | [Next.js](https://nextjs.org/) 16 (App Router), React 19, TypeScript, [Tailwind CSS](https://tailwindcss.com/) 4, [Recharts](https://recharts.org/), fonte Figtree |
-| Contrato | OpenAPI gerado pelo FastAPI e tipos do front gerados com [openapi-typescript](https://openapi-ts.dev/) |
-| Qualidade | [uv](https://docs.astral.sh/uv/), [Ruff](https://docs.astral.sh/ruff/), [mypy](https://mypy-lang.org/), [pytest](https://docs.pytest.org/) com cobertura mínima, [ESLint](https://eslint.org/), [Prettier](https://prettier.io/), [Vitest](https://vitest.dev/), regras da casa próprias |
-| Entrega | Docker e Docker Compose; CI no GitHub Actions com lint, testes e build das imagens |
+| Camada    | Tecnologias                                                                                                                                                                                                                                                                                                                                  |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API       | Python 3.12, [FastAPI](https://fastapi.tiangolo.com/), [Pydantic](https://docs.pydantic.dev/) v2, [Uvicorn](https://www.uvicorn.org/)                                                                                                                                                                                                        |
+| Dados     | [SQLite](https://www.sqlite.org/), [SQLAlchemy](https://www.sqlalchemy.org/) 2, [Alembic](https://alembic.sqlalchemy.org/) para migrações                                                                                                                                                                                                    |
+| Coleta    | [httpx](https://www.python-httpx.org/) com [tenacity](https://tenacity.readthedocs.io/) (retry), [pandas](https://pandas.pydata.org/) para os CSVs da CVM, [yfinance](https://github.com/ranaroussi/yfinance), [APScheduler](https://apscheduler.readthedocs.io/) para a atualização diária, [Typer](https://typer.tiangolo.com/) para a CLI |
+| Telas     | [Next.js](https://nextjs.org/) 16 (App Router), React 19, TypeScript, [Tailwind CSS](https://tailwindcss.com/) 4, [Recharts](https://recharts.org/), fonte Figtree                                                                                                                                                                           |
+| Contrato  | OpenAPI gerado pelo FastAPI e tipos do front gerados com [openapi-typescript](https://openapi-ts.dev/)                                                                                                                                                                                                                                       |
+| Qualidade | [uv](https://docs.astral.sh/uv/), [Ruff](https://docs.astral.sh/ruff/), [mypy](https://mypy-lang.org/), [pytest](https://docs.pytest.org/) com cobertura mínima, [ESLint](https://eslint.org/), [Prettier](https://prettier.io/), [Vitest](https://vitest.dev/), regras da casa próprias                                                     |
+| Entrega   | Docker e Docker Compose; CI no GitHub Actions com lint, testes e build das imagens                                                                                                                                                                                                                                                           |
 
 Os padrões de projeto usados estão documentados nos READMEs de cada área: **Strategy** e **Registry** nas metodologias, camadas com dependências apontando para dentro (routers → services → motor), e providers isolados das gravações.
 
@@ -206,13 +217,13 @@ docker-compose.yml  API e telas prontas para uso
 
 Cada área tem um README com o padrão a seguir:
 
-| Área | README |
-| --- | --- |
-| Backend (camadas, migrações, testes) | [backend/README.md](backend/README.md) |
-| Motor de regras e metodologias | [backend/app/engine/README.md](backend/app/engine/README.md) |
-| Casos de uso, atualização e avaliações | [backend/app/services/README.md](backend/app/services/README.md) |
-| Fontes externas | [backend/app/providers/README.md](backend/app/providers/README.md) |
-| Frontend (estrutura, componentes, tokens) | [frontend/README.md](frontend/README.md) |
+| Área                                      | README                                                             |
+| ----------------------------------------- | ------------------------------------------------------------------ |
+| Backend (camadas, migrações, testes)      | [backend/README.md](backend/README.md)                             |
+| Motor de regras e metodologias            | [backend/app/engine/README.md](backend/app/engine/README.md)       |
+| Casos de uso, atualização e avaliações    | [backend/app/services/README.md](backend/app/services/README.md)   |
+| Fontes externas                           | [backend/app/providers/README.md](backend/app/providers/README.md) |
+| Frontend (estrutura, componentes, tokens) | [frontend/README.md](frontend/README.md)                           |
 
 As regras de código valem para o repositório todo e estão em [CONTRIBUTING.md](CONTRIBUTING.md). Contribuições são bem-vindas: abra uma issue ou um pull request.
 
