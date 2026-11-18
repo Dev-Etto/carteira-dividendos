@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 from app.core.errors import BusinessRuleError
 from app.db.models import AllocationTarget, Profile, RuleConfig
 from app.engine.config import DEFAULT_RULES, merged_rules, rule_errors
-from app.engine.perfil import ALLOCATIONS, DESCRIPTIONS, QUESTIONS, profile_from_answers
+from app.engine.metodos.registro import allocation_method
+from app.engine.perfil import DESCRIPTIONS, QUESTIONS, profile_from_answers
 from app.engine.renda_fixa import emergency_target, reserve_months_for
 from app.schemas.api import AllocationItem, ProfileIn, ProfileOut, Question, QuestionOption, RuleConfigItem
 from app.services.evaluation import evaluate_all
@@ -47,7 +48,7 @@ def questionnaire() -> list[Question]:
     ]
 
 
-def _replace_targets(db: Session, weights: dict[str, float]) -> None:
+def replace_targets(db: Session, weights: dict[str, float]) -> None:
     db.execute(delete(AllocationTarget))
     db.add_all(AllocationTarget(asset_class=cls, weight_pct=w) for cls, w in weights.items())
 
@@ -68,15 +69,16 @@ def save_profile(db: Session, body: ProfileIn) -> ProfileOut:
     profile.passive_income_goal = body.passive_income_goal
     profile.onboarded = True
     if not body.keep_allocation:
-        _replace_targets(db, ALLOCATIONS[profile.risk_profile])
+        replace_targets(db, allocation_method(profile.allocation_method).targets(profile.risk_profile))
     db.commit()
     return profile_out(profile)
 
 
 def targets(db: Session) -> dict[str, float]:
-    """Divisão-alvo salva; sem nenhuma salva, a sugerida para o perfil."""
+    """Divisão-alvo salva; sem nenhuma salva, a sugerida pela metodologia de divisão do perfil."""
     saved = {t.asset_class: t.weight_pct for t in db.scalars(select(AllocationTarget))}
-    return saved or dict(ALLOCATIONS[get_profile(db).risk_profile])
+    profile = get_profile(db)
+    return saved or allocation_method(profile.allocation_method).targets(profile.risk_profile)
 
 
 def read_allocation(db: Session) -> list[AllocationItem]:
@@ -87,7 +89,7 @@ def read_allocation(db: Session) -> list[AllocationItem]:
 def save_allocation(db: Session, items: list[AllocationItem]) -> list[AllocationItem]:
     if abs(sum(i.weight_pct for i in items) - 100) > 0.01:
         raise BusinessRuleError("Os pesos precisam somar 100%")
-    _replace_targets(db, {i.asset_class: i.weight_pct for i in items})
+    replace_targets(db, {i.asset_class: i.weight_pct for i in items})
     db.commit()
     return items
 

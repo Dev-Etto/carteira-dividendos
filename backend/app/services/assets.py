@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import BusinessRuleError, ConflictError, NotFoundError
 from app.db.models import Asset, Dividend, EtfReport, Evaluation, FiiQuarterlyReport, FiiReport, Fundamental, PriceDaily
+from app.engine.metodos.registro import selection_method
 from app.engine.types import RuleResult
 from app.schemas.api import (
     AssetCreate,
@@ -18,10 +19,18 @@ from app.schemas.api import (
     AssetRow,
     AssetUpdate,
     DividendYearOut,
+    MethodVerdictOut,
     PricePointOut,
     ScorePointOut,
 )
-from app.services.evaluation import EVALUATED_CLASSES, evaluate_asset, latest_evaluation, latest_evaluations, save_evaluation
+from app.services.evaluation import (
+    EVALUATED_CLASSES,
+    STOCK_CLASS,
+    evaluations_by_method,
+    latest_evaluation,
+    latest_evaluations,
+    refresh_asset,
+)
 from app.services.sync import start_background_sync
 
 SECTOR_RISKS = {
@@ -138,9 +147,11 @@ def _current_evaluation(db: Session, asset: Asset) -> Evaluation:
     ev = latest_evaluation(db, asset.id)
     if ev is not None:
         return ev
-    save_evaluation(db, asset, evaluate_asset(db, asset))
-    db.commit()
-    return db.scalars(select(Evaluation).where(Evaluation.asset_id == asset.id).order_by(Evaluation.date.desc())).one()
+    refresh_asset(db, asset)
+    fresh = latest_evaluation(db, asset.id)
+    if fresh is None:
+        raise NotFoundError(f"Não foi possível avaliar {asset.ticker}")
+    return fresh
 
 
 def _risks(asset: Asset, rules: list[RuleResult]) -> list[str]:
@@ -196,10 +207,27 @@ def _data_sources(db: Session, asset: Asset, ev: Evaluation) -> dict[str, str | 
     }
 
 
+def _other_methods(db: Session, asset: Asset, shown: str) -> list[MethodVerdictOut]:
+    """Veredito da ação nas metodologias de seleção que não são a mostrada, na ordem do registro."""
+    return [
+        MethodVerdictOut(
+            key=key,
+            label=selection_method(key).info.label,
+            score=ev.score,
+            verdict=ev.verdict,
+            summary=ev.summary,
+            ceiling_price=ev.ceiling_price,
+        )
+        for key, ev in evaluations_by_method(db, asset.id).items()
+        if key != shown
+    ]
+
+
 def asset_detail(db: Session, ticker: str) -> AssetDetail:
     asset = get_asset(db, ticker)
     ev = _current_evaluation(db, asset)
     rules = [RuleResult(**r) for r in ev.rules]
+    others = _other_methods(db, asset, ev.method) if asset.asset_class == STOCK_CLASS else []
     return AssetDetail(
         **asset_row(asset, ev, _avg_volume(db, asset.id)).model_dump(),
         summary=ev.summary,
@@ -208,6 +236,9 @@ def asset_detail(db: Session, ticker: str) -> AssetDetail:
         economic_group=asset.economic_group,
         data_sources=_data_sources(db, asset, ev),
         risks=_risks(asset, rules),
+        method=ev.method,
+        method_label=selection_method(ev.method).info.label if asset.asset_class == STOCK_CLASS else "",
+        other_methods=others,
     )
 
 
@@ -292,6 +323,5 @@ def update_asset(db: Session, ticker: str, body: AssetUpdate) -> AssetDetail:
         setattr(asset, field, value)
     db.commit()
     if changes.keys() & REEVALUATING_FIELDS:
-        save_evaluation(db, asset, evaluate_asset(db, asset))
-        db.commit()
+        refresh_asset(db, asset)
     return asset_detail(db, ticker)
