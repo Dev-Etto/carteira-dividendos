@@ -211,6 +211,7 @@ Taxa e distribuição não estão em nenhuma fonte gratuita estruturada (o Yahoo
 | Tesouro Direto                                                   | Tesouro Transparente, CSV de preços e taxas                                   |
 | Balanços (DRE, BP, DFC, DVA), incluindo circulante e imobilizado | CVM Dados Abertos, DFP anual                                                  |
 | Resultados trimestrais (receita, EBIT, lucro, dívida)            | CVM Dados Abertos, ITR; o 4º trimestre é a DFP menos os três primeiros        |
+| Fatos relevantes, comunicados e avisos aos acionistas            | CVM Dados Abertos, IPE                                                        |
 | CNPJ ↔ ticker                                                    | CVM, FCA (valores mobiliários)                                                |
 | FIIs: patrimônio, cotistas, composição, imóveis, vacância        | CVM Dados Abertos, informes mensal e trimestral de FII                        |
 | ETFs: patrimônio                                                 | CVM Dados Abertos, cadastro de classes de fundos (ligado ao ticker pelo nome) |

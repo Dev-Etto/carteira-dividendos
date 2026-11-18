@@ -352,6 +352,52 @@
     }
    }
   },
+  "/api/ativos/{ticker}/comunicados": {
+   "get": {
+    "tags": [
+     "ativos"
+    ],
+    "summary": "Asset Filings",
+    "operationId": "asset_filings_api_ativos__ticker__comunicados_get",
+    "parameters": [
+     {
+      "name": "ticker",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Ticker"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/FilingOut"
+         },
+         "title": "Response Asset Filings Api Ativos  Ticker  Comunicados Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/carteira": {
    "get": {
     "tags": [
@@ -1988,6 +2034,14 @@
        }
       ],
       "title": "Last Sync"
+     },
+     "filings": {
+      "items": {
+       "$ref": "#/components/schemas/FilingOut"
+      },
+      "type": "array",
+      "title": "Filings",
+      "default": []
      }
     },
     "type": "object",
@@ -2036,6 +2090,46 @@
      "dividend_yield"
     ],
     "title": "DividendYearOut"
+   },
+   "FilingOut": {
+    "properties": {
+     "ticker": {
+      "type": "string",
+      "title": "Ticker"
+     },
+     "delivered_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Delivered On"
+     },
+     "category": {
+      "type": "string",
+      "title": "Category"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "subject": {
+      "type": "string",
+      "title": "Subject"
+     },
+     "link": {
+      "type": "string",
+      "title": "Link"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ticker",
+     "delivered_on",
+     "category",
+     "kind",
+     "subject",
+     "link"
+    ],
+    "title": "FilingOut",
+    "description": "Comunicado à CVM. category: fato_relevante | comunicado | aviso_acionistas | proventos."
    },
    "FixedIncomeIn": {
     "properties": {

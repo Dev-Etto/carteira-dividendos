@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { AllocationBars } from "@/components/AllocationBars";
+import { FilingList } from "@/components/FilingList";
 import { Card, ErrorBox, Loading, PageHeader, ProgressBar, ScorePill, Stat, VerdictBadge } from "@/components/ui";
 import type { Dashboard } from "@/lib/api/client";
 import { brl, dateBr, groupLabel, pct, PROFILE_LABEL } from "@/lib/format";
@@ -112,6 +113,12 @@ export default function Inicio() {
             ))}
           </ul>
         </section>
+      )}
+
+      {data.filings.length > 0 && (
+        <Card title="Fatos relevantes da sua carteira (30 dias)" help="comunicados">
+          <FilingList filings={data.filings} showTicker />
+        </Card>
       )}
 
       <div className="grid items-start gap-5 lg:grid-cols-[5fr_7fr]">

@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.db.models import Asset, Dividend, Fundamental, PriceDaily
+from app.db.models import Filing as FilingRow
 from app.db.session import SessionLocal
 from app.engine.metodos.base import MethodInfo, MetodoPorAtivo
 from app.engine.metodos.registro import SELECTION_METHODS
@@ -229,7 +230,7 @@ def test_novo_ativo_dispara_sync_so_dele(client, monkeypatch):
     monkeypatch.setattr("app.services.assets.start_background_sync", lambda only, tickers: chamadas.append((only, tickers)))
     r = client.post("/api/ativos", json={"ticker": "grnd3", "name": "Grendene", "sector": "perene"})
     assert r.status_code == 201, r.text
-    assert chamadas == [({"cvm", "itr", "mercado", "avaliacoes"}, {"GRND3"})]
+    assert chamadas == [({"cvm", "itr", "comunicados", "mercado", "avaliacoes"}, {"GRND3"})]
     assert client.post("/api/ativos", json={"ticker": "GRND3", "name": "Grendene", "sector": "perene"}).status_code == 409
 
 
@@ -425,3 +426,33 @@ def test_arca_divide_em_quatro_classes_e_separa_etfs_por_regiao(client):
     finally:
         client.patch("/api/ativos/IVVB11", json={"region": "internacional"})
         client.put("/api/perfil/metodos", json={"selection_method": "barsi", "allocation_method": "perfil"})
+
+
+def test_comunicados_na_ficha_e_fatos_relevantes_no_painel(client):
+    with SessionLocal() as db:
+        taee = db.scalar(select(Asset).where(Asset.ticker == "TAEE11"))
+        hoje = date.today()
+        db.add_all(
+            [
+                FilingRow(asset_id=taee.id, protocol="F1", delivered_on=hoje, category="fato_relevante", subject="Aquisição"),
+                FilingRow(
+                    asset_id=taee.id,
+                    protocol="C1",
+                    delivered_on=hoje - timedelta(days=2),
+                    category="comunicado",
+                    subject="Resultado",
+                ),
+                FilingRow(
+                    asset_id=taee.id,
+                    protocol="F0",
+                    delivered_on=hoje - timedelta(days=90),
+                    category="fato_relevante",
+                    subject="Antigo",
+                ),
+            ]
+        )
+        db.commit()
+    ficha = client.get("/api/ativos/TAEE11/comunicados").json()
+    assert [f["subject"] for f in ficha] == ["Aquisição", "Resultado", "Antigo"]
+    painel = client.get("/api/painel").json()["filings"]
+    assert [(f["ticker"], f["subject"]) for f in painel] == [("TAEE11", "Aquisição")]

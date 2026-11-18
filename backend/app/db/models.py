@@ -165,6 +165,23 @@ class QuarterlyFundamental(Base):
     source: Mapped[str] = mapped_column(String(10), default="itr")
 
 
+class Filing(Base):
+    """Comunicado de uma companhia à CVM (IPE). category: fato_relevante | comunicado | aviso_acionistas |
+    proventos. protocol: o protocolo de entrega da CVM; um documento vale para todos os tickers da empresa."""
+
+    __tablename__ = "filings"
+    __table_args__ = (UniqueConstraint("asset_id", "protocol", name="uq_filings_asset_protocol"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
+    protocol: Mapped[str] = mapped_column(String(30))
+    delivered_on: Mapped[date] = mapped_column(Date, index=True)
+    category: Mapped[str] = mapped_column(String(20))
+    kind: Mapped[str] = mapped_column(String(120), default="")
+    subject: Mapped[str] = mapped_column(Text, default="")
+    link: Mapped[str] = mapped_column(Text, default="")
+
+
 class SectorMetric(Base):
     """Indicadores setoriais (Basileia, inadimplência, índice combinado, concessões).
 

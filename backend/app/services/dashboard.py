@@ -8,6 +8,7 @@ from app.engine import fmt
 from app.schemas.api import DashboardOut, NextStep
 from app.services.assets import buy_opportunities
 from app.services.evaluation import latest_evaluations
+from app.services.filings import portfolio_filings
 from app.services.macro import latest_macro
 from app.services.portfolio import PortfolioState, class_slices, load_portfolio, portfolio_alerts
 from app.services.profile import get_profile, profile_out, reserve_target, targets
@@ -63,4 +64,5 @@ def build_dashboard(db: Session) -> DashboardOut:
         top_opportunities=buy_opportunities(db, TOP_OPPORTUNITIES),
         macro=latest_macro(db),
         last_sync=db.scalar(select(func.max(SyncRun.finished_at)).where(SyncRun.status == "ok")),
+        filings=portfolio_filings(db, [p.asset_id for p in state.positions]),
     )

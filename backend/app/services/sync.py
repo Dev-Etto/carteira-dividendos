@@ -23,6 +23,7 @@ from app.db.models import (
     EtfReport,
     FiiQuarterlyReport,
     FiiReport,
+    Filing,
     Fundamental,
     MacroRate,
     PriceDaily,
@@ -34,7 +35,7 @@ from app.db.models import (
 )
 from app.db.session import SessionLocal
 from app.engine import fii
-from app.providers import bcb, cvm, cvm_etf, cvm_fii, market, tesouro
+from app.providers import bcb, cvm, cvm_etf, cvm_fii, cvm_ipe, market, tesouro
 from app.providers.base import DOWNLOAD_ERRORS, DividendEvent, PricePoint, Quote, SplitInfo
 from app.schemas.api import SyncRunOut, SyncStatus
 from app.services.evaluation import evaluate_all
@@ -81,7 +82,7 @@ ASSET_FIELDS = ["name", "asset_class", "sector", "segment", "economic_group"]
 FII_SEED_FIELDS = ["name", "asset_class", "economic_group"]
 """Num FII, tipo (sector) e segmento vêm do informe da CVM; o universo.csv só dá o palpite inicial."""
 
-STEPS = ("universo", "macro", "tesouro", "cvm", "itr", "fiis", "etfs", "mercado", "avaliacoes")
+STEPS = ("universo", "macro", "tesouro", "cvm", "itr", "comunicados", "fiis", "etfs", "mercado", "avaliacoes")
 
 _lock = threading.Lock()
 _current_step: str | None = None
@@ -293,6 +294,44 @@ async def sync_itr(db: Session) -> int:
     return total
 
 
+FILING_YEARS = 2
+"""Ano atual e o anterior: em janeiro, o arquivo do ano ainda tem poucos comunicados."""
+
+
+async def sync_filings(db: Session) -> int:
+    """Comunicados (IPE) das ações com CNPJ, gravados por ativo e protocolo."""
+    assets = list(db.scalars(select(Asset).where(Asset.asset_class == "acao", Asset.cnpj.is_not(None))))
+    by_cnpj: dict[str, list[Asset]] = {}
+    for a in assets:
+        by_cnpj.setdefault(a.cnpj or "", []).append(a)
+    total = 0
+    today = date.today()
+    for year in range(today.year - FILING_YEARS + 1, today.year + 1):
+        try:
+            filings = await cvm_ipe.fetch_filings(year, set(by_cnpj))
+        except DOWNLOAD_ERRORS:
+            log.warning("IPE %s indisponível", year)
+            continue
+        rows = [
+            {
+                "asset_id": a.id,
+                "protocol": f.protocol,
+                "delivered_on": f.delivered_on,
+                "category": f.category,
+                "kind": f.kind[:120],
+                "subject": f.subject,
+                "link": f.link,
+            }
+            for f in filings
+            for a in by_cnpj[f.cnpj]
+        ]
+        total += upsert(
+            db, Filing, rows, keys=["asset_id", "protocol"], update=["delivered_on", "category", "kind", "subject", "link"]
+        )
+        db.commit()
+    return total
+
+
 async def _fii_monthly(year: int, tickers: set[str]) -> dict[str, list[cvm_fii.FiiMonthly]]:
     try:
         return await cvm_fii.fetch_monthly(year, tickers)
@@ -468,6 +507,7 @@ async def _run_steps(db: Session, only: set[str] | None, tickers: set[str] | Non
         "tesouro": lambda: sync_treasury(db),
         "cvm": lambda: sync_cvm(db),
         "itr": lambda: sync_itr(db),
+        "comunicados": lambda: sync_filings(db),
         "fiis": lambda: sync_fii(db),
         "etfs": lambda: sync_etf(db),
         "mercado": lambda: sync_market(db, tickers),

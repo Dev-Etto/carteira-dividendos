@@ -91,6 +91,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ativos/{ticker}/comunicados": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Asset Filings */
+        get: operations["asset_filings_api_ativos__ticker__comunicados_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/carteira": {
         parameters: {
             query?: never;
@@ -665,6 +682,11 @@ export interface components {
             macro: components["schemas"]["MacroOut"];
             /** Last Sync */
             last_sync: string | null;
+            /**
+             * Filings
+             * @default []
+             */
+            filings: components["schemas"]["FilingOut"][];
         };
         /** DividendYearOut */
         DividendYearOut: {
@@ -674,6 +696,27 @@ export interface components {
             amount: number;
             /** Dividend Yield */
             dividend_yield: number | null;
+        };
+        /**
+         * FilingOut
+         * @description Comunicado à CVM. category: fato_relevante | comunicado | aviso_acionistas | proventos.
+         */
+        FilingOut: {
+            /** Ticker */
+            ticker: string;
+            /**
+             * Delivered On
+             * Format: date
+             */
+            delivered_on: string;
+            /** Category */
+            category: string;
+            /** Kind */
+            kind: string;
+            /** Subject */
+            subject: string;
+            /** Link */
+            link: string;
         };
         /** FixedIncomeIn */
         FixedIncomeIn: {
@@ -1422,6 +1465,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssetHistory"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    asset_filings_api_ativos__ticker__comunicados_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticker: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilingOut"][];
                 };
             };
             /** @description Validation Error */

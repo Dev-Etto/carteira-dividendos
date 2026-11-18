@@ -366,6 +366,14 @@ export const GLOSSARIO: Termo[] = [
     categoria: "carteira",
   },
   {
+    slug: "comunicados",
+    termo: "Comunicados à CVM",
+    curto: "Fatos relevantes, comunicados ao mercado e avisos aos acionistas que a empresa entrega à CVM.",
+    explicacao:
+      "Fato relevante é o que pode mexer no preço da ação: aquisição, venda de ativo, mudança de projeção, decisão sobre proventos. A empresa precisa divulgá-lo para todos ao mesmo tempo. Comunicado ao mercado traz informações de rotina, como resultados e eventos. Aviso aos acionistas informa datas e valores de dividendos, JCP e assembleias. O app lista os mais recentes de cada ação e mostra no início os fatos relevantes e avisos das ações que você tem; o documento completo abre no site da CVM.",
+    categoria: "ações",
+  },
+  {
     slug: "fii",
     termo: "FII (fundo imobiliário)",
     curto: "Fundo negociado na bolsa que investe em imóveis ou em dívidas ligadas a imóveis.",
