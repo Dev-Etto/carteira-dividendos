@@ -18,6 +18,11 @@ export function isRestricted(bounds: AllocationBounds): boolean {
   return bounds.min > FULL_RANGE.min || bounds.max < FULL_RANGE.max;
 }
 
+/** Peso salvo como o usuário digita: vírgula decimal, até 2 casas e sem separador de milhar. */
+export function weightText(weight: number): string {
+  return weight.toLocaleString("pt-BR", { maximumFractionDigits: 2, useGrouping: false });
+}
+
 export type AllocationRow = { asset_class: string; text: string; value: number | null; error: string | null };
 
 export type AllocationCheck = {
@@ -27,6 +32,8 @@ export type AllocationCheck = {
   /** Quanto falta (positivo) ou sobra (negativo) para 100%. */
   remaining: number;
   filled: boolean;
+  /** Todas preenchidas e a soma fecha 100% (com tolerância de arredondamento). */
+  sumOk: boolean;
   ok: boolean;
   /** O que impede salvar, já na língua do usuário; null quando dá para salvar. */
   problem: string | null;
@@ -70,5 +77,6 @@ export function checkAllocation(
   const total = Math.round(rows.reduce((s, r) => s + (r.value ?? 0), 0) * 100) / 100;
   const remaining = Math.round((TOTAL - total) * 100) / 100;
   const problem = problemOf(filled, rows, remaining);
-  return { rows, total, remaining, filled, ok: problem === null, problem };
+  const sumOk = filled && Math.abs(remaining) <= TOLERANCE;
+  return { rows, total, remaining, filled, sumOk, ok: problem === null, problem };
 }

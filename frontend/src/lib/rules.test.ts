@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   checkRule,
+  ruleDisplay,
+  findGroup,
   groupFromParam,
   orderedGroups,
   pendingKeys,
@@ -47,9 +49,20 @@ describe("ruleText e ruleValue", () => {
     expect(ruleValue("yield_alvo", "6,5")).toBeCloseTo(0.065);
   });
 
-  it("reais sem separador de milhar", () => {
-    expect(ruleText("liquidez_min", 1500000)).toBe("1500000");
+  it("reais com separador de milhar, que a leitura entende", () => {
+    expect(ruleText("liquidez_min", 1500000)).toBe("1.500.000");
     expect(ruleValue("liquidez_min", "1.500.000")).toBe(1500000);
+  });
+
+  it("decimais sem separador de milhar", () => {
+    expect(ruleText("divida_max", 1500.5)).toBe("1500,5");
+  });
+
+  it("mostra com a unidade", () => {
+    expect(ruleDisplay("yield_alvo", 0.06)).toBe("6%");
+    expect(ruleDisplay("liquidez_min", 5000000)).toBe("R$ 5.000.000");
+    expect(ruleDisplay("divida_max", 2.5)).toBe("2,5");
+    expect(ruleDisplay("fii_spread_tijolo_ok", 0.02)).toBe("2 p.p.");
   });
 
   it("texto inválido não vira valor", () => {
@@ -76,6 +89,11 @@ describe("grupos", () => {
     expect(orderedGroups("barsi").map((g) => g.key)).toEqual(["barsi", "bazin", "graham", "fm", "fii", "etf"]);
   });
 
+  it("acha o grupo pela chave", () => {
+    expect(findGroup("etf").title).toBe("ETFs");
+    expect(findGroup("xyz").key).toBe("barsi");
+  });
+
   it("grupo da URL vale se existir; senão o da metodologia", () => {
     expect(groupFromParam("fii", "bazin")).toBe("fii");
     expect(groupFromParam("xyz", "bazin")).toBe("bazin");
@@ -93,7 +111,7 @@ describe("splitSubsections", () => {
     expect(out).toEqual([
       { title: null, rules: [{ key: "b", label: "Patrimônio mínimo" }] },
       { title: "Papel", rules: [{ key: "a", label: "P/VP máximo" }] },
-      { title: "Tijolo", rules: [{ key: "c", label: "vacância" }] },
+      { title: "Tijolo", rules: [{ key: "c", label: "Vacância" }] },
     ]);
   });
 

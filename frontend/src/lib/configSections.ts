@@ -1,6 +1,10 @@
 /** Seções da tela de Configurações, na ordem do menu. A chave vai na URL (`/config?secao=regras`). */
 export const CONFIG_SECTIONS = [
-  { key: "perfil", label: "Perfil e metodologias", description: "Seu perfil de risco e como o app escolhe ações e divide a carteira." },
+  {
+    key: "perfil",
+    label: "Perfil e metodologias",
+    description: "Seu perfil de risco e como o app escolhe ações e divide a carteira.",
+  },
   { key: "divisao", label: "Divisão da carteira", description: "Quanto da carteira vai para cada classe de ativo." },
   { key: "regras", label: "Limites das regras", description: "Os números que decidem comprar, aguardar ou evitar." },
   { key: "dados", label: "Dados e atualização", description: "Quando os dados do mercado foram atualizados e o histórico." },

@@ -90,6 +90,9 @@ const PERCENT_RULES = new Set([
   "fm_fracao_comprar",
 ]);
 
+/** Percentuais que são diferença entre taxas, mostrados em pontos percentuais. */
+const POINTS_RULES = new Set(["fii_spread_papel_tolerancia", "fii_spread_papel_estresse", "fii_spread_tijolo_ok"]);
+
 /** Limites em reais (liquidez e patrimônio). */
 const MONEY_RULES = new Set([
   "liquidez_ok",
@@ -146,10 +149,26 @@ export function checkRule(key: string, text: string): Checked<number> {
   return checked;
 }
 
-/** Valor da regra como o usuário vê: em % para as frações, com vírgula decimal e sem separador de milhar. */
+/**
+ * Valor da regra como vai no campo: em % para as frações e com vírgula decimal. Só os valores em reais
+ * levam separador de milhar ("5.000.000"), como a máscara de moeda.
+ */
 export function ruleText(key: string, value: number): string {
   const shown = PERCENT_RULES.has(key) ? value * 100 : value;
-  return shown.toLocaleString("pt-BR", { maximumFractionDigits: 6, useGrouping: false });
+  return shown.toLocaleString("pt-BR", { maximumFractionDigits: 6, useGrouping: MONEY_RULES.has(key) });
+}
+
+const UNIT: Partial<Record<RuleKind, (text: string) => string>> = {
+  percent: (text) => `${text}%`,
+  money: (text) => `R$ ${text}`,
+};
+
+/** Valor da regra para ler, com a unidade ("6%", "R$ 5.000.000", "2,5"). */
+export function ruleDisplay(key: string, value: number): string {
+  const text = ruleText(key, value);
+  if (POINTS_RULES.has(key)) return `${text} p.p.`;
+  const unit = UNIT[ruleKind(key)];
+  return unit ? unit(text) : text;
 }
 
 /** Converte o texto digitado de volta para o valor guardado pela API; null se não for número. */
@@ -163,22 +182,39 @@ export function ruleValue(key: string, text: string): number | null {
 export type RuleGroup = { key: string; title: string; description: string; prefix: string | null };
 
 /** Grupos na ordem padrão. Barsi não tem prefixo: junta as chaves que não são de nenhum outro grupo. */
+const BARSI_GROUP: RuleGroup = {
+  key: "barsi",
+  title: "Barsi",
+  description: "Ações pelo método Barsi: preço-teto pelo yield, histórico de proventos, endividamento e liquidez.",
+  prefix: null,
+};
+
 export const RULE_GROUPS: RuleGroup[] = [
+  BARSI_GROUP,
   {
-    key: "barsi",
-    title: "Barsi",
-    description: "Ações pelo método Barsi: preço-teto pelo yield, histórico de proventos, endividamento e liquidez.",
-    prefix: null,
+    key: "bazin",
+    title: "Bazin",
+    description: "Ações pelo Bazin: yield mínimo, constância dos proventos e dívida.",
+    prefix: "bazin_",
   },
-  { key: "bazin", title: "Bazin", description: "Ações pelo Bazin: yield mínimo, constância dos proventos e dívida.", prefix: "bazin_" },
   {
     key: "graham",
     title: "Graham",
     description: "Ações pelo Graham: porte, solidez, histórico de lucros e preço máximo.",
     prefix: "graham_",
   },
-  { key: "fm", title: "Fórmula Mágica", description: "Ações pela Fórmula Mágica: quanto do ranking recebe comprar.", prefix: "fm_" },
-  { key: "fii", title: "FIIs", description: "Filtro de segurança dos fundos imobiliários, de papel e de tijolo.", prefix: "fii_" },
+  {
+    key: "fm",
+    title: "Fórmula Mágica",
+    description: "Ações pela Fórmula Mágica: quanto do ranking recebe comprar.",
+    prefix: "fm_",
+  },
+  {
+    key: "fii",
+    title: "FIIs",
+    description: "Filtro de segurança dos fundos imobiliários, de papel e de tijolo.",
+    prefix: "fii_",
+  },
   { key: "etf", title: "ETFs", description: "Liquidez, patrimônio e taxa dos ETFs.", prefix: "etf_" },
 ];
 
@@ -190,6 +226,11 @@ const DEFAULT_GROUP = "barsi";
 /** Grupo da metodologia de seleção escolhida; metodologia desconhecida cai no Barsi. */
 export function selectionGroup(selectionMethod: string): string {
   return SELECTION_GROUP[selectionMethod] ?? DEFAULT_GROUP;
+}
+
+/** Grupo pela chave; chave desconhecida cai no Barsi. */
+export function findGroup(key: string): RuleGroup {
+  return RULE_GROUPS.find((g) => g.key === key) ?? BARSI_GROUP;
 }
 
 /** Grupo de uma chave de limite. */
@@ -214,6 +255,10 @@ export type RuleSubsection = { title: string | null; rules: LabeledRule[] };
 
 const SUBSECTION_PREFIXES = ["Papel", "Tijolo"];
 
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 /**
  * Separa os limites pelos prefixos "Papel:" e "Tijolo:" do rótulo (FIIs), tirando o prefixo do rótulo.
  * Os sem prefixo vêm primeiro, numa subseção sem título; subseções vazias ficam de fora.
@@ -226,7 +271,7 @@ export function splitSubsections(rules: LabeledRule[]): RuleSubsection[] {
       title,
       rules: rules
         .filter((r) => prefixOf(r.label) === title)
-        .map((r) => ({ key: r.key, label: title ? r.label.slice(title.length + 2) : r.label })),
+        .map((r) => ({ key: r.key, label: title ? capitalize(r.label.slice(title.length + 2)) : r.label })),
     }))
     .filter((s) => s.rules.length > 0);
 }
@@ -242,12 +287,18 @@ export function sameRuleValue(key: string, text: string, stored: number | undefi
 
 /** Chaves editadas cujo texto difere do valor salvo (ou não é um número válido). */
 export function pendingKeys(edits: Record<string, string>, saved: Record<string, number>): string[] {
-  return Object.keys(edits).filter((key) => !sameRuleValue(key, edits[key], saved[key]));
+  return Object.entries(edits)
+    .filter(([key, text]) => !sameRuleValue(key, text, saved[key]))
+    .map(([key]) => key);
 }
 
 /** Corpo do PUT /api/regras com as chaves pedidas, ou null se alguma não for um número válido. */
 export function rulesBody(edits: Record<string, string>, keys: string[]): Record<string, number> | null {
-  const values = keys.map((key) => [key, ruleValue(key, edits[key] ?? "")] as const);
-  if (values.some(([, v]) => v === null)) return null;
-  return Object.fromEntries(values);
+  const body: Record<string, number> = {};
+  for (const key of keys) {
+    const value = ruleValue(key, edits[key] ?? "");
+    if (value === null) return null;
+    body[key] = value;
+  }
+  return body;
 }
