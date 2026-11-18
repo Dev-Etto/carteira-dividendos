@@ -132,7 +132,16 @@ function Aporte() {
 
       {plan && (
         <>
-          <Card title={`Plano para ${brl(plan.amount)}`}>
+          <Card
+            title={`Plano para ${brl(plan.amount)}`}
+            actions={
+              plan.cash_used > 0 ? (
+                <span className="text-sm text-muted">
+                  {brl(plan.amount - plan.cash_used)} do aporte + {brl(plan.cash_used)} de caixa a investir
+                </span>
+              ) : undefined
+            }
+          >
             <ul className="divide-y divide-line border-t border-line">
               {plan.lines.map((l, i) => (
                 <li key={i} className="grid grid-cols-[110px_minmax(0,1fr)_auto] items-center gap-4 py-3.5">
@@ -194,6 +203,16 @@ function Aporte() {
           <li>
             Em ETFs, a fatia é dividida em partes iguais entre os seus favoritos (★ no Explorar), desde que não estejam reprovados
             em liquidez.
+          </li>
+          <li>
+            No ARCA, a renda fixa é o &quot;Caixa&quot; (Tesouro Selic ou CDB de liquidez diária), a classe internacional vai para
+            os ETFs estrangeiros favoritos e parte do aporte de ações vai para os ETFs brasileiros favoritos (20%, editável em
+            Configurações).
+          </li>
+          <li>Se a parte de uma classe abaixo do alvo não paga nem uma cota, o plano completa a cota com as outras classes.</li>
+          <li>
+            O que sobra vira &quot;caixa a investir&quot;: fica no Tesouro Selic, não conta como renda fixa e entra sozinho no
+            próximo plano. Se você não executar alguma compra, o valor dela continua guardado.
           </li>
           <li>O app nunca sugere vender para rebalancear. O equilíbrio vem dos próximos aportes.</li>
         </ol>
