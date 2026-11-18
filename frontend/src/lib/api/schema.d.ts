@@ -518,6 +518,7 @@ export interface components {
         /**
          * AssetHistory
          * @description nav: valor patrimonial da cota mês a mês (só FIIs), para comparar com o preço.
+         *     quarters: receita e lucro dos últimos trimestres (só ações).
          */
         AssetHistory: {
             /** Prices */
@@ -531,6 +532,11 @@ export interface components {
              * @default []
              */
             nav: components["schemas"]["PricePointOut"][];
+            /**
+             * Quarters
+             * @default []
+             */
+            quarters: components["schemas"]["QuarterOut"][];
         };
         /** AssetRow */
         AssetRow: {
@@ -996,6 +1002,18 @@ export interface components {
              * @default perfil
              */
             allocation_method: string;
+        };
+        /**
+         * QuarterOut
+         * @description Um trimestre para o gráfico. label: "3T26".
+         */
+        QuarterOut: {
+            /** Label */
+            label: string;
+            /** Revenue */
+            revenue: number | null;
+            /** Net Income */
+            net_income: number | null;
         };
         /** Question */
         Question: {

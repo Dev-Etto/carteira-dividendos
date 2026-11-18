@@ -21,6 +21,7 @@ from app.schemas.api import (
     DividendYearOut,
     MethodVerdictOut,
     PricePointOut,
+    QuarterOut,
     ScorePointOut,
 )
 from app.services.evaluation import (
@@ -31,6 +32,7 @@ from app.services.evaluation import (
     latest_evaluations,
     refresh_asset,
 )
+from app.services.snapshot import stock_quarters
 from app.services.sync import start_background_sync
 
 SECTOR_RISKS = {
@@ -54,6 +56,7 @@ VOLUME_WINDOW_DAYS = 63
 VOLUME_MIN_DAYS = 20
 MAX_WARN_RISKS = 3
 CHART_EVERY_N_DAYS = 5
+CHART_QUARTERS = 12
 NEW_ASSET_SYNC_STEPS = {
     "acao": {"cvm", "itr", "mercado", "avaliacoes"},
     "fii": {"fiis", "mercado", "avaliacoes"},
@@ -290,6 +293,10 @@ def asset_history(db: Session, ticker: str, years: int) -> AssetHistory:
         dividends_by_year=_dividends_by_year(db, asset.id, date(start.year - 5, 1, 1)),
         scores=[ScorePointOut(date=e.date, score=e.score, verdict=e.verdict) for e in scores],
         nav=_nav_history(db, asset.id, start),
+        quarters=[
+            QuarterOut(label=f"{q.quarter}T{q.year % 100:02d}", revenue=q.revenue, net_income=q.net_income)
+            for q in stock_quarters(db, asset.id)[-CHART_QUARTERS:]
+        ],
     )
 
 

@@ -106,7 +106,7 @@ Como criar uma metodologia nova está em [`backend/app/engine/README.md`](backen
 
 Regras do método Barsi, regras setoriais e sustentabilidade do dividendo. Cada regra tem peso e pode ser **eliminatória**:
 
-- **Qualidade:** setor perene, histórico de proventos (eliminatória; 10 anos ideal, 5 no mínimo), consistência, lucro, ROE médio de 5 anos, endividamento, payout e liquidez (eliminatória)
+- **Qualidade:** setor perene, histórico de proventos (eliminatória; 10 anos ideal, 5 no mínimo), consistência, lucro, lucro dos últimos 12 meses (pelos balanços trimestrais), ROE médio de 5 anos, endividamento, payout e liquidez (eliminatória)
 - **Setor:** Basileia e inadimplência (bancos), índice combinado (seguros), segmento e concessões (energia e saneamento), limite de dívida maior para setores regulados
 - **Sustentabilidade:** fluxo de caixa livre × proventos, provento pago com dívida
 - **Preço:** preço-teto Barsi (média de proventos de 5 anos ÷ yield-alvo de 6%), DY fora do normal, preço em relação ao próprio histórico

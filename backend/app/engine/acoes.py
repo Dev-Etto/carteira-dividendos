@@ -17,7 +17,7 @@ from app.engine.config import merged_rules
 from app.engine.score import build_evaluation
 from app.engine.types import Evaluation, RuleResult, RuleStatus, StockSnapshot, YearFundamentals
 
-ENGINE_VERSION = "acoes-1.0"
+ENGINE_VERSION = "acoes-1.1"
 
 BEST = {"bancos", "seguros", "energia", "saneamento", "telecom"}
 FINANCEIRO = {"bancos", "seguros"}
@@ -198,6 +198,50 @@ def rule_lucro(s: StockSnapshot) -> RuleResult:
     return _rule(
         **base, status=status, value=float(len(losses)), value_display=f"{len(losses)} ano(s) com prejuízo", explanation=exp
     )
+
+
+TTM_QUARTERS = 4
+
+
+def ttm_profits(s: StockSnapshot) -> tuple[float, float] | None:
+    """Lucro dos últimos 4 trimestres e dos 4 anteriores; None sem 8 trimestres seguidos com lucro informado."""
+    known = [q for q in s.quarters if q.net_income is not None]
+    last8 = known[-2 * TTM_QUARTERS :]
+    consecutive = len(last8) == 2 * TTM_QUARTERS and last8[-1].index - last8[0].index == 2 * TTM_QUARTERS - 1
+    if not consecutive:
+        return None
+    previous = sum(q.net_income or 0.0 for q in last8[:TTM_QUARTERS])
+    recent = sum(q.net_income or 0.0 for q in last8[TTM_QUARTERS:])
+    return recent, previous
+
+
+def _avalia_lucro_recente(recent: float, previous: float, c: Rules) -> Assessment:
+    if recent <= 0:
+        return "fail", f"Prejuízo de {fmt.brl(-recent)} nos últimos 12 meses."
+    if previous > 0 and recent < previous * (1 - c["queda_forte"]):
+        drop = 1 - recent / previous
+        return (
+            "warn",
+            f"O lucro dos últimos 12 meses caiu {fmt.pct(drop)} em relação aos 12 meses anteriores. Vale entender o motivo.",
+        )
+    return "ok", f"Lucro de {fmt.brl(recent)} nos últimos 12 meses, sem queda forte em relação aos 12 meses anteriores."
+
+
+def rule_lucro_recente(s: StockSnapshot, c: Rules) -> RuleResult:
+    """Pelos balanços trimestrais (ITR): o anual pode estar até um ano defasado."""
+    base = {
+        "id": "lucro-recente",
+        "label": "Lucro dos últimos 12 meses",
+        "learn_more": "lucro",
+        "weight": 1,
+        "threshold": f"positivo e sem queda acima de {fmt.pct(c['queda_forte'], 0)}",
+    }
+    profits = ttm_profits(s)
+    if profits is None:
+        return _na(base, "Precisa de 8 trimestres seguidos de balanço (ITR).")
+    recent, previous = profits
+    status, exp = _avalia_lucro_recente(recent, previous, c)
+    return _rule(**base, status=status, value=recent, value_display=fmt.brl(recent), explanation=exp)
 
 
 def avg_roe(s: StockSnapshot) -> float | None:
@@ -699,6 +743,7 @@ def evaluate_stock(s: StockSnapshot, overrides: dict[str, float] | None = None) 
         rule_historico(s, c),
         rule_consistencia(s, c),
         rule_lucro(s),
+        rule_lucro_recente(s, c),
         rule_roe(s, c),
     ]
     if s.sector not in FINANCEIRO:

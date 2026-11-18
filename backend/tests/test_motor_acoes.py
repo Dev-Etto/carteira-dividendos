@@ -6,7 +6,7 @@ import pytest
 from app.engine import acoes
 from app.engine.acoes import ceiling_price, consecutive_paying_years, evaluate_stock, percentile_of
 from app.engine.config import DEFAULT_RULES, merged_rules, rule_errors
-from app.engine.types import StockSnapshot, YearFundamentals
+from app.engine.types import QuarterFundamentals, StockSnapshot, YearFundamentals
 
 
 def transmissora(**kw: Any) -> StockSnapshot:
@@ -258,3 +258,32 @@ def test_yield_alvo_ligado_ao_juro_real():
     ligado = evaluate_stock(transmissora(ntnb_real=0.08), {"yield_ligado_juros": 1})
     assert ligado.ceiling_price == pytest.approx(fixo.ceiling_price * 0.06 / 0.08)
     assert ligado.extras["yield_alvo_exigente"] >= ligado.extras["yield_alvo"]
+
+
+def trimestres(lucros: list[float], inicio: tuple[int, int] = (2024, 4)):
+    ano, tri = inicio
+    out = []
+    for lucro in lucros:
+        out.append(QuarterFundamentals(year=ano, quarter=tri, net_income=lucro))
+        ano, tri = (ano + 1, 1) if tri == 4 else (ano, tri + 1)
+    return out
+
+
+def _lucro_recente(s):
+    return next(r for r in evaluate_stock(s).rules if r.id == "lucro-recente")
+
+
+def test_lucro_dos_ultimos_12_meses():
+    estavel = _lucro_recente(transmissora(quarters=trimestres([100.0] * 8)))
+    assert (estavel.status, estavel.value) == ("ok", 400.0)
+    queda = _lucro_recente(transmissora(quarters=trimestres([100.0] * 4 + [60.0] * 4)))
+    assert queda.status == "warn"
+    prejuizo = _lucro_recente(transmissora(quarters=trimestres([100.0] * 4 + [-50.0] * 4)))
+    assert prejuizo.status == "fail"
+
+
+def test_lucro_recente_precisa_de_8_trimestres_seguidos():
+    assert _lucro_recente(transmissora(quarters=trimestres([100.0] * 7))).status == "na"
+    buraco = trimestres([100.0] * 9)
+    del buraco[4]
+    assert acoes.ttm_profits(transmissora(quarters=buraco)) is None

@@ -93,13 +93,23 @@ class ScorePointOut(BaseModel):
     verdict: str
 
 
+class QuarterOut(BaseModel):
+    """Um trimestre para o gráfico. label: "3T26"."""
+
+    label: str
+    revenue: float | None
+    net_income: float | None
+
+
 class AssetHistory(BaseModel):
-    """nav: valor patrimonial da cota mês a mês (só FIIs), para comparar com o preço."""
+    """nav: valor patrimonial da cota mês a mês (só FIIs), para comparar com o preço.
+    quarters: receita e lucro dos últimos trimestres (só ações)."""
 
     prices: list[PricePointOut]
     dividends_by_year: list[DividendYearOut]
     scores: list[ScorePointOut]
     nav: list[PricePointOut] = []
+    quarters: list[QuarterOut] = []
 
 
 class QuestionOption(BaseModel):
