@@ -35,7 +35,7 @@ from app.db.models import (
 )
 from app.db.session import SessionLocal
 from app.engine import fii
-from app.providers import bcb, cvm, cvm_etf, cvm_fii, cvm_ipe, market, tesouro
+from app.providers import bcb, bcb_ifdata, cvm, cvm_etf, cvm_fii, cvm_ipe, market, tesouro
 from app.providers.base import DOWNLOAD_ERRORS, DividendEvent, PricePoint, Quote, SplitInfo
 from app.schemas.api import SyncRunOut, SyncStatus
 from app.services.evaluation import evaluate_all
@@ -82,7 +82,7 @@ ASSET_FIELDS = ["name", "asset_class", "sector", "segment", "economic_group"]
 FII_SEED_FIELDS = ["name", "asset_class", "economic_group"]
 """Num FII, tipo (sector) e segmento vêm do informe da CVM; o universo.csv só dá o palpite inicial."""
 
-STEPS = ("universo", "macro", "tesouro", "cvm", "itr", "comunicados", "fiis", "etfs", "mercado", "avaliacoes")
+STEPS = ("universo", "macro", "tesouro", "cvm", "itr", "bancos", "comunicados", "fiis", "etfs", "mercado", "avaliacoes")
 
 _lock = threading.Lock()
 _current_step: str | None = None
@@ -332,6 +332,39 @@ async def sync_filings(db: Session) -> int:
     return total
 
 
+CNPJ_ROOT_DIGITS = 8
+
+
+def _pick_basel(found: list[bcb_ifdata.Basel], root: str) -> bcb_ifdata.Basel | None:
+    """Conglomerado prudencial do banco pela raiz do CNPJ; havendo mais de um, o de nome "prudencial"."""
+    matches = sorted((b for b in found if b.cnpj_root == root), key=lambda b: "PRUDENCIAL" not in b.institution)
+    return matches[0] if matches else None
+
+
+async def sync_banks(db: Session) -> int:
+    """Índice de Basileia dos bancos pelo IF.data do Banco Central. Substitui o valor manual do CSV, que
+    continua valendo para quem o IF.data não cobre (holdings como a Itaúsa)."""
+    banks = list(db.scalars(select(Asset).where(Asset.sector == "bancos", Asset.cnpj.is_not(None))))
+    if not banks:
+        return 0
+    found = await bcb_ifdata.fetch_basel()
+    rows = [
+        {
+            "asset_id": a.id,
+            "key": "basileia",
+            "value": b.ratio_pct,
+            "reference": b.reference,
+            "source": "BCB IF.data",
+            "updated_at": date.today(),
+        }
+        for a in banks
+        if (b := _pick_basel(found, (a.cnpj or "")[:CNPJ_ROOT_DIGITS])) is not None
+    ]
+    n = upsert(db, SectorMetric, rows, keys=["asset_id", "key"], update=["value", "reference", "source", "updated_at"])
+    db.commit()
+    return n
+
+
 async def _fii_monthly(year: int, tickers: set[str]) -> dict[str, list[cvm_fii.FiiMonthly]]:
     try:
         return await cvm_fii.fetch_monthly(year, tickers)
@@ -508,6 +541,7 @@ async def _run_steps(db: Session, only: set[str] | None, tickers: set[str] | Non
         "cvm": lambda: sync_cvm(db),
         "itr": lambda: sync_itr(db),
         "comunicados": lambda: sync_filings(db),
+        "bancos": lambda: sync_banks(db),
         "fiis": lambda: sync_fii(db),
         "etfs": lambda: sync_etf(db),
         "mercado": lambda: sync_market(db, tickers),

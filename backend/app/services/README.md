@@ -10,6 +10,7 @@ Cada módulo cuida de um assunto e é o único lugar onde banco, motor e provide
 | `methods.py` | Lista as metodologias e guarda a escolha do usuário. |
 | `assets.py` | Lista, ficha, histórico, cadastro e favoritos de ativos. |
 | `portfolio.py`, `transactions.py` | Posição da carteira e operações de compra e venda. |
+| `filings.py` | Comunicados à CVM de cada ação e os fatos relevantes da carteira. |
 | `fixed_income.py` | Aplicações de renda fixa e reserva de emergência. |
 | `profile.py` | Questionário, perfil, divisão-alvo e limites das regras. |
 | `planner.py` | Plano do aporte do mês. |
@@ -18,7 +19,7 @@ Cada módulo cuida de um assunto e é o único lugar onde banco, motor e provide
 
 ## Atualização de dados
 
-`sync.py` roda as etapas em ordem: `universo`, `macro`, `tesouro`, `cvm`, `itr`, `fiis`, `etfs`, `mercado`, `avaliacoes`. Cada etapa é independente: uma falha é registrada em `sync_runs` e as seguintes continuam. `make sync ETAPAS=macro,mercado` roda só algumas.
+`sync.py` roda as etapas em ordem: `universo`, `macro`, `tesouro`, `cvm`, `itr`, `bancos`, `comunicados`, `fiis`, `etfs`, `mercado`, `avaliacoes`. Cada etapa é independente: uma falha é registrada em `sync_runs` e as seguintes continuam. `make sync ETAPAS=macro,mercado` roda só algumas.
 
 Para criar uma etapa, escreva a função que grava os dados, inclua o nome em `STEPS` e a função no mapa de etapas. A etapa precisa poder rodar de novo sem duplicar nada, por isso use `upsert`.
 

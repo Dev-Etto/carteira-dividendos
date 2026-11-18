@@ -5,6 +5,7 @@ Cada provider baixa uma fonte e a transforma em objetos simples (dataclasses de 
 | Módulo | Fonte |
 | --- | --- |
 | `bcb.py` | Banco Central, API SGS: Selic, CDI e IPCA. |
+| `bcb_ifdata.py` | Banco Central, IF.data: índice de Basileia dos conglomerados prudenciais. |
 | `tesouro.py` | Tesouro Transparente: preços e taxas do Tesouro Direto. |
 | `cvm.py` | CVM: balanços anuais (DFP), trimestrais (ITR) e cadastro das companhias (FCA). |
 | `cvm_fii.py` | CVM: informes mensal e trimestral dos FIIs. |

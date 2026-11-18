@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 import respx
 
-from app.providers import base, bcb, cvm, cvm_ipe, market, tesouro
+from app.providers import base, bcb, bcb_ifdata, cvm, cvm_ipe, market, tesouro
 
 CVM_HEADER = "CNPJ_CIA;DT_REFER;VERSAO;DENOM_CIA;CD_CVM;GRUPO_DFP;MOEDA;ESCALA_MOEDA;ORDEM_EXERC;DT_INI_EXERC;DT_FIM_EXERC;CD_CONTA;DS_CONTA;VL_CONTA;ST_CONTA_FIXA"
 CNPJ = "07.859.971/0001-30"
@@ -239,3 +239,36 @@ def test_cvm_ipe_guarda_so_categorias_relevantes_na_versao_mais_nova():
     assert filings["111"].delivered_on == date(2026, 11, 11)
     assert filings["111"].category == "fato_relevante"
     assert (filings["333"].category, filings["333"].subject) == ("aviso_acionistas", "Pagamento de JCP")
+
+
+def test_ifdata_trimestres_rotulos_e_url():
+    assert bcb_ifdata.recent_quarters(date(2026, 11, 19)) == [202609, 202606, 202603, 202512]
+    assert bcb_ifdata.recent_quarters(date(2026, 2, 1), 2) == [202512, 202509]
+    assert bcb_ifdata.quarter_label(202606) == "2T26"
+    url = bcb_ifdata.odata_url("https://x/f(A=@A)", {"@A": "1", "$filter": "startswith(N,'Índice de B')"})
+    assert "+" not in url
+    assert "@A=1" in url
+    assert "%20de%20" in url
+
+
+def test_ifdata_basileia_por_raiz_do_cnpj():
+    cadastro = json.dumps(
+        {
+            "value": [
+                {"CodInst": "C1", "NomeInstituicao": "BANCO X - PRUDENCIAL", "CnpjInstituicaoLider": "60872504"},
+                {"CodInst": "C2", "NomeInstituicao": "BANCO Y", "CnpjInstituicaoLider": None},
+                {"CodInst": "C3", "NomeInstituicao": "SEM VALOR", "CnpjInstituicaoLider": "11111111"},
+            ]
+        }
+    ).encode()
+    valores = json.dumps(
+        {
+            "value": [
+                {"CodInst": "C1", "NomeColuna": "Índice de Basileia \n(n) = (e) / (j)", "Saldo": 0.153516},
+                {"CodInst": "C1", "NomeColuna": "Índice de Imobilização", "Saldo": 0.06},
+                {"CodInst": "C2", "NomeColuna": "Índice de Basileia", "Saldo": 0.2},
+            ]
+        }
+    ).encode()
+    found = bcb_ifdata.parse_basel(cadastro, valores, 202606)
+    assert found == [bcb_ifdata.Basel("60872504", "BANCO X - PRUDENCIAL", 15.35, "2T26")]

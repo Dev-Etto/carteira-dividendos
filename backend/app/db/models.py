@@ -185,7 +185,8 @@ class Filing(Base):
 class SectorMetric(Base):
     """Indicadores setoriais (Basileia, inadimplência, índice combinado, concessões).
 
-    Na Fase 1 vêm de data/sector_metrics.csv, editável à mão.
+    A Basileia dos bancos vem do IF.data do Banco Central (etapa bancos); os demais, de
+    data/sector_metrics.csv, editável à mão.
     """
 
     __tablename__ = "sector_metrics"
