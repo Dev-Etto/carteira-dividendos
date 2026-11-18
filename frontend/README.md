@@ -14,7 +14,8 @@ Telas em Next.js (App Router) com Tailwind. Elas só falam com a API em `/api`, 
 
 ## Padrões
 
-- **Componentes de `ui.tsx` primeiro:** `PageHeader`, `Card`, `Stat`, `VerdictBadge`, `ScorePill`, `Button`, `Field` (com `error`), `inputCls`, `Loading`, `ErrorBox`, `Empty`, `Help`. Uma tela nova se monta com eles antes de criar estilo próprio.
+- **Componentes de `ui.tsx` primeiro:** `PageHeader`, `Card`, `Stat`, `VerdictBadge`, `ScorePill`, `Button`, `Field` (com `error`), `FieldRow`, `inputCls`, `Loading`, `ErrorBox`, `Empty`, `Help`. Uma tela nova se monta com eles antes de criar estilo próprio. `FieldRow` é o `Field` em linha, para listas de ajustes: rótulo e descrição à esquerda, campo numa coluna fixa à direita (todos alinhados) e um `footer` opcional embaixo do campo, fora do `<label>`, para ações como "Restaurar padrão".
+- **Telas com seções:** a seção ativa fica na URL (`/config?secao=regras&grupo=fii`), lida com `useSearchParams` dentro de um `<Suspense>` e trocada por `<Link replace scroll={false}>`. As seções ficam todas montadas e só a ativa aparece (`hidden`), para trocar de seção sem perder o que foi digitado. Formulários de ajustes terminam numa barra de salvar (`SaveBar` em `app/config/parts.tsx`) que mostra as alterações não salvas e oferece "Descartar".
 - **Cores só por token:** as cores e sombras ficam em `src/app/globals.css` (`bg`, `surface`, `ink`, `muted`, `accent`, `good`, `warn`, `bad`…). Use as classes do token (`text-muted`, `bg-accent-soft`), nunca um hexadecimal no componente. O app é só no tema claro.
 - **Dados da API:** `useApi<T>(caminho)` para ler, com `loading`, `error` e `reload`; `api.post`/`api.put` para gravar. Os tipos vêm de `src/lib/api/client.ts`, que dá nomes curtos aos do `schema.d.ts`.
 - **Números digitados** passam por `parseNumber` e `decimalStr` (`src/lib/format.ts`), que entendem "1.500,50". Para mostrar, use `brl`, `pct`, `num` e `dateBr`.
