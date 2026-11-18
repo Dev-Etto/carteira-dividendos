@@ -1,9 +1,11 @@
 """Renda fixa: aplicações do usuário, taxas do Tesouro Direto e comparador isento × tributado."""
 
+from decimal import Decimal
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.errors import NotFoundError
+from app.core.errors import BusinessRuleError, NotFoundError
 from app.db.models import FixedIncomeHolding, TreasuryBond
 from app.engine.renda_fixa import (
     TAX_EXEMPT,
@@ -51,6 +53,29 @@ def add_holdings(db: Session, items: list[FixedIncomeIn]) -> list[FixedIncomeHol
     holdings = [FixedIncomeHolding(**item.model_dump()) for item in items]
     db.add_all(holdings)
     return holdings
+
+
+def consume_cash_to_invest(db: Session, amount: Decimal) -> None:
+    """Desconta das sobras guardadas (caixa a investir) o que o plano usou, das mais antigas para as mais
+    novas: as usadas inteiras saem, a última é reduzida. Quem chama faz o commit."""
+    if amount <= 0:
+        return
+    pending = list(
+        db.scalars(
+            select(FixedIncomeHolding)
+            .where(FixedIncomeHolding.to_invest, FixedIncomeHolding.is_emergency_reserve.is_(False))
+            .order_by(FixedIncomeHolding.start_date, FixedIncomeHolding.id)
+        )
+    )
+    if amount > sum((h.amount for h in pending), Decimal(0)) + Decimal("0.01"):
+        raise BusinessRuleError("O plano usa mais caixa a investir do que há guardado. Recalcule o plano.")
+    left = amount
+    for h in pending:
+        used = min(h.amount, left)
+        h.amount -= used
+        left -= used
+        if h.amount <= 0:
+            db.delete(h)
 
 
 def update_holding(db: Session, holding_id: int, body: FixedIncomeIn) -> FixedIncomeOut:
