@@ -19,7 +19,7 @@ Cada módulo cuida de um assunto e é o único lugar onde banco, motor e provide
 
 ## Atualização de dados
 
-`sync.py` roda as etapas em ordem: `universo`, `macro`, `tesouro`, `cvm`, `itr`, `bancos`, `comunicados`, `fiis`, `etfs`, `mercado`, `proventos`, `avaliacoes`. Cada etapa é independente: uma falha é registrada em `sync_runs` e as seguintes continuam. `make sync ETAPAS=macro,mercado` roda só algumas.
+`sync.py` roda as etapas em ordem: `universo`, `macro`, `tesouro`, `cvm`, `itr`, `bancos`, `seguradoras`, `comunicados`, `fiis`, `etfs`, `mercado`, `proventos`, `avaliacoes`. Cada etapa é independente: uma falha é registrada em `sync_runs` e as seguintes continuam. `make sync ETAPAS=macro,mercado` roda só algumas.
 
 Os proventos vêm do Yahoo (etapa `mercado`). A etapa `proventos` completa com a B3 só o que falta: um provento da B3 é descartado quando o Yahoo tem qualquer provento a até 5 dias da mesma data ex, porque o Yahoo soma dividendo e JCP do mesmo dia e às vezes diverge no valor. O valor da B3 é bruto (como o do Yahoo) e é dividido pelos desdobramentos posteriores para ficar na base de ações de hoje. As linhas da B3 (`source="b3"`) são recalculadas a cada execução, e só a partir do primeiro provento do Yahoo.
 
