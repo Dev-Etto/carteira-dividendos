@@ -71,6 +71,11 @@ const DISTRIBUTES_OPTIONS = [
   { value: "nao", label: "Não, reinveste" },
 ];
 
+const REGION_OPTIONS = [
+  { value: "nacional", label: "Brasileiro (ex.: BOVA11, DIVO11)" },
+  { value: "internacional", label: "Estrangeiro (ex.: IVVB11)" },
+];
+
 function distributesText(value: boolean | null | undefined): string {
   if (value === true) return "sim";
   if (value === false) return "nao";
@@ -78,17 +83,19 @@ function distributesText(value: boolean | null | undefined): string {
 }
 
 /**
- * O que o usuário informa sobre o ETF: a taxa de administração e se ele distribui proventos. Nenhuma
- * fonte gratuita estruturada traz esses dados (o Yahoo não informa proventos de ETFs brasileiros).
+ * O que o usuário informa sobre o ETF: a taxa de administração, se ele distribui proventos e se o índice
+ * é brasileiro ou estrangeiro (o ARCA usa para a classe internacional). Nenhuma fonte gratuita
+ * estruturada traz esses dados (o Yahoo não informa proventos de ETFs brasileiros).
  */
 export function EtfInfoCard({ data, ex, onChange }: { data: AssetDetail; ex: Extras; onChange: () => void }) {
   const current = ex.taxa_adm_ano;
   const [fee, setFee] = useState(current === null || current === undefined ? "" : num(current * 100, 2));
   const [distributes, setDistributes] = useState(distributesText(data.extras.distribui as boolean | null | undefined));
+  const [region, setRegion] = useState(data.region);
   const [err, setErr] = useState<string | null>(null);
   const feeCheck = checkPercent(fee, { max: MAX_FEE_PCT });
 
-  async function save(body: { admin_fee: number | null; distributes: boolean | null }) {
+  async function save(body: { admin_fee: number | null; distributes: boolean | null; region: string }) {
     setErr(null);
     try {
       await api.patch(`/api/ativos/${data.ticker}`, body);
@@ -101,7 +108,7 @@ export function EtfInfoCard({ data, ex, onChange }: { data: AssetDetail; ex: Ext
   function submit() {
     if (feeCheck.error) return;
     const adminFee = feeCheck.value === null ? null : feeCheck.value / 100;
-    void save({ admin_fee: adminFee, distributes: distributes ? distributes === "sim" : null });
+    void save({ admin_fee: adminFee, distributes: distributes ? distributes === "sim" : null, region });
   }
 
   return (
@@ -116,6 +123,15 @@ export function EtfInfoCard({ data, ex, onChange }: { data: AssetDetail; ex: Ext
         <Field label="Distribui proventos?">
           <select className={inputCls} value={distributes} onChange={(e) => setDistributes(e.target.value)}>
             {DISTRIBUTES_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Índice que o ETF acompanha" hint="No ARCA, os estrangeiros formam a classe internacional.">
+          <select className={inputCls} value={region} onChange={(e) => setRegion(e.target.value)}>
+            {REGION_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>

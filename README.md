@@ -98,7 +98,7 @@ A escolha fica em Configurações e muda vereditos, recomendações e o plano de
 | Bazin (Décio Bazin)                   | seleção | disponível         |
 | Graham (Benjamin Graham)              | seleção | disponível         |
 | Fórmula Mágica (Joel Greenblatt)      | seleção | disponível         |
-| ARCA (Thiago Nigro)                   | divisão | próxima            |
+| ARCA (Thiago Nigro)                   | divisão | disponível         |
 
 Como criar uma metodologia nova está em [`backend/app/engine/README.md`](backend/app/engine/README.md#metodologias-metodos).
 
@@ -163,6 +163,19 @@ Joel Greenblatt (_The Little Book That Beats the Market_, 2005) não avalia cada
 3. A soma das posições dá o ranking. O primeiro terço recebe "comprar"; o resto fica "neutro". Não há "evitar".
 
 O método busca valorização e ignora dividendos, e o livro manda trocar a carteira a cada ano; o app só avisa, nunca sugere vender. Como quase todas as ações do BEST ficam de fora, o universo inclui também ações líquidas de outros setores.
+
+## Como a carteira se divide pelo ARCA
+
+Thiago Nigro (_Do Mil ao Milhão_, 2018) divide a carteira em quatro classes:
+
+| Classe                    | No app                                                | Alvo inicial |
+| ------------------------- | ----------------------------------------------------- | ------------ |
+| **A**ções brasileiras     | ações e ETFs de índice brasileiro (BOVA11, DIVO11…)   | 25%          |
+| **R**eal estate           | FIIs                                                  | 25%          |
+| **C**aixa                 | renda fixa (a reserva de emergência continua à parte) | 25%          |
+| **A**tivos internacionais | ETFs de índice estrangeiro (IVVB11…)                  | 25%          |
+
+Cada classe pode ficar entre 10% e 40%. Na ficha de cada ETF você diz se o índice é brasileiro ou estrangeiro; o aporte da classe internacional é dividido entre os ETFs estrangeiros favoritos. O método não diz quando rebalancear, então o app equilibra só pelos aportes. Conta no exterior, câmbio e BDRs ficam de fora.
 
 ## Como os FIIs são avaliados
 

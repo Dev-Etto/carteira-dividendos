@@ -99,6 +99,7 @@ def asset_row(asset: Asset, ev: Evaluation | None, avg_volume: float | None = No
         avg_daily_volume_brl=avg_volume,
         evaluated_on=ev.date if ev else None,
         favorite=bool(asset.favorite),
+        region=asset.region,
     )
 
 

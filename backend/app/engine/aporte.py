@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 from app.engine import fmt
 
-CLASS_LABEL = {"renda_fixa": "Renda fixa", "acoes": "Ações", "fiis": "FIIs", "etfs": "ETFs"}
+CLASS_LABEL = {"renda_fixa": "Renda fixa", "acoes": "Ações", "fiis": "FIIs", "etfs": "ETFs", "internacional": "Internacional"}
 DEFAULT_LONG_TERM_FIXED_INCOME = "Tesouro IPCA+ (vencimento longo) ou CDB ≥ 100% do CDI"
 NEW_SECTOR_BOOST = 1.5
 MAX_FII_KIND_SHARE = 0.60
@@ -85,6 +85,17 @@ ETF_POLICY = ClassPolicy(
     new_group_label="",
     empty_note="Nenhum ETF favorito apto. Marque favoritos na aba ETFs do Explorar; a parte de ETFs ficou em Tesouro Selic.",
     unspent_label="ETFs sem favorito apto",
+    equal_weight=True,
+)
+
+
+INTERNATIONAL_POLICY = ClassPolicy(
+    plan_class="internacional",
+    max_group_share=1.0,
+    margin_label="",
+    new_group_label="",
+    empty_note="Nenhum ETF internacional favorito apto. Marque como favorito um ETF de índice estrangeiro (ex.: IVVB11); a parte internacional ficou em Tesouro Selic.",
+    unspent_label="ETFs internacionais sem favorito apto",
     equal_weight=True,
 )
 
@@ -238,6 +249,7 @@ def build_plan(
     stock_candidates: Sequence[Candidate],
     fii_candidates: Sequence[Candidate] = (),
     etf_candidates: Sequence[Candidate] = (),
+    international_candidates: Sequence[Candidate] = (),
     long_term_fixed_income: str = DEFAULT_LONG_TERM_FIXED_INCOME,
     max_asset_share: float = 0.10,
     max_sector_share: float = 0.30,
@@ -245,7 +257,7 @@ def build_plan(
 ) -> Plan:
     """Monta o plano em duas etapas: primeiro completa a reserva de emergência; o que sobrar é
     dividido entre as classes abaixo do alvo; dentro de ações e FIIs, entre os melhores ativos, e
-    dentro de ETFs, em partes iguais entre os favoritos aptos."""
+    dentro de ETFs e da classe internacional, em partes iguais entre os favoritos aptos."""
     plan = Plan(amount=amount)
     missing = max(0.0, reserve_target - reserve_current)
     to_reserve = min(amount, missing) if missing > 0 else 0.0
@@ -274,6 +286,7 @@ def build_plan(
         "acoes": (stock_policy(max_sector_share), stock_candidates),
         "fiis": (FII_POLICY, fii_candidates),
         "etfs": (ETF_POLICY, etf_candidates),
+        "internacional": (INTERNATIONAL_POLICY, international_candidates),
     }
 
     for cls, budget in sorted(per_class.items(), key=lambda kv: -kv[1]):

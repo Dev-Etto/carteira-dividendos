@@ -358,6 +358,14 @@ export const GLOSSARIO: Termo[] = [
     categoria: "carteira",
   },
   {
+    slug: "arca",
+    termo: "ARCA",
+    curto: "Divisão de Thiago Nigro: Ações, Real estate (FIIs), Caixa (renda fixa) e Ativos internacionais.",
+    explicacao:
+      "No livro Do Mil ao Milhão (2018), Thiago Nigro divide a carteira em quatro partes. O ponto de partida é 25% em cada, e cada classe pode ir de 10% a 40% conforme o seu momento. No app, ETFs de índice brasileiro (como BOVA11) contam em ações, e ETFs de índice estrangeiro (como IVVB11) formam a classe internacional; você marca isso na ficha do ETF. O método não diz quando rebalancear: o app equilibra só pelos aportes, sem sugerir vendas.",
+    categoria: "carteira",
+  },
+  {
     slug: "fii",
     termo: "FII (fundo imobiliário)",
     curto: "Fundo negociado na bolsa que investe em imóveis ou em dívidas ligadas a imóveis.",

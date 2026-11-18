@@ -65,6 +65,7 @@ export const CLASS_LABEL: Record<string, string> = {
   acoes: "Ações",
   fiis: "FIIs",
   etfs: "ETFs",
+  internacional: "Internacional",
   reserva: "Reserva",
   caixa: "Caixa",
   acao: "Ação",

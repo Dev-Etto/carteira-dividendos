@@ -363,7 +363,7 @@ def dois_metodos(client, monkeypatch):
 def test_lista_metodologias(client):
     metodos = client.get("/api/metodos").json()
     assert metodos["selection"][0]["key"] == "barsi"
-    assert [m["key"] for m in metodos["allocation"]] == ["perfil"]
+    assert [m["key"] for m in metodos["allocation"]] == ["perfil", "arca"]
     assert metodos["selection"][0]["author"] == "Luiz Barsi Filho"
 
 
@@ -391,3 +391,37 @@ def test_escolher_metodologia_muda_o_veredito_mostrado(client, dois_metodos):
     assert linha["verdict"] == "evitar"
     fii = client.get("/api/ativos/HGLG11").json()
     assert (fii["method"], fii["other_methods"]) == ("fii", [])
+
+
+def test_arca_divide_em_quatro_classes_e_separa_etfs_por_regiao(client):
+    assert client.get("/api/ativos/IVVB11").json()["region"] == "internacional"
+    client.put("/api/perfil/metodos", json={"selection_method": "barsi", "allocation_method": "arca"})
+    try:
+        alocacao = client.get("/api/alocacao").json()
+        assert {i["asset_class"]: i["weight_pct"] for i in alocacao} == {
+            "acoes": 25.0,
+            "fiis": 25.0,
+            "renda_fixa": 25.0,
+            "internacional": 25.0,
+        }
+        fora = [
+            {"asset_class": c, "weight_pct": w}
+            for c, w in (("acoes", 45), ("fiis", 25), ("renda_fixa", 20), ("internacional", 10))
+        ]
+        assert client.put("/api/alocacao", json=fora).status_code == 422
+        hoje = date.today().isoformat()
+        for ticker in ("IVVB11", "BOVA11"):
+            r = client.post(
+                "/api/transacoes",
+                json={"ticker": ticker, "date": hoje, "kind": "compra", "quantity": "1", "price": "100", "fees": "0"},
+            )
+            assert r.status_code == 201, r.text
+        classes = {c["asset_class"]: c["value"] for c in client.get("/api/carteira").json()["classes"]}
+        assert set(classes) == {"acoes", "fiis", "renda_fixa", "internacional"}
+        assert classes["internacional"] > 0
+        nacional = client.patch("/api/ativos/IVVB11", json={"region": "nacional"}).json()
+        assert nacional["region"] == "nacional"
+        assert {c["asset_class"]: c["value"] for c in client.get("/api/carteira").json()["classes"]}["internacional"] == 0
+    finally:
+        client.patch("/api/ativos/IVVB11", json={"region": "internacional"})
+        client.put("/api/perfil/metodos", json={"selection_method": "barsi", "allocation_method": "perfil"})

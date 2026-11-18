@@ -62,10 +62,14 @@ def buy_candidates(db: Session, state: PortfolioState, asset_class: str) -> list
     ]
 
 
-def favorite_etfs(db: Session, state: PortfolioState) -> list[Candidate]:
-    """ETFs marcados como favoritos, com preço e sem reprovação eliminatória (veredito "evitar")."""
+def favorite_etfs(db: Session, state: PortfolioState, region: str | None = None) -> list[Candidate]:
+    """ETFs marcados como favoritos, com preço e sem reprovação eliminatória (veredito "evitar").
+    Com `region`, só os daquela região (nacional ou internacional)."""
     held = {p.ticker: p.value for p in state.positions}
-    assets = list(db.scalars(select(Asset).where(Asset.active, Asset.asset_class == "etf", Asset.favorite)))
+    query = select(Asset).where(Asset.active, Asset.asset_class == "etf", Asset.favorite)
+    if region is not None:
+        query = query.where(Asset.region == region)
+    assets = list(db.scalars(query))
     evaluations = latest_evaluations(db, [a.id for a in assets])
     avoided = {asset_id for asset_id, ev in evaluations.items() if ev.verdict == "evitar"}
     return [
@@ -145,6 +149,7 @@ def make_plan(db: Session, amount: float) -> PlanOut:
         stock_candidates=buy_candidates(db, state, "acao"),
         fii_candidates=buy_candidates(db, state, "fii"),
         etf_candidates=favorite_etfs(db, state),
+        international_candidates=favorite_etfs(db, state, "internacional"),
         long_term_fixed_income=_bond_label(bond),
     )
     return PlanOut(

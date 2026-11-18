@@ -42,6 +42,8 @@ class Asset(Base):
     favorite: ETF escolhido pelo usuário para receber aportes.
     admin_fee: taxa de administração ao ano (fração) informada pelo usuário; usada nos ETFs.
     distributes: se o ETF repassa os proventos, informado pelo usuário (o Yahoo não traz proventos de ETFs).
+    region: nacional | internacional. Num ETF, se o índice é brasileiro ou estrangeiro; o ARCA usa para
+    separar a classe de ativos internacionais.
     """
 
     __tablename__ = "assets"
@@ -62,6 +64,7 @@ class Asset(Base):
     favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     admin_fee: Mapped[float | None] = mapped_column(Float)
     distributes: Mapped[bool | None] = mapped_column(Boolean)
+    region: Mapped[str] = mapped_column(String(15), default="nacional", server_default="nacional")
 
     evaluations: Mapped[list["Evaluation"]] = relationship(back_populates="asset")
 

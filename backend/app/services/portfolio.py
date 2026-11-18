@@ -11,13 +11,13 @@ from sqlalchemy.orm import Session
 from app.db.models import Asset, Dividend, Evaluation, FixedIncomeHolding, Profile, Split, Transaction
 from app.engine import fmt
 from app.engine.carteira import PositionCalc, SplitEvent, Tx, compute_position, entitled_income
+from app.engine.metodos.base import MetodoDivisao
+from app.engine.metodos.perfil import CLASS_OF
 from app.engine.renda_fixa import check_reserve_eligibility
 from app.schemas.api import ClassSlice, PortfolioOut, PositionOut
 from app.services.evaluation import latest_evaluations
 from app.services.fixed_income import holding_out
-from app.services.profile import ASSET_CLASSES, get_profile, reserve_target, targets
-
-CLASS_OF = {"acao": "acoes", "fii": "fiis", "etf": "etfs"}
+from app.services.profile import current_allocation, get_profile, reserve_target, targets
 
 MAX_STOCK_SHARE = 0.20
 MAX_SECTOR_SHARE = 0.30
@@ -30,6 +30,7 @@ class PositionView:
     ticker: str
     name: str
     asset_class: str
+    allocation_class: str
     sector: str
     quantity: float
     avg_price: float
@@ -76,7 +77,7 @@ def _sum_by_sector(items: list["PositionView"]) -> dict[str, float]:
     return dict(out)
 
 
-def _position_view(asset: Asset, pos: PositionCalc, income: Decimal) -> PositionView:
+def _position_view(asset: Asset, pos: PositionCalc, income: Decimal, division: MetodoDivisao) -> PositionView:
     qty = float(pos.quantity)
     cost = float(pos.total_cost)
     value = qty * asset.last_price if asset.last_price else cost
@@ -85,6 +86,7 @@ def _position_view(asset: Asset, pos: PositionCalc, income: Decimal) -> Position
         ticker=asset.ticker,
         name=asset.name,
         asset_class=CLASS_OF.get(asset.asset_class, asset.asset_class),
+        allocation_class=division.class_of(asset.asset_class, asset.region),
         sector=asset.sector,
         quantity=qty,
         avg_price=float(pos.avg_price),
@@ -118,13 +120,14 @@ def positions(db: Session) -> list[PositionView]:
     for d in db.scalars(dividends):
         divs_ttm[d.asset_id].append((d.ex_date, d.amount))
 
+    division = current_allocation(db)
     out: list[PositionView] = []
     for aid, txs in txs_by_asset.items():
         first = min(t.date for t in txs)
         pos = compute_position(txs, [s for s in splits[aid] if s.date > first])
         if pos.quantity <= 0:
             continue
-        out.append(_position_view(assets[aid], pos, entitled_income(txs, splits[aid], divs_ttm[aid])))
+        out.append(_position_view(assets[aid], pos, entitled_income(txs, splits[aid], divs_ttm[aid]), division))
     total = sum(p.value for p in out)
     for p in out:
         p.weight_pct = 100 * p.value / total if total else 0.0
@@ -134,15 +137,16 @@ def positions(db: Session) -> list[PositionView]:
 def load_portfolio(db: Session) -> PortfolioState:
     pos = positions(db)
     holdings = list(db.scalars(select(FixedIncomeHolding).order_by(FixedIncomeHolding.start_date)))
-    values = dict.fromkeys(ASSET_CLASSES, 0.0)
+    values = dict.fromkeys(current_allocation(db).classes, 0.0)
     for p in pos:
-        values[p.asset_class] = values.get(p.asset_class, 0.0) + p.value
+        values[p.allocation_class] = values.get(p.allocation_class, 0.0) + p.value
     values["renda_fixa"] += sum(float(h.amount) for h in holdings if not h.is_emergency_reserve)
     reserve = sum(float(h.amount) for h in holdings if h.is_emergency_reserve)
     return PortfolioState(positions=pos, holdings=holdings, class_values=values, reserve=reserve)
 
 
 def class_slices(state: PortfolioState, target: dict[str, float]) -> list[ClassSlice]:
+    """Atual × alvo de cada classe, na ordem da divisão-alvo (que segue a metodologia de divisão)."""
     total = state.total_invested
     return [
         ClassSlice(
@@ -151,7 +155,7 @@ def class_slices(state: PortfolioState, target: dict[str, float]) -> list[ClassS
             current_pct=100 * state.class_values.get(cls, 0.0) / total if total else 0.0,
             target_pct=target.get(cls, 0.0),
         )
-        for cls in ASSET_CLASSES
+        for cls in target
     ]
 
 
