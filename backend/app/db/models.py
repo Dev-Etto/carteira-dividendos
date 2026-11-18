@@ -368,6 +368,8 @@ class FixedIncomeHolding(Base):
     kind: tesouro | cdb | lci | lca | outro.
     indexer: cdi | ipca | pre | selic.
     rate: % do CDI quando o indexador é cdi; taxa ao ano (prefixado ou spread sobre o IPCA) nos demais.
+    to_invest: sobra de um aporte guardada no Tesouro Selic ("caixa a investir"). Não conta como renda fixa
+    na divisão da carteira e entra no próximo plano de aporte.
     """
 
     __tablename__ = "fixed_income_holdings"
@@ -384,6 +386,7 @@ class FixedIncomeHolding(Base):
     amount: Mapped[Decimal] = mapped_column(Money)
     is_emergency_reserve: Mapped[bool] = mapped_column(Boolean, default=False)
     fgc_covered: Mapped[bool] = mapped_column(Boolean, default=True)
+    to_invest: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
 
 class IncomeReceived(Base):

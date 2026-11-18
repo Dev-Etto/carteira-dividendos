@@ -54,6 +54,7 @@ class PortfolioState:
     holdings: list[FixedIncomeHolding]
     class_values: dict[str, float]
     reserve: float
+    cash_to_invest: float = 0.0
 
     @property
     def total_invested(self) -> float:
@@ -143,9 +144,11 @@ def load_portfolio(db: Session) -> PortfolioState:
     values = dict.fromkeys(current_allocation(db).classes, 0.0)
     for p in pos:
         values[p.allocation_class] = values.get(p.allocation_class, 0.0) + p.value
-    values["renda_fixa"] += sum(float(h.amount) for h in holdings if not h.is_emergency_reserve)
+    invested = [h for h in holdings if not h.is_emergency_reserve and not h.to_invest]
+    values["renda_fixa"] += sum(float(h.amount) for h in invested)
     reserve = sum(float(h.amount) for h in holdings if h.is_emergency_reserve)
-    return PortfolioState(positions=pos, holdings=holdings, class_values=values, reserve=reserve)
+    cash = sum(float(h.amount) for h in holdings if h.to_invest and not h.is_emergency_reserve)
+    return PortfolioState(positions=pos, holdings=holdings, class_values=values, reserve=reserve, cash_to_invest=cash)
 
 
 def class_slices(state: PortfolioState, target: dict[str, float]) -> list[ClassSlice]:

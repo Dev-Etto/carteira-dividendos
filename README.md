@@ -17,6 +17,7 @@ Este projeto existe para tirar esse trabalho braçal do caminho sem tirar o ente
 - **Método Barsi como base.** Setores perenes BEST (bancos, energia, seguros, saneamento, telecom), longo histórico de proventos, lucro consistente, dívida controlada e compra só abaixo do preço-teto. Em cima disso entram regras por setor e a sustentabilidade do dividendo.
 - **Você no controle.** Todos os limites (yield-alvo, ROE mínimo, dívida máxima, notas de corte) são editáveis na tela de Configurações.
 - **Reserva primeiro.** O plano de aporte completa a reserva de emergência antes de qualquer ação, depois equilibra as classes abaixo da divisão-alvo e só então escolhe as melhores ações.
+- **Nada fica parado.** O que sobra de um aporte (classe sem compra possível ou centavos que não fecham uma cota) é guardado como "caixa a investir" no Tesouro Selic. Ele não conta como renda fixa na divisão e entra sozinho no plano seguinte. Se a parte de uma classe abaixo do alvo não paga nem uma cota (um ETF de R$ 480 com R$ 440 de verba), o plano completa a cota com as outras classes.
 - **Local e privado.** Tudo roda na sua máquina, num SQLite. Não há conta, nuvem nem envio da sua carteira para lugar nenhum.
 - **Dados públicos.** Banco Central, Tesouro Transparente, CVM e Yahoo Finance; nenhuma assinatura obrigatória.
 

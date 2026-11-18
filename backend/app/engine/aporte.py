@@ -108,6 +108,30 @@ class Plan:
     leftover: float = 0.0
 
 
+def class_deficits(total: float, current: dict[str, float], targets: dict[str, float], amount: float) -> dict[str, float]:
+    """Quanto falta em cada classe para chegar ao alvo depois do aporte."""
+    after = total + amount
+    return {k: max(0.0, after * targets.get(k, 0) / 100 - current.get(k, 0.0)) for k in targets}
+
+
+def fund_one_unit(per_class: dict[str, float], cheapest: dict[str, float], deficits: dict[str, float]) -> dict[str, float]:
+    """Garante uma cota às classes cuja parte do aporte não paga nem a cota mais barata (um ETF de R$ 480
+    com R$ 440 de verba, por exemplo). Só quando a classe está abaixo do alvo em pelo menos uma cota e as
+    outras classes têm verba para ceder; a diferença sai delas, na proporção do que cada uma recebeu. Sem
+    isso, a verba da classe iria toda para o caixa, mês após mês."""
+    out = dict(per_class)
+    for cls in sorted(cheapest, key=lambda c: -deficits.get(c, 0.0)):
+        price = cheapest[cls]
+        need = price - out.get(cls, 0.0)
+        others = {k: v for k, v in out.items() if k != cls and v > 0}
+        pool = sum(others.values())
+        if need <= 0 or price > deficits.get(cls, 0.0) or need > pool:
+            continue
+        out |= {k: v - need * v / pool for k, v in others.items()}
+        out[cls] = price
+    return out
+
+
 def split_by_class(total: float, current: dict[str, float], targets: dict[str, float], amount: float) -> dict[str, float]:
     """Divide o aporte entre classes proporcionalmente ao déficit de cada uma."""
     after = total + amount
@@ -279,7 +303,6 @@ def build_plan(
         return plan
 
     total = sum(class_current.values())
-    per_class = split_by_class(total, class_current, targets, left)
     after_total = total + left
     parked: list[tuple[str, float]] = []
     by_class = {
@@ -288,6 +311,14 @@ def build_plan(
         "etfs": (ETF_POLICY, etf_candidates),
         "internacional": (INTERNATIONAL_POLICY, international_candidates),
     }
+    cheapest = {
+        cls: min(c.price for c in candidates if c.price > 0)
+        for cls, (_, candidates) in by_class.items()
+        if cls in targets and any(c.price > 0 for c in candidates)
+    }
+    per_class = fund_one_unit(
+        split_by_class(total, class_current, targets, left), cheapest, class_deficits(total, class_current, targets, left)
+    )
 
     for cls, budget in sorted(per_class.items(), key=lambda kv: -kv[1]):
         if budget < 1:
@@ -311,7 +342,7 @@ def build_plan(
             class_target_value = after_total * targets[cls] / 100
             used = _add_assets(plan, policy, budget, candidates, class_target_value, max_asset_share, min_assets)
             left -= used
-            parked += _unspent_budget(policy, used, budget)
+            parked += _unspent_budget(policy, used, budget, candidates)
             continue
         parked.append((f"{CLASS_LABEL.get(cls, cls)} sem regra de compra", budget))
 
@@ -323,11 +354,17 @@ def build_plan(
     return plan
 
 
-def _unspent_budget(policy: ClassPolicy, used: float, budget: float) -> list[tuple[str, float]]:
-    """A verba da classe fica em caixa inteira quando nenhum ativo dela pôde ser comprado."""
+def _unspent_budget(policy: ClassPolicy, used: float, budget: float, candidates: Sequence[Candidate]) -> list[tuple[str, float]]:
+    """A verba da classe fica em caixa inteira quando nenhum ativo dela pôde ser comprado: ou não há
+    candidato, ou a cota mais barata custa mais do que a parte da classe neste aporte."""
     if used:
         return []
-    return [(policy.unspent_label, budget)]
+    priced = [c for c in candidates if c.price > 0]
+    if not priced:
+        return [(policy.unspent_label, budget)]
+    cheapest = min(priced, key=lambda c: c.price)
+    label = f"{CLASS_LABEL.get(policy.plan_class, policy.plan_class)}: a cota de {cheapest.ticker} ({fmt.brl(cheapest.price)}) não coube na parte da classe"
+    return [(label, budget)]
 
 
 def _cash_reason(parked: list[tuple[str, float]], cash: float) -> str:

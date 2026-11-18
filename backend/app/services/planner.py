@@ -11,12 +11,13 @@ from app.engine import fmt
 from app.engine.aporte import Candidate, PlanLine, build_plan
 from app.schemas.api import FixedIncomeIn, PlanLineOut, PlanOut, RegisterPlanIn, RegisterPlanOut
 from app.services.evaluation import latest_evaluations
-from app.services.fixed_income import add_holdings, holding_out
+from app.services.fixed_income import add_holdings, consume_cash_to_invest, holding_out
 from app.services.portfolio import PortfolioState, load_portfolio
-from app.services.profile import get_profile, reserve_target, targets
+from app.services.profile import current_allocation, get_profile, reserve_target, targets
 from app.services.transactions import add_plan_purchases, tx_out
 
 LONG_TERM_FALLBACK = "Tesouro IPCA+ (vencimento longo) ou CDB ≥ 100% do CDI"
+LIQUID_FIXED_INCOME = "Tesouro Selic ou CDB com liquidez diária ≥ 100% do CDI"
 LONG_TERM_MIN_YEARS = 5
 
 
@@ -91,7 +92,9 @@ def _money(value: float) -> Decimal:
     return Decimal(str(round(value, 2)))
 
 
-def _selic_holding(line: PlanLine, is_reserve: bool) -> FixedIncomeIn:
+def _selic_holding(line: PlanLine, is_reserve: bool, to_invest: bool) -> FixedIncomeIn:
+    """Tesouro Selic da reserva, do caixa a investir (a sobra do plano, marcada para o próximo aporte) ou da
+    renda fixa de uma divisão que a quer como caixa (o "C" do ARCA)."""
     return FixedIncomeIn(
         name="Tesouro Selic",
         issuer="Tesouro Nacional",
@@ -103,6 +106,7 @@ def _selic_holding(line: PlanLine, is_reserve: bool) -> FixedIncomeIn:
         amount=_money(line.amount),
         is_emergency_reserve=is_reserve,
         fgc_covered=True,
+        to_invest=to_invest,
     )
 
 
@@ -125,12 +129,12 @@ def _long_term_holding(line: PlanLine, bond: TreasuryBond | None) -> FixedIncome
     )
 
 
-def _suggested_holding(line: PlanLine, bond: TreasuryBond | None) -> FixedIncomeIn | None:
+def _suggested_holding(line: PlanLine, bond: TreasuryBond | None, liquid: bool) -> FixedIncomeIn | None:
     """Aplicação pronta para cadastrar a partir de uma linha de renda fixa do plano."""
     builders = {
-        "reserva": lambda: _selic_holding(line, is_reserve=True),
-        "caixa": lambda: _selic_holding(line, is_reserve=False),
-        "renda_fixa": lambda: _long_term_holding(line, bond),
+        "reserva": lambda: _selic_holding(line, is_reserve=True, to_invest=False),
+        "caixa": lambda: _selic_holding(line, is_reserve=False, to_invest=True),
+        "renda_fixa": lambda: _selic_holding(line, False, False) if liquid else _long_term_holding(line, bond),
     }
     build = builders.get(line.asset_class)
     return build() if build else None
@@ -140,8 +144,9 @@ def make_plan(db: Session, amount: float) -> PlanOut:
     profile = get_profile(db)
     state = load_portfolio(db)
     bond = best_long_treasury(db)
+    liquid = current_allocation(db).liquid_fixed_income
     plan = build_plan(
-        amount=amount,
+        amount=amount + state.cash_to_invest,
         reserve_current=state.reserve,
         reserve_target=reserve_target(profile),
         class_current=state.class_values,
@@ -150,18 +155,23 @@ def make_plan(db: Session, amount: float) -> PlanOut:
         fii_candidates=buy_candidates(db, state, "fii"),
         etf_candidates=favorite_etfs(db, state),
         international_candidates=favorite_etfs(db, state, "internacional"),
-        long_term_fixed_income=_bond_label(bond),
+        long_term_fixed_income=LIQUID_FIXED_INCOME if liquid else _bond_label(bond),
     )
+    notes = [f"Inclui {fmt.brl(state.cash_to_invest)} do caixa a investir de aportes anteriores."] if state.cash_to_invest else []
     return PlanOut(
         amount=plan.amount,
-        lines=[PlanLineOut.model_validate({**vars(line), "holding": _suggested_holding(line, bond)}) for line in plan.lines],
-        notes=plan.notes,
+        cash_used=state.cash_to_invest,
+        lines=[
+            PlanLineOut.model_validate({**vars(line), "holding": _suggested_holding(line, bond, liquid)}) for line in plan.lines
+        ],
+        notes=notes + plan.notes,
         leftover=plan.leftover,
     )
 
 
 def register_plan(db: Session, body: RegisterPlanIn) -> RegisterPlanOut:
     """Registra as compras e as aplicações do plano numa única transação: ou entram todas, ou nenhuma."""
+    consume_cash_to_invest(db, body.cash_used)
     transactions = add_plan_purchases(db, body.date, body.purchases)
     holdings = add_holdings(db, body.holdings)
     db.commit()

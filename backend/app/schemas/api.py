@@ -239,6 +239,7 @@ class FixedIncomeIn(BaseModel):
     amount: Decimal = Field(gt=0)
     is_emergency_reserve: bool = False
     fgc_covered: bool = True
+    to_invest: bool = False
 
 
 class FixedIncomeOut(ORM):
@@ -254,6 +255,7 @@ class FixedIncomeOut(ORM):
     amount: Decimal
     is_emergency_reserve: bool
     fgc_covered: bool
+    to_invest: bool = False
     reserve_ok: bool | None = None
     reserve_reason: str | None = None
 
@@ -325,7 +327,11 @@ class PlanLineOut(BaseModel):
 
 
 class PlanOut(BaseModel):
+    """amount: o total distribuído, que é o aporte informado mais `cash_used`, o caixa a investir de
+    aportes anteriores que entra neste plano."""
+
     amount: float
+    cash_used: float = 0.0
     lines: list[PlanLineOut]
     notes: list[str]
     leftover: float
@@ -339,11 +345,13 @@ class PlanPurchaseIn(BaseModel):
 
 
 class RegisterPlanIn(BaseModel):
-    """Compras de ações e aplicações de renda fixa feitas a partir do plano. Precisa de pelo menos uma."""
+    """Compras de ações e aplicações de renda fixa feitas a partir do plano. Precisa de pelo menos uma.
+    cash_used: quanto do caixa a investir o plano usou; é descontado das sobras guardadas."""
 
     date: date
     purchases: list[PlanPurchaseIn] = Field(default_factory=list)
     holdings: list[FixedIncomeIn] = Field(default_factory=list)
+    cash_used: Decimal = Field(default=Decimal(0), ge=0)
 
     @model_validator(mode="after")
     def _not_empty(self) -> "RegisterPlanIn":

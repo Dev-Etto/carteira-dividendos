@@ -456,3 +456,38 @@ def test_comunicados_na_ficha_e_fatos_relevantes_no_painel(client):
     assert [f["subject"] for f in ficha] == ["Aquisição", "Resultado", "Antigo"]
     painel = client.get("/api/painel").json()["filings"]
     assert [(f["ticker"], f["subject"]) for f in painel] == [("TAEE11", "Aquisição")]
+
+
+def test_caixa_a_investir_entra_no_proximo_plano_e_e_descontado_ao_registrar(client):
+    sobra = {
+        "name": "Tesouro Selic",
+        "issuer": "Tesouro Nacional",
+        "kind": "tesouro",
+        "indexer": "selic",
+        "rate": 0,
+        "start_date": date.today().isoformat(),
+        "daily_liquidity": True,
+        "amount": "300",
+        "to_invest": True,
+    }
+    assert client.post("/api/renda-fixa", json=sobra).status_code == 201
+    renda_fixa_antes = {c["asset_class"]: c["value"] for c in client.get("/api/carteira").json()["classes"]}["renda_fixa"]
+    plano = client.post("/api/aporte/plano", json={"amount": 100}).json()
+    assert plano["cash_used"] == 300
+    assert plano["amount"] == 400
+    assert any("caixa a investir" in n for n in plano["notes"])
+    caixa = next(ln for ln in plano["lines"] if ln["holding"])
+    r = client.post(
+        "/api/aporte/registrar", json={"date": date.today().isoformat(), "holdings": [caixa["holding"]], "cash_used": 300}
+    )
+    assert r.status_code == 201, r.text
+    guardado = [h for h in client.get("/api/renda-fixa").json() if h["to_invest"]]
+    assert sum(float(h["amount"]) for h in guardado) == pytest.approx(
+        float(caixa["holding"]["amount"]) * caixa["holding"]["to_invest"]
+    )
+    renda_fixa_depois = {c["asset_class"]: c["value"] for c in client.get("/api/carteira").json()["classes"]}["renda_fixa"]
+    assert renda_fixa_depois >= renda_fixa_antes
+    demais = client.post(
+        "/api/aporte/registrar", json={"date": date.today().isoformat(), "holdings": [sobra], "cash_used": 999999}
+    )
+    assert demais.status_code == 422

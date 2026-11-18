@@ -54,6 +54,8 @@ class MetodoDivisao(ABC):
     classes: tuple[str, ...]
     min_weight: float = 0.0
     max_weight: float = 100.0
+    liquid_fixed_income: bool = False
+    """Se a renda fixa da divisão é caixa (liquidez diária, como o "C" do ARCA) em vez de título longo."""
 
     @abstractmethod
     def targets(self, risk_profile: str) -> dict[str, float]:
