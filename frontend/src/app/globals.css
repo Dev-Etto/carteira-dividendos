@@ -22,30 +22,6 @@
   --card-shadow: 0 1px 2px rgb(16 24 40 / 0.05);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f1418;
-    --surface: #171e24;
-    --ink: #eef2f5;
-    --label: #d0d7de;
-    --muted: #a9b4bf;
-    --subtle: #8a96a3;
-    --line: #27313a;
-    --line-strong: #3a4550;
-    --accent: #5fb7cc;
-    --accent-strong: #84cadb;
-    --accent-soft: #15323b;
-    --good: #5fd3a2;
-    --good-soft: #173327;
-    --warn: #f0b155;
-    --warn-soft: #3a2c14;
-    --bad: #f08080;
-    --bad-soft: #3d1c1c;
-    --neutral-soft: #1f2830;
-    --card-shadow: none;
-  }
-}
-
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
@@ -76,6 +52,7 @@ body {
 }
 
 html {
+  color-scheme: light;
   scroll-padding-top: 1.5rem;
 }
 

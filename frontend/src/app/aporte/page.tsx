@@ -1,48 +1,92 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
-import { Button, Card, ErrorBox, Field, Help, inputCls, PageHeader } from "@/components/ui";
+import { Button, Card, ErrorBox, Field, Help, inputCls, Loading, PageHeader } from "@/components/ui";
 import { RegisterPlanCard, type RegisterPlanOut } from "@/components/aporte/RegisterPlanCard";
 import { api, type Plan, type ProfileOut } from "@/lib/api/client";
 import { brl, CLASS_LABEL, num, parseNumber } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
-/** Campo de valor que mostra o aporte mensal do perfil até o usuário digitar. Apagar tudo deixa o campo vazio. */
-function useAmountField(defaultAmount: number) {
-  const [typed, setTyped] = useState<string | null>(null);
+const AMOUNT_PARAM = "valor";
+
+/**
+ * Campo de valor. Começa com o valor da URL (quem volta da ficha de um ativo reencontra o que digitou)
+ * ou, sem ele, com o aporte mensal do perfil. Apagar tudo deixa o campo vazio.
+ */
+function useAmountField(fromUrl: number | null, defaultAmount: number) {
+  const [typed, setTyped] = useState<string | null>(fromUrl === null ? null : num(fromUrl, 2));
   return [typed ?? (defaultAmount > 0 ? num(defaultAmount, 2) : ""), setTyped] as const;
 }
 
-export default function Aporte() {
+function validAmount(text: string | null): number | null {
+  const amount = parseNumber(text ?? "");
+  if (amount === null || amount <= 0) return null;
+  return amount;
+}
+
+export default function AportePage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <Aporte />
+    </Suspense>
+  );
+}
+
+/**
+ * O valor do aporte fica na URL (`/aporte?valor=1500`) e o plano é montado a partir dela. Assim, ao abrir
+ * a ficha de um ativo do plano e voltar, a página remonta o mesmo plano em vez de recomeçar do zero.
+ */
+type PlanResult = { amount: number; round: number; plan: Plan | null; error: string | null };
+
+function Aporte() {
+  const router = useRouter();
+  const urlAmount = validAmount(useSearchParams().get(AMOUNT_PARAM));
   const profile = useApi<ProfileOut>("/api/perfil");
-  const [value, setAmount] = useAmountField(Number(profile.data?.monthly_contribution ?? 0));
-  const [plan, setPlan] = useState<Plan | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [value, setAmount] = useAmountField(urlAmount, Number(profile.data?.monthly_contribution ?? 0));
+  const [round, setRound] = useState(0);
+  const [result, setResult] = useState<PlanResult | null>(null);
+  const [inputError, setInputError] = useState<string | null>(null);
   const [registered, setRegistered] = useState<RegisterPlanOut | null>(null);
 
   const parsed = parseNumber(value);
 
-  async function calc() {
-    if (parsed === null || parsed <= 0) return setErr("Informe um valor de aporte válido, por exemplo 1.500 ou 1.500,00.");
-    setErr(null);
-    setBusy(true);
+  useEffect(() => {
+    if (urlAmount === null) return;
+    let active = true;
+    const keep = (plan: Plan | null, error: string | null) => {
+      if (!active) return;
+      setResult({ amount: urlAmount, round, plan, error });
+    };
+    api.post<Plan>("/api/aporte/plano", { amount: urlAmount }).then(
+      (plan) => keep(plan, null),
+      (e: unknown) => keep(null, e instanceof Error ? e.message : String(e)),
+    );
+    return () => {
+      active = false;
+    };
+  }, [urlAmount, round]);
+
+  const current = result && result.amount === urlAmount && result.round === round ? result : null;
+  const busy = urlAmount !== null && current === null;
+  const plan = current?.plan ?? null;
+  const err = inputError ?? current?.error ?? null;
+
+  /** Monta o plano: põe o valor na URL, de onde o plano é carregado. Mesmo valor de novo recalcula. */
+  function calc() {
+    if (parsed === null || parsed <= 0) return setInputError("Informe um valor de aporte válido, por exemplo 1.500 ou 1.500,00.");
+    setInputError(null);
     setRegistered(null);
-    try {
-      setPlan(await api.post<Plan>("/api/aporte/plano", { amount: parsed }));
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
+    if (parsed === urlAmount) return setRound((r) => r + 1);
+    router.replace(`/aporte?${AMOUNT_PARAM}=${parsed}`, { scroll: false });
   }
 
-  /** Depois de registrar, o plano é limpo: registrar de novo exige montar outro, o que evita duplicar compras. */
-  function onRegistered(result: RegisterPlanOut) {
-    setPlan(null);
-    setRegistered(result);
+  /** Depois de registrar, o plano é limpo e o valor sai da URL: registrar de novo exige montar outro plano. */
+  function onRegistered(done: RegisterPlanOut) {
+    setRegistered(done);
+    router.replace("/aporte", { scroll: false });
   }
 
   return (
