@@ -99,6 +99,10 @@ def build_stock_snapshot(db: Session, asset: Asset, today: date | None = None) -
             operating_cash_flow=f.operating_cash_flow,
             investing_cash_flow=f.investing_cash_flow,
             dividends_paid=f.dividends_paid,
+            current_assets=f.current_assets,
+            current_liabilities=f.current_liabilities,
+            short_term_debt=f.short_term_debt,
+            fixed_assets=f.fixed_assets,
         )
         for f in funds
     }
@@ -121,6 +125,7 @@ def build_stock_snapshot(db: Session, asset: Asset, today: date | None = None) -
         pe_history=pe_hist,
         pb_history=pb_hist,
         current_year=today.year,
+        ntnb_real=ntnb_real_rate(db),
     )
 
 
