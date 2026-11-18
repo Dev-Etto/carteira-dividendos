@@ -26,6 +26,7 @@ from app.db.models import (
     TreasuryBond,
 )
 from app.db.models import Filing as FilingRow
+from app.providers.b3 import CashDividend
 from app.providers.base import DividendEvent, PricePoint, SplitInfo
 from app.providers.bcb_ifdata import Basel
 from app.providers.cvm import AnnualStatement, QuarterStatement
@@ -158,6 +159,18 @@ def yahoo(monkeypatch) -> FakeYahoo:
         return [Basel(BANK_CNPJ[:8], "BANCO - PRUDENCIAL", 15.35, "2T26"), Basel(BANK_CNPJ[:8], "BANCO", 9.0, "2T26")]
 
     monkeypatch.setattr(sync.bcb_ifdata, "fetch_basel", fetch_basel)
+
+    async def fetch_cash_dividends(ticker: str) -> list[CashDividend]:
+        if ticker != "TAEE11":
+            return []
+        return [
+            CashDividend("UNT", TODAY - timedelta(days=41), 1.0, "dividendo"),
+            CashDividend("UNT", TODAY - timedelta(days=20), 0.5, "jcp"),
+            CashDividend("ON", TODAY - timedelta(days=20), 0.17, "jcp"),
+            CashDividend("UNT", TODAY - timedelta(days=400), 2.0, "dividendo"),
+        ]
+
+    monkeypatch.setattr(sync.b3, "fetch_cash_dividends", fetch_cash_dividends)
     monkeypatch.setattr(sync.market, "yahoo_history", fake)
     monkeypatch.setattr(sync.market, "brapi_quote", brapi_quote)
 
@@ -386,6 +399,33 @@ async def test_comunicados_gravados_por_ativo_sem_duplicar(db, yahoo):
     gravados = list(db.scalars(select(FilingRow).where(FilingRow.asset_id == taee.id)))
     assert len(gravados) == sync.FILING_YEARS
     assert {f.category for f in gravados} == {"fato_relevante"}
+
+
+def _dividends(db: Session, ticker: str) -> list[tuple[str, float, str]]:
+    rows = db.scalars(select(Dividend).where(Dividend.asset_id == _asset(db, ticker).id).order_by(Dividend.ex_date))
+    return [(d.source, d.amount, d.kind) for d in rows]
+
+
+async def test_b3_completa_os_proventos_que_faltam_no_yahoo(db, yahoo):
+    """O provento que o Yahoo já tem (data ex a um dia) não duplica; o anterior ao primeiro do Yahoo fica de fora."""
+    await sync.run_full_sync(db, {"mercado", "proventos"}, tickers={"TAEE11"})
+    assert _runs(db)["proventos"].status == "ok"
+    esperado = [("yahoo", 1.0, "dividendo"), ("b3", 0.5, "jcp")]
+    assert _dividends(db, "TAEE11") == esperado
+    await sync.sync_b3_dividends(db, {"TAEE11"})
+    assert _dividends(db, "TAEE11") == esperado
+
+
+async def test_b3_fora_do_ar_mantem_o_que_ja_havia(db, yahoo, monkeypatch):
+    await sync.run_full_sync(db, {"mercado", "proventos"}, tickers={"TAEE11"})
+
+    async def fora_do_ar(ticker: str) -> list[CashDividend]:
+        raise httpx.ConnectError("sem rede")
+
+    monkeypatch.setattr(sync.b3, "fetch_cash_dividends", fora_do_ar)
+    await sync.run_full_sync(db, {"proventos"})
+    assert _runs(db)["proventos"].status == "ok"
+    assert ("b3", 0.5, "jcp") in _dividends(db, "TAEE11")
 
 
 BANK_CNPJ = "60872504000123"
