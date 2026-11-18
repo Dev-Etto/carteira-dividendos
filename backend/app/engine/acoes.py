@@ -19,7 +19,7 @@ from app.engine.types import Evaluation, RuleResult, RuleStatus, StockSnapshot, 
 
 ENGINE_VERSION = "acoes-1.0"
 
-BESST = {"bancos", "seguros", "energia", "saneamento", "telecom"}
+BEST = {"bancos", "seguros", "energia", "saneamento", "telecom"}
 FINANCEIRO = {"bancos", "seguros"}
 ALAVANCADOS = {"energia", "saneamento"}
 
@@ -29,7 +29,7 @@ SECTOR_LABEL = {
     "energia": "Energia elétrica",
     "saneamento": "Saneamento",
     "telecom": "Telecomunicações",
-    "perene": "Setor perene (fora do BESST)",
+    "perene": "Setor perene (fora do BEST)",
     "ciclico": "Setor cíclico",
 }
 
@@ -76,13 +76,13 @@ def percentile_of(value: float, series: list[float]) -> float:
 
 
 def _avalia_setor(sector: str, label: str) -> Assessment:
-    if sector in BESST:
+    if sector in BEST:
         return (
             "ok",
-            f"{label} faz parte do BESST, setores que o Barsi considera perenes: as pessoas precisam desses serviços em qualquer cenário.",
+            f"{label} faz parte do BEST, setores que o Barsi considera perenes: as pessoas precisam desses serviços em qualquer cenário.",
         )
     if sector == "perene":
-        return "warn", "Setor com demanda estável, mas fora do BESST clássico do Barsi."
+        return "warn", "Setor com demanda estável, mas fora do BEST clássico do Barsi."
     return (
         "fail",
         "Setor cíclico: lucros e dividendos sobem e descem muito com a economia, o que dificulta uma renda previsível.",
@@ -98,7 +98,7 @@ def rule_setor(s: StockSnapshot) -> RuleResult:
         status=status,
         value=None,
         value_display=label,
-        threshold="BESST: bancos, energia, saneamento, seguros, telecom",
+        threshold="BEST: bancos, energia, seguros, saneamento, telecom",
         explanation=exp,
         learn_more="besst",
         weight=2,
