@@ -35,7 +35,7 @@ from app.db.models import (
 )
 from app.db.session import SessionLocal
 from app.engine import fii
-from app.providers import b3, bcb, bcb_ifdata, cvm, cvm_etf, cvm_fii, cvm_ipe, market, tesouro
+from app.providers import b3, bcb, bcb_ifdata, cvm, cvm_etf, cvm_fii, cvm_ipe, market, susep, tesouro
 from app.providers.base import DOWNLOAD_ERRORS, DividendEvent, PricePoint, Quote, SplitInfo
 from app.schemas.api import SyncRunOut, SyncStatus
 from app.services.evaluation import evaluate_all
@@ -89,6 +89,7 @@ STEPS = (
     "cvm",
     "itr",
     "bancos",
+    "seguradoras",
     "comunicados",
     "fiis",
     "etfs",
@@ -412,6 +413,37 @@ async def sync_banks(db: Session) -> int:
     return n
 
 
+def insurer_groups() -> dict[str, set[str]]:
+    """Seguradoras (código SUSEP) de cada holding listada, de data/seguradoras_susep.csv."""
+    groups: dict[str, set[str]] = {}
+    with open(DATA_DIR / "seguradoras_susep.csv", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            groups.setdefault(r["ticker"].strip().upper(), set()).add(r["coenti"].strip())
+    return groups
+
+
+async def sync_insurers(db: Session) -> int:
+    """Índice combinado das holdings de seguros pela base da SUSEP. Substitui o valor manual do CSV."""
+    by_ticker = {a.ticker: a for a in db.scalars(select(Asset).where(Asset.sector == "seguros", Asset.active))}
+    groups = {t: codes for t, codes in insurer_groups().items() if t in by_ticker}
+    if not groups:
+        return 0
+    rows = [
+        {
+            "asset_id": by_ticker[r.ticker].id,
+            "key": "indice_combinado",
+            "value": r.ratio_pct,
+            "reference": r.reference,
+            "source": "SUSEP",
+            "updated_at": date.today(),
+        }
+        for r in await susep.fetch_combined_ratios(groups)
+    ]
+    n = upsert(db, SectorMetric, rows, keys=["asset_id", "key"], update=["value", "reference", "source", "updated_at"])
+    db.commit()
+    return n
+
+
 async def _fii_monthly(year: int, tickers: set[str]) -> dict[str, list[cvm_fii.FiiMonthly]]:
     try:
         return await cvm_fii.fetch_monthly(year, tickers)
@@ -637,6 +669,7 @@ async def _run_steps(db: Session, only: set[str] | None, tickers: set[str] | Non
         "itr": lambda: sync_itr(db),
         "comunicados": lambda: sync_filings(db),
         "bancos": lambda: sync_banks(db),
+        "seguradoras": lambda: sync_insurers(db),
         "fiis": lambda: sync_fii(db),
         "etfs": lambda: sync_etf(db),
         "mercado": lambda: sync_market(db, tickers),
