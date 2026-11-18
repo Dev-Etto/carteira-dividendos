@@ -115,7 +115,7 @@ Regras do método Barsi, regras setoriais e sustentabilidade do dividendo. Cada 
 
 O yield-alvo de 6% vem dos anos 1970–1990. Com a opção "yield-alvo acompanha o juro real" ligada em Configurações (desligada por padrão), o alvo passa a ser o maior entre 6% e o juro real do Tesouro IPCA+, e o preço-teto cai quando a renda fixa sem risco paga mais. A mesma opção existe para o Bazin.
 
-O índice de Basileia e o crédito vencido há mais de 15 dias de cada banco, e a média do sistema financeiro pela mesma régua, vêm do IF.data do Banco Central, atualizados a cada trimestre. Os demais indicadores setoriais (índice combinado das seguradoras e vencimento de concessões) ainda são cadastrados à mão em `backend/app/data/sector_metrics.csv`. Formato (valores ilustrativos, confira no RI de cada empresa):
+O índice de Basileia e o crédito vencido há mais de 15 dias de cada banco, e a média do sistema financeiro pela mesma régua, vêm do IF.data do Banco Central, atualizados a cada trimestre. O índice combinado das seguradoras vem da base estatística da SUSEP (últimos 12 meses), somando as seguradoras de cada holding listadas em `backend/app/data/seguradoras_susep.csv`; a base tem cerca de 580 MB e é baixada no máximo uma vez por mês. O vencimento de concessões ainda é cadastrado à mão em `backend/app/data/sector_metrics.csv`. Formato (valores ilustrativos, confira no RI de cada empresa):
 
 ```csv
 ticker,chave,valor,referencia,fonte
@@ -211,6 +211,7 @@ Taxa e distribuição não estão em nenhuma fonte gratuita estruturada (o Yahoo
 | Resultados trimestrais (receita, EBIT, lucro, dívida)            | CVM Dados Abertos, ITR; o 4º trimestre é a DFP menos os três primeiros        |
 | Fatos relevantes, comunicados e avisos aos acionistas            | CVM Dados Abertos, IPE                                                        |
 | Basileia e crédito vencido dos bancos                            | Banco Central, IF.data (conglomerados prudenciais)                            |
+| Índice combinado das seguradoras                                 | SUSEP, base estatística (SES)                                                 |
 | CNPJ ↔ ticker                                                    | CVM, FCA (valores mobiliários)                                                |
 | FIIs: patrimônio, cotistas, composição, imóveis, vacância        | CVM Dados Abertos, informes mensal e trimestral de FII                        |
 | ETFs: patrimônio                                                 | CVM Dados Abertos, cadastro de classes de fundos (ligado ao ticker pelo nome) |

@@ -255,7 +255,8 @@ export const GLOSSARIO: Termo[] = [
     slug: "indice-combinado",
     termo: "Índice combinado",
     curto: "Quanto a seguradora gasta (sinistros + despesas) para cada R$ 100 de prêmios.",
-    explicacao: "Abaixo de 100% a operação de seguros dá lucro. Quanto menor, melhor.",
+    explicacao:
+      "Abaixo de 100% a operação de seguros dá lucro. Quanto menor, melhor. O app calcula pela base da SUSEP, nos últimos 12 meses, somando as seguradoras de cada holding.",
     categoria: "setores",
   },
   {
