@@ -4,8 +4,7 @@ O endpoint /dados/ultimos/{n} aceita no máximo 20 valores, por isso a coleta pe
 (séries diárias aceitam janelas de até 10 anos). Os valores chegam em % e são guardados em fração decimal.
 
 Séries: selic_meta (432, meta Selic % a.a.), cdi (4389, CDI anualizado base 252, % a.a.),
-ipca_12m (13522, IPCA acumulado em 12 meses, %), inadimplencia_sfn (21082, inadimplência acima de 90 dias
-da carteira de crédito do sistema financeiro, %, mensal).
+ipca_12m (13522, IPCA acumulado em 12 meses, %).
 """
 
 import json
@@ -19,7 +18,6 @@ SERIES = {
     "selic_meta": 432,
     "cdi": 4389,
     "ipca_12m": 13522,
-    "inadimplencia_sfn": 21082,
 }
 
 

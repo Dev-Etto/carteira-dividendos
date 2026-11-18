@@ -363,25 +363,50 @@ def _pick_basel(found: list[bcb_ifdata.Basel], root: str) -> bcb_ifdata.Basel | 
     return matches[0] if matches else None
 
 
+def _pick_overdue(found: list[bcb_ifdata.Overdue], root: str) -> bcb_ifdata.Overdue | None:
+    matches = sorted((b for b in found if b.cnpj_root == root), key=lambda b: "PRUDENCIAL" not in b.institution)
+    return matches[0] if matches else None
+
+
+def _bank_metric(asset: Asset, key: str, value: float, reference: str) -> dict[str, object]:
+    return {
+        "asset_id": asset.id,
+        "key": key,
+        "value": value,
+        "reference": reference,
+        "source": "BCB IF.data",
+        "updated_at": date.today(),
+    }
+
+
+def _overdue_rows(banks: list[Asset], report: bcb_ifdata.OverdueReport | None) -> list[dict[str, object]]:
+    """Crédito vencido de cada banco e a média do sistema, a régua da regra de inadimplência."""
+    if report is None:
+        return []
+    own = [
+        _bank_metric(a, "inadimplencia", o.overdue_pct, o.reference)
+        for a in banks
+        if (o := _pick_overdue(report.banks, (a.cnpj or "")[:CNPJ_ROOT_DIGITS])) is not None
+    ]
+    system = report.system_pct
+    if system is None:
+        return own
+    return own + [_bank_metric(a, "inadimplencia_sistema", system, report.reference) for a in banks]
+
+
 async def sync_banks(db: Session) -> int:
-    """Índice de Basileia dos bancos pelo IF.data do Banco Central. Substitui o valor manual do CSV, que
-    continua valendo para quem o IF.data não cobre (holdings como a Itaúsa)."""
+    """Basileia e crédito vencido dos bancos pelo IF.data do Banco Central. Substitui os valores manuais
+    do CSV, que continuam valendo para quem o IF.data não cobre (holdings como a Itaúsa)."""
     banks = list(db.scalars(select(Asset).where(Asset.sector == "bancos", Asset.cnpj.is_not(None))))
     if not banks:
         return 0
     found = await bcb_ifdata.fetch_basel()
     rows = [
-        {
-            "asset_id": a.id,
-            "key": "basileia",
-            "value": b.ratio_pct,
-            "reference": b.reference,
-            "source": "BCB IF.data",
-            "updated_at": date.today(),
-        }
+        _bank_metric(a, "basileia", b.ratio_pct, b.reference)
         for a in banks
         if (b := _pick_basel(found, (a.cnpj or "")[:CNPJ_ROOT_DIGITS])) is not None
     ]
+    rows += _overdue_rows(banks, await bcb_ifdata.fetch_overdue())
     n = upsert(db, SectorMetric, rows, keys=["asset_id", "key"], update=["value", "reference", "source", "updated_at"])
     db.commit()
     return n

@@ -246,9 +246,9 @@ export const GLOSSARIO: Termo[] = [
   {
     slug: "inadimplencia",
     termo: "Inadimplência",
-    curto: "Percentual de empréstimos com mais de 90 dias de atraso.",
+    curto: "Parte dos empréstimos com mais de 15 dias de atraso, comparada com a média do sistema.",
     explicacao:
-      "Inadimplência acima da média do sistema indica mais perdas com crédito pela frente, o que reduz o lucro e os dividendos do banco.",
+      "Atraso acima da média do sistema indica mais perdas com crédito pela frente, o que reduz o lucro e os dividendos do banco. O app usa o IF.data do Banco Central, que traz o crédito vencido há mais de 15 dias de cada banco; os releases costumam falar em 90 dias, que dá números menores. Como banco e sistema são calculados pela mesma régua, a comparação continua justa.",
     categoria: "setores",
   },
   {

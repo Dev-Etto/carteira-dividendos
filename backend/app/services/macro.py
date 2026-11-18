@@ -16,12 +16,6 @@ def latest_rate(db: Session, series: str) -> float | None:
     return row.value if row else None
 
 
-def system_npl_pct(db: Session) -> float | None:
-    """Inadimplência acima de 90 dias de todo o sistema financeiro, em %, a régua dos bancos."""
-    rate = latest_rate(db, "inadimplencia_sfn")
-    return rate * 100 if rate is not None else None
-
-
 def ntnb_real_rate(db: Session) -> float | None:
     """Juro real do Tesouro IPCA+ de vencimento mais longo na data mais recente: a referência de
     retorno sem risco acima da inflação, com a qual se compara o rendimento de um FII de tijolo."""

@@ -617,7 +617,7 @@ def rule_basileia(s: StockSnapshot, c: Rules) -> RuleResult:
 def rule_inadimplencia(s: StockSnapshot, c: Rules) -> RuleResult:
     base = {
         "id": "inadimplencia",
-        "label": "Inadimplência (> 90 dias) × sistema",
+        "label": "Crédito vencido (> 15 dias) × sistema",
         "learn_more": "inadimplencia",
         "weight": 2,
         "group": "setorial",

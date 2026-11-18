@@ -20,7 +20,7 @@ from app.db.models import (
     SectorMetric,
 )
 from app.engine.types import EtfSnapshot, FiiKind, FiiSnapshot, QuarterFundamentals, StockSnapshot, YearFundamentals
-from app.services.macro import latest_rate, ntnb_real_rate, system_npl_pct
+from app.services.macro import latest_rate, ntnb_real_rate
 
 LIQUIDITY_WINDOW = 63
 """Pregões (cerca de 3 meses) da média de volume diário em R$."""
@@ -131,22 +131,13 @@ def build_stock_snapshot(db: Session, asset: Asset, today: date | None = None) -
         dividends_ttm=ttm if divs else None,
         avg_price_by_year={y: mean(v) for y, v in price_by_year.items()},
         fundamentals=fundamentals,
-        sector_metrics={m.key: m.value for m in metrics} | _system_metrics(db, asset),
+        sector_metrics={m.key: m.value for m in metrics},
         pe_history=pe_hist,
         pb_history=pb_hist,
         current_year=today.year,
         ntnb_real=ntnb_real_rate(db),
         quarters=stock_quarters(db, asset.id),
     )
-
-
-def _system_metrics(db: Session, asset: Asset) -> dict[str, float]:
-    """Indicadores do sistema que servem de régua para o setor; hoje, a inadimplência média para os bancos.
-    Vem do Banco Central e prevalece sobre o valor manual do CSV."""
-    if asset.sector != "bancos":
-        return {}
-    npl = system_npl_pct(db)
-    return {} if npl is None else {"inadimplencia_sistema": npl}
 
 
 def stock_quarters(db: Session, asset_id: int) -> list[QuarterFundamentals]:

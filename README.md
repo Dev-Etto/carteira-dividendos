@@ -115,12 +115,11 @@ Regras do método Barsi, regras setoriais e sustentabilidade do dividendo. Cada 
 
 O yield-alvo de 6% vem dos anos 1970–1990. Com a opção "yield-alvo acompanha o juro real" ligada em Configurações (desligada por padrão), o alvo passa a ser o maior entre 6% e o juro real do Tesouro IPCA+, e o preço-teto cai quando a renda fixa sem risco paga mais. A mesma opção existe para o Bazin.
 
-O índice de Basileia dos bancos vem do IF.data do Banco Central, atualizado a cada trimestre. A inadimplência média do sistema financeiro, régua da regra de inadimplência, vem da série 21082 do Banco Central. Os demais indicadores setoriais (inadimplência de cada banco, índice combinado das seguradoras, vencimento de concessões) ainda são cadastrados à mão em `backend/app/data/sector_metrics.csv`, porque não há fonte aberta com a mesma definição. Formato (valores ilustrativos, confira no RI de cada empresa):
+O índice de Basileia e o crédito vencido há mais de 15 dias de cada banco, e a média do sistema financeiro pela mesma régua, vêm do IF.data do Banco Central, atualizados a cada trimestre. Os demais indicadores setoriais (índice combinado das seguradoras e vencimento de concessões) ainda são cadastrados à mão em `backend/app/data/sector_metrics.csv`. Formato (valores ilustrativos, confira no RI de cada empresa):
 
 ```csv
 ticker,chave,valor,referencia,fonte
 ITUB4,basileia,14.2,3T26,RI do banco
-ITUB4,inadimplencia,2.1,3T26,RI do banco
 BBSE3,indice_combinado,72,3T26,RI
 TAEE11,concessao_anos,18,2026,manual
 ```
@@ -211,7 +210,7 @@ Taxa e distribuição não estão em nenhuma fonte gratuita estruturada (o Yahoo
 | Balanços (DRE, BP, DFC, DVA), incluindo circulante e imobilizado | CVM Dados Abertos, DFP anual                                                  |
 | Resultados trimestrais (receita, EBIT, lucro, dívida)            | CVM Dados Abertos, ITR; o 4º trimestre é a DFP menos os três primeiros        |
 | Fatos relevantes, comunicados e avisos aos acionistas            | CVM Dados Abertos, IPE                                                        |
-| Índice de Basileia dos bancos                                    | Banco Central, IF.data (conglomerados prudenciais)                            |
+| Basileia e crédito vencido dos bancos                            | Banco Central, IF.data (conglomerados prudenciais)                            |
 | CNPJ ↔ ticker                                                    | CVM, FCA (valores mobiliários)                                                |
 | FIIs: patrimônio, cotistas, composição, imóveis, vacância        | CVM Dados Abertos, informes mensal e trimestral de FII                        |
 | ETFs: patrimônio                                                 | CVM Dados Abertos, cadastro de classes de fundos (ligado ao ticker pelo nome) |
