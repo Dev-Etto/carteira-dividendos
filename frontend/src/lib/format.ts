@@ -71,6 +71,13 @@ export const CLASS_LABEL: Record<string, string> = {
   acao: "Ação",
 };
 
+export const FILING_LABEL: Record<string, string> = {
+  fato_relevante: "Fato relevante",
+  comunicado: "Comunicado ao mercado",
+  aviso_acionistas: "Aviso aos acionistas",
+  proventos: "Proventos",
+};
+
 export const SECTOR_LABEL: Record<string, string> = {
   bancos: "Bancos",
   seguros: "Seguros",

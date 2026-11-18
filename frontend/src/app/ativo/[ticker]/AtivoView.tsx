@@ -18,7 +18,8 @@ import {
   type ScoreTone,
 } from "@/components/ui";
 import { Investidor10Link } from "@/components/Investidor10Link";
-import type { AssetDetail, AssetHistory, MethodVerdict, RuleResult } from "@/lib/api/client";
+import { FilingList } from "@/components/FilingList";
+import type { AssetDetail, AssetHistory, Filing, MethodVerdict, RuleResult } from "@/lib/api/client";
 import { brl, brlCompact, dateBr, groupLabel, num, pct, SEGMENT_LABEL } from "@/lib/format";
 import { withNav } from "@/lib/series";
 import { useApi } from "@/lib/useApi";
@@ -305,6 +306,7 @@ export function AtivoView() {
             />
           )}
           {data.other_methods.length > 0 && <OtherMethodsCard methods={data.other_methods} />}
+          {data.asset_class === "acao" && <FilingsCard ticker={data.ticker} />}
           <Card title="O que pode dar errado">
             <ul className="space-y-2.5 text-sm text-label">
               {data.risks.map((r) => (
@@ -356,6 +358,17 @@ function QuartersCard({ quarters }: { quarters: AssetHistory["quarters"] }) {
         </ResponsiveContainer>
       </div>
       <p className="mt-2 text-[13px] text-subtle">Só os 3 meses de cada trimestre, pelos balanços entregues à CVM.</p>
+    </Card>
+  );
+}
+
+/** Comunicados recentes da empresa à CVM: fatos relevantes, comunicados ao mercado e avisos aos acionistas. */
+function FilingsCard({ ticker }: { ticker: string }) {
+  const { data } = useApi<Filing[]>(`/api/ativos/${ticker}/comunicados`);
+  if (!data || data.length === 0) return null;
+  return (
+    <Card title="Comunicados à CVM" help="comunicados">
+      <FilingList filings={data} />
     </Card>
   );
 }

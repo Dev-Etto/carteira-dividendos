@@ -20,6 +20,7 @@ export type RuleConfigItem = S["RuleConfigItem"];
 export type AllocationItem = S["AllocationItem"];
 export type SyncStatus = S["SyncStatus"];
 export type Methods = S["MethodsOut"];
+export type Filing = S["FilingOut"];
 export type Method = S["MethodOut"];
 export type MethodVerdict = S["MethodVerdictOut"];
 
