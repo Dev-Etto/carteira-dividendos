@@ -163,7 +163,7 @@ Joel Greenblatt (_The Little Book That Beats the Market_, 2005) não avalia cada
 2. Cada ação recebe duas posições: **earnings yield** (EBIT ÷ valor de mercado + dívida líquida) e **retorno sobre o capital** (EBIT ÷ capital de giro líquido + imobilizado), com os números do último balanço.
 3. A soma das posições dá o ranking. O primeiro terço recebe "comprar"; o resto fica "neutro". Não há "evitar".
 
-O método busca valorização e ignora dividendos, e o livro manda trocar a carteira a cada ano; o app só avisa, nunca sugere vender. Como quase todas as ações do BEST ficam de fora, o universo inclui também ações líquidas de outros setores.
+O método busca valorização e ignora dividendos, e o livro manda trocar a carteira a cada ano. O app só avisa, nunca sugere vender: a carteira mostra as ações que saíram do primeiro terço do ranking e as que completaram 1 ano. Como quase todas as ações do BEST ficam de fora, o universo inclui também ações líquidas de outros setores.
 
 ## Como a carteira se divide pelo ARCA
 

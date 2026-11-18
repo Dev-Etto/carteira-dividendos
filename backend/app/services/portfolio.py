@@ -12,6 +12,7 @@ from app.db.models import Asset, Dividend, Evaluation, FixedIncomeHolding, Profi
 from app.engine import fmt
 from app.engine.carteira import PositionCalc, SplitEvent, Tx, compute_position, entitled_income
 from app.engine.metodos.base import MetodoDivisao
+from app.engine.metodos.formula_magica import FormulaMagica
 from app.engine.metodos.perfil import CLASS_OF
 from app.engine.renda_fixa import check_reserve_eligibility
 from app.schemas.api import ClassSlice, PortfolioOut, PositionOut
@@ -42,6 +43,7 @@ class PositionView:
     weight_pct: float
     income_12m: float
     yield_on_cost: float | None
+    first_buy: date
 
 
 @dataclass(frozen=True)
@@ -77,7 +79,7 @@ def _sum_by_sector(items: list["PositionView"]) -> dict[str, float]:
     return dict(out)
 
 
-def _position_view(asset: Asset, pos: PositionCalc, income: Decimal, division: MetodoDivisao) -> PositionView:
+def _position_view(asset: Asset, pos: PositionCalc, income: Decimal, division: MetodoDivisao, first_buy: date) -> PositionView:
     qty = float(pos.quantity)
     cost = float(pos.total_cost)
     value = qty * asset.last_price if asset.last_price else cost
@@ -98,6 +100,7 @@ def _position_view(asset: Asset, pos: PositionCalc, income: Decimal, division: M
         weight_pct=0.0,
         income_12m=float(income),
         yield_on_cost=(float(income) / cost) if cost else None,
+        first_buy=first_buy,
     )
 
 
@@ -127,7 +130,7 @@ def positions(db: Session) -> list[PositionView]:
         pos = compute_position(txs, [s for s in splits[aid] if s.date > first])
         if pos.quantity <= 0:
             continue
-        out.append(_position_view(assets[aid], pos, entitled_income(txs, splits[aid], divs_ttm[aid]), division))
+        out.append(_position_view(assets[aid], pos, entitled_income(txs, splits[aid], divs_ttm[aid]), division, first))
     total = sum(p.value for p in out)
     for p in out:
         p.weight_pct = 100 * p.value / total if total else 0.0
@@ -204,10 +207,39 @@ def _reserve_eligibility_alerts(state: PortfolioState) -> list[str]:
     return [f"{h.name} está marcado como reserva, mas: {chk.reason}" for h, chk in checks if not chk.ok]
 
 
-def portfolio_alerts(state: PortfolioState, profile: Profile, evaluations: dict[int, Evaluation]) -> list[str]:
+FORMULA_MAGICA = FormulaMagica.info.key
+HOLDING_REVIEW_DAYS = 365
+"""O livro da Fórmula Mágica manda revisar cada ação depois de cerca de 1 ano na carteira."""
+
+
+def _formula_magica_alerts(state: PortfolioState, profile: Profile, evaluations: dict[int, Evaluation], today: date) -> list[str]:
+    """Para quem escolheu a Fórmula Mágica: ações fora do primeiro terço do ranking e ações que completaram
+    1 ano na carteira. Só avisos; o app não sugere vender."""
+    if profile.selection_method != FORMULA_MAGICA:
+        return []
+    out_of_top = [
+        f"{p.ticker} está em {ev.extras['posicao']}º de {ev.extras['total']} na Fórmula Mágica, fora do primeiro terço. O livro troca a ação na revisão anual."
+        for p in state.stocks
+        if (ev := evaluations.get(p.asset_id))
+        and ev.method == FORMULA_MAGICA
+        and ev.verdict != "comprar"
+        and ev.extras.get("posicao")
+    ]
+    anniversaries = [
+        f"{p.ticker} completou 1 ano na carteira: pela Fórmula Mágica, é hora de revisar se ela continua entre as primeiras."
+        for p in state.stocks
+        if (today - p.first_buy).days >= HOLDING_REVIEW_DAYS
+    ]
+    return out_of_top + anniversaries
+
+
+def portfolio_alerts(
+    state: PortfolioState, profile: Profile, evaluations: dict[int, Evaluation], today: date | None = None
+) -> list[str]:
     return [
         *_reserve_alerts(state, profile),
         *_verdict_alerts(state, evaluations),
+        *_formula_magica_alerts(state, profile, evaluations, today or date.today()),
         *_concentration_alerts(state),
         *_reserve_eligibility_alerts(state),
     ]
