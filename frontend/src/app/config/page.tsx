@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { MethodPicker } from "@/components/MethodPicker";
 import { DecimalInput, IntegerInput, MoneyInput, PercentInput, type TextInputProps } from "@/components/inputs";
-import { Button, Card, ErrorBox, Field, inputCls, Loading, PageHeader } from "@/components/ui";
+import { Button, Card, ErrorBox, Field, Loading, PageHeader } from "@/components/ui";
 import { api, type AllocationItem, type Methods, type ProfileOut, type RuleConfigItem, type SyncStatus } from "@/lib/api/client";
 import { CLASS_LABEL, num, PROFILE_LABEL } from "@/lib/format";
+import { resolveChoice, type MethodDraft } from "@/lib/methods";
 import { useApi } from "@/lib/useApi";
 import { checkDecimal, checkInteger, checkMoney, checkPercent, type Checked } from "@/lib/validation";
 
@@ -288,20 +290,17 @@ function ProfileCard() {
 function MethodsCard({ onSaved }: { onSaved: () => void }) {
   const methods = useApi<Methods>("/api/metodos");
   const profile = useApi<ProfileOut>("/api/perfil");
-  const [choice, setChoice] = useState<{ selection_method?: string; allocation_method?: string }>({});
+  const [draft, setDraft] = useState<MethodDraft>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   if (!methods.data || !profile.data) return null;
-  const selection = choice.selection_method ?? profile.data.selection_method;
-  const allocation = choice.allocation_method ?? profile.data.allocation_method;
-  const pickedSelection = methods.data.selection.find((m) => m.key === selection);
-  const pickedAllocation = methods.data.allocation.find((m) => m.key === allocation);
+  const choice = resolveChoice(draft, profile.data);
   async function save() {
     setErr(null);
     setMsg(null);
     try {
-      await api.put("/api/perfil/metodos", { selection_method: selection, allocation_method: allocation });
-      setChoice({});
+      await api.put("/api/perfil/metodos", choice);
+      setDraft({});
       await profile.reload();
       onSaved();
       setMsg("Metodologias salvas. Vereditos e recomendações já seguem a escolha.");
@@ -312,34 +311,7 @@ function MethodsCard({ onSaved }: { onSaved: () => void }) {
   return (
     <Card title="Metodologias" help="metodologias">
       <div className="space-y-4">
-        <Field label="Para escolher as ações">
-          <select
-            className={inputCls}
-            value={selection}
-            onChange={(e) => setChoice((c) => ({ ...c, selection_method: e.target.value }))}
-          >
-            {methods.data.selection.map((m) => (
-              <option key={m.key} value={m.key}>
-                {m.label} ({m.author})
-              </option>
-            ))}
-          </select>
-        </Field>
-        {pickedSelection && <p className="text-[13px] text-muted">{pickedSelection.summary}</p>}
-        <Field label="Para dividir a carteira">
-          <select
-            className={inputCls}
-            value={allocation}
-            onChange={(e) => setChoice((c) => ({ ...c, allocation_method: e.target.value }))}
-          >
-            {methods.data.allocation.map((m) => (
-              <option key={m.key} value={m.key}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        {pickedAllocation && <p className="text-[13px] text-muted">{pickedAllocation.summary}</p>}
+        <MethodPicker methods={methods.data} value={choice} onChange={(c) => setDraft((d) => ({ ...d, ...c }))} />
         <p className="text-[13px] text-subtle">Trocar a divisão substitui a divisão-alvo abaixo pela sugerida pelo método.</p>
         <div className="flex items-center gap-3">
           <Button onClick={() => void save()}>Salvar metodologias</Button>
