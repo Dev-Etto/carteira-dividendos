@@ -8,6 +8,27 @@ import type { Dashboard } from "@/lib/api/client";
 import { brl, dateBr, groupLabel, pct, PROFILE_LABEL } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
+function AlertIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      className="mt-1 shrink-0 text-warn"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M8 2 L14.5 13.5 H1.5 Z" />
+      <path d="M8 6.5 V9.5" />
+      <circle cx="8" cy="11.5" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
 export default function Inicio() {
   const { data, error, loading, reload } = useApi<Dashboard>("/api/painel");
   if (loading && !data) return <Loading />;
@@ -30,15 +51,32 @@ export default function Inicio() {
 
       <Link
         href={data.next_step.href}
-        className="block rounded-xl border border-accent/30 bg-accent-soft p-5 transition hover:border-accent"
+        className="flex flex-wrap items-center justify-between gap-6 rounded-2xl bg-accent px-8 py-7 text-white transition hover:bg-accent-strong"
       >
-        <div className="text-xs font-semibold uppercase tracking-wide text-accent">Seu próximo passo</div>
-        <div className="mt-1 text-lg font-semibold text-ink">{data.next_step.title}</div>
-        <div className="mt-1 text-sm text-muted">{data.next_step.description}</div>
-        <div className="mt-3 text-sm font-semibold text-accent">Ir agora →</div>
+        <div>
+          <div className="text-[13px] font-semibold text-white/75">Seu próximo passo</div>
+          <div className="mt-1 text-2xl font-bold tracking-tight">{data.next_step.title}</div>
+          <div className="mt-1 text-white/85">{data.next_step.description}</div>
+        </div>
+        <span className="inline-flex h-11 items-center gap-2 rounded-[10px] bg-surface px-[18px] font-semibold text-accent">
+          Ir agora
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3 8 H13 M9 4 L13 8 L9 12" />
+          </svg>
+        </span>
       </Link>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-3">
         <Card>
           <Stat
             label="Reserva de emergência"
@@ -63,19 +101,20 @@ export default function Inicio() {
       </div>
 
       {data.alerts.length > 0 && (
-        <Card title="Alertas">
-          <ul className="space-y-2 text-sm">
+        <section className="rounded-2xl border border-warn/30 bg-warn-soft px-6 py-5">
+          <h2 className="text-base font-bold text-warn">Alertas</h2>
+          <ul className="mt-2 space-y-1.5">
             {data.alerts.map((a) => (
-              <li key={a} className="flex gap-2 text-ink">
-                <span className="text-warn">●</span>
+              <li key={a} className="flex items-start gap-2.5 text-ink">
+                <AlertIcon />
                 {a}
               </li>
             ))}
           </ul>
-        </Card>
+        </section>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-5 lg:grid-cols-[5fr_7fr]">
         <Card title="Divisão da carteira: atual × alvo" help="diversificacao">
           <AllocationBars classes={data.classes} />
         </Card>
@@ -83,8 +122,8 @@ export default function Inicio() {
           title="Melhores oportunidades hoje"
           help="veredito"
           actions={
-            <Link href="/explorar" className="text-xs font-semibold text-accent">
-              ver todas →
+            <Link href="/explorar" className="text-sm font-semibold text-accent">
+              Ver todas
             </Link>
           }
         >
@@ -94,20 +133,20 @@ export default function Inicio() {
               melhores.
             </p>
           ) : (
-            <ul className="divide-y divide-line">
+            <ul className="divide-y divide-line border-t border-line">
               {data.top_opportunities.map((a) => (
                 <li key={a.ticker}>
-                  <Link href={`/ativo/${a.ticker}`} className="flex items-center justify-between gap-3 py-2.5 hover:opacity-80">
+                  <Link href={`/ativo/${a.ticker}`} className="flex items-center justify-between gap-4 py-3.5 hover:opacity-80">
                     <div>
-                      <div className="text-sm font-semibold text-ink">
+                      <div className="font-bold text-ink">
                         {a.ticker} <span className="font-normal text-muted">· {a.name}</span>
                       </div>
-                      <div className="text-xs text-muted">
+                      <div className="text-[13px] text-subtle">
                         {groupLabel(a.asset_class, a.sector)} · DY {pct(a.dividend_yield)} · {pct(a.margin_pct)} abaixo do{" "}
                         {a.asset_class === "fii" ? "preço máximo" : "teto"}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <ScorePill score={a.score} verdict={a.verdict} />
                       <VerdictBadge verdict={a.verdict} />
                     </div>
@@ -120,13 +159,13 @@ export default function Inicio() {
       </div>
 
       <Card title="Cenário">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
           <Stat label="Selic" help="selic" value={pct(data.macro.selic_meta, 2)} />
           <Stat label="CDI" help="cdi" value={pct(data.macro.cdi, 2)} />
           <Stat label="IPCA 12 meses" help="ipca" value={pct(data.macro.ipca_12m, 2)} />
           <Stat
             label="Última atualização"
-            value={<span className="text-base">{data.last_sync ? dateBr(data.last_sync) : "nunca"}</span>}
+            value={data.last_sync ? dateBr(data.last_sync) : "nunca"}
             hint={data.macro.as_of ? `dados do BC de ${dateBr(data.macro.as_of)}` : undefined}
           />
         </div>
