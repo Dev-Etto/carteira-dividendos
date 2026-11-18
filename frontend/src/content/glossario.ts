@@ -188,6 +188,22 @@ export const GLOSSARIO: Termo[] = [
     categoria: "ações",
   },
   {
+    slug: "metodo-graham",
+    termo: "Método Graham",
+    curto: "Os critérios do investidor defensivo de Benjamin Graham, adaptados ao Brasil.",
+    explicacao:
+      "Em O Investidor Inteligente, Graham lista o que o investidor defensivo deve exigir: empresa grande, folga financeira, lucro todo ano, proventos sem interrupção, lucro crescendo e preço baixo (P/L até 15 e P/L × P/VP até 22,5). O livro pede 10 e 20 anos de histórico; o app usa 5, como o estudo da USP de Palazzo e colegas (2018). O P/L máximo acompanha o juro real do Tesouro IPCA+ (1 ÷ juro real), porque 15 foi pensado para os juros americanos de 1972. O preço-teto é o valor de Graham, √(22,5 × LPA × VPA), que deriva desse critério e não aparece no livro.",
+    categoria: "ações",
+  },
+  {
+    slug: "liquidez-corrente",
+    termo: "Liquidez corrente",
+    curto: "Ativo circulante ÷ passivo circulante: quanto a empresa tem a curto prazo para cada R$ 1 que vence em um ano.",
+    explicacao:
+      "Ativo circulante é o caixa e o que vira dinheiro em até um ano (clientes a receber, estoques). Passivo circulante é o que vence nesse prazo (fornecedores, empréstimos de curto prazo). Acima de 1, a empresa cobre as contas do ano com folga. Graham pedia 2; no Brasil o app usa 1,22, como o estudo da USP. Bancos e seguradoras não separam o balanço assim.",
+    categoria: "ações",
+  },
+  {
     slug: "graham",
     termo: "Valor de Graham",
     curto: "√(22,5 × lucro por ação × valor patrimonial por ação).",

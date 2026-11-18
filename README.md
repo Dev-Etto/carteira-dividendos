@@ -96,8 +96,8 @@ A escolha fica em Configurações e muda vereditos, recomendações e o plano de
 | Barsi (Luiz Barsi Filho)              | seleção | disponível, padrão |
 | Perfil de risco (questionário do app) | divisão | disponível, padrão |
 | Bazin (Décio Bazin)                   | seleção | disponível         |
-| Graham (Benjamin Graham)              | seleção | próxima            |
-| Fórmula Mágica (Joel Greenblatt)      | seleção | planejada          |
+| Graham (Benjamin Graham)              | seleção | disponível         |
+| Fórmula Mágica (Joel Greenblatt)      | seleção | próxima            |
 | ARCA (Thiago Nigro)                   | divisão | planejada          |
 
 Como criar uma metodologia nova está em [`backend/app/engine/README.md`](backend/app/engine/README.md#metodologias-metodos).
@@ -138,6 +138,22 @@ Décio Bazin (_Faça Fortuna com Ações_, 1992) olhava poucos números:
 
 Todos os limites ficam em Configurações, na seção "Ações pelo Bazin".
 
+## Como as ações são avaliadas pelo método Graham
+
+Os critérios do investidor defensivo de Benjamin Graham (_O Investidor Inteligente_, cap. 14), com a adaptação ao Brasil do [estudo da USP de Palazzo et al. (2018)](http://revistas.usp.br/rcf/article/download/150635/147416/312645):
+
+| Critério            | Livro (EUA, 1972)                         | No app                                                        |
+| ------------------- | ----------------------------------------- | ------------------------------------------------------------- |
+| Tamanho             | receita ≥ US$ 100 mi                      | receita > R$ 300 mi                                           |
+| Condição financeira | ativo circulante ≥ 2 × passivo circulante | liquidez corrente ≥ 1,22 (bancos e seguradoras ficam de fora) |
+| Lucro               | em cada um dos 10 anos                    | em cada um dos 5 anos (eliminatória)                          |
+| Proventos           | 20 anos sem interrupção                   | 5 anos sem interrupção                                        |
+| Crescimento         | lucro por ação +1/3 em 10 anos            | lucro +2,66% ao ano (média dos 3 primeiros × 3 últimos anos)  |
+| P/L                 | ≤ 15 × lucro médio de 3 anos              | ≤ 1 ÷ juro real do Tesouro IPCA+, ou 15 fixo                  |
+| P/L × P/VP          | ≤ 22,5                                    | ≤ 22,5                                                        |
+
+Os dois critérios de preço decidem entre comprar e aguardar, sem mexer na nota. O preço-teto é o valor de Graham, √(22,5 × LPA × VPA). Os limites ficam em Configurações, na seção "Ações pelo Graham".
+
 ## Como os FIIs são avaliados
 
 O tipo do fundo (papel, tijolo, fundo de fundos ou híbrido) vem da carteira que ele declara à CVM, não do segmento informado, que muitas vezes não ajuda. As faixas mudam com o tipo:
@@ -164,16 +180,16 @@ Taxa e distribuição não estão em nenhuma fonte gratuita estruturada (o Yahoo
 
 ## De onde vêm os dados
 
-| Dado                                                      | Fonte                                                                         |
-| --------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Selic, CDI, IPCA 12m                                      | Banco Central, API SGS (séries 432, 4389, 13522)                              |
-| Tesouro Direto                                            | Tesouro Transparente, CSV de preços e taxas                                   |
-| Balanços (DRE, BP, DFC, DVA)                              | CVM Dados Abertos, DFP anual                                                  |
-| CNPJ ↔ ticker                                             | CVM, FCA (valores mobiliários)                                                |
-| FIIs: patrimônio, cotistas, composição, imóveis, vacância | CVM Dados Abertos, informes mensal e trimestral de FII                        |
-| ETFs: patrimônio                                          | CVM Dados Abertos, cadastro de classes de fundos (ligado ao ticker pelo nome) |
-| Preços, proventos, desdobramentos                         | Yahoo Finance via `yfinance` (não oficial)                                    |
-| Cotação do dia                                            | brapi (plano gratuito, opcional)                                              |
+| Dado                                                             | Fonte                                                                         |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Selic, CDI, IPCA 12m                                             | Banco Central, API SGS (séries 432, 4389, 13522)                              |
+| Tesouro Direto                                                   | Tesouro Transparente, CSV de preços e taxas                                   |
+| Balanços (DRE, BP, DFC, DVA), incluindo circulante e imobilizado | CVM Dados Abertos, DFP anual                                                  |
+| CNPJ ↔ ticker                                                    | CVM, FCA (valores mobiliários)                                                |
+| FIIs: patrimônio, cotistas, composição, imóveis, vacância        | CVM Dados Abertos, informes mensal e trimestral de FII                        |
+| ETFs: patrimônio                                                 | CVM Dados Abertos, cadastro de classes de fundos (ligado ao ticker pelo nome) |
+| Preços, proventos, desdobramentos                                | Yahoo Finance via `yfinance` (não oficial)                                    |
+| Cotação do dia                                                   | brapi (plano gratuito, opcional)                                              |
 
 As ações, os FIIs e os ETFs do universo inicial ficam em `backend/app/data/universo.csv`, e outros podem ser adicionados pela tela Explorar.
 
