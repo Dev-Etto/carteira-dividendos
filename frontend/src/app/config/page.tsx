@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { DecimalInput, IntegerInput, MoneyInput, PercentInput, type TextInputProps } from "@/components/inputs";
 import { Button, Card, ErrorBox, Field, inputCls, Loading, PageHeader } from "@/components/ui";
 import { api, type AllocationItem, type Methods, type ProfileOut, type RuleConfigItem, type SyncStatus } from "@/lib/api/client";
-import { CLASS_LABEL, num, parseNumber, PROFILE_LABEL } from "@/lib/format";
+import { CLASS_LABEL, num, PROFILE_LABEL } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
+import { checkDecimal, checkInteger, checkMoney, checkPercent, type Checked } from "@/lib/validation";
 
 const STEP_LABEL: Record<string, string> = {
   universo: "Lista de ativos",
@@ -97,6 +99,51 @@ const PERCENT_RULES = new Set([
   "etf_taxa_adm_max",
 ]);
 
+/** Limites em reais (liquidez e patrimônio). */
+const MONEY_RULES = new Set([
+  "liquidez_ok",
+  "liquidez_min",
+  "fii_pl_min",
+  "fii_liquidez_min",
+  "etf_liquidez_ok",
+  "etf_liquidez_min",
+  "etf_pl_ok",
+  "etf_pl_min",
+]);
+
+/** Limites que só fazem sentido inteiros (anos, número de imóveis, nota). */
+const INTEGER_RULES = new Set([
+  "proventos_anos_ok",
+  "proventos_anos_min",
+  "nota_comprar",
+  "nota_evitar",
+  "fii_anos_min",
+  "fii_imoveis_ok",
+  "fii_imoveis_min",
+]);
+
+const MAX_SCORE = 100;
+const MAX_PERCENT = 100;
+
+type RuleInput = { Input: (props: TextInputProps) => React.ReactNode; check: (text: string) => Checked<number> };
+
+const RULE_INPUTS = {
+  percent: { Input: PercentInput, check: (text: string) => checkPercent(text) },
+  money: { Input: MoneyInput, check: (text: string) => checkMoney(text) },
+  integer: { Input: IntegerInput, check: (text: string) => checkInteger(text) },
+  score: { Input: IntegerInput, check: (text: string) => checkInteger(text, { max: MAX_SCORE }) },
+  decimal: { Input: DecimalInput, check: (text: string) => checkDecimal(text) },
+} satisfies Record<string, RuleInput>;
+
+/** Campo e validação de cada limite, pelo tipo do valor. */
+function ruleInput(key: string): RuleInput {
+  if (PERCENT_RULES.has(key)) return RULE_INPUTS.percent;
+  if (MONEY_RULES.has(key)) return RULE_INPUTS.money;
+  if (key.startsWith("nota_")) return RULE_INPUTS.score;
+  if (INTEGER_RULES.has(key)) return RULE_INPUTS.integer;
+  return RULE_INPUTS.decimal;
+}
+
 /** Valor da regra como o usuário vê: em % para as frações, com vírgula decimal e sem separador de milhar. */
 function ruleText(key: string, value: number): string {
   const shown = PERCENT_RULES.has(key) ? value * 100 : value;
@@ -105,7 +152,7 @@ function ruleText(key: string, value: number): string {
 
 /** Converte o texto digitado de volta para o valor guardado pela API; null se não for número. */
 function ruleValue(key: string, text: string): number | null {
-  const n = parseNumber(text);
+  const n = ruleInput(key).check(text).value;
   if (n === null) return null;
   return PERCENT_RULES.has(key) ? n / 100 : n;
 }
@@ -278,12 +325,12 @@ function AllocationCard() {
   const [err, setErr] = useState<string | null>(null);
   if (loading && !data) return <Loading />;
   if (!data) return null;
-  const cur = data.map((i) => ({
-    ...i,
-    text: edits[i.asset_class] ?? num(i.weight_pct, 0),
-    value: parseNumber(edits[i.asset_class] ?? i.weight_pct),
-  }));
-  const valid = cur.every((i) => i.value !== null && i.value >= 0);
+  const cur = data.map((i) => {
+    const typed = edits[i.asset_class];
+    const check = typed === undefined ? { value: i.weight_pct, error: null } : checkPercent(typed, { max: MAX_PERCENT });
+    return { ...i, text: typed ?? num(i.weight_pct, 0), ...check };
+  });
+  const valid = cur.every((i) => i.value !== null);
   const total = Math.round(cur.reduce((s, i) => s + (i.value ?? 0), 0) * 100) / 100;
   const ok = valid && Math.abs(total - 100) <= 0.01;
   async function save() {
@@ -301,13 +348,8 @@ function AllocationCard() {
     <Card title="Divisão-alvo da carteira (%)" help="diversificacao">
       <div className="grid gap-3 sm:grid-cols-4">
         {cur.map((i) => (
-          <Field key={i.asset_class} label={CLASS_LABEL[i.asset_class] ?? i.asset_class}>
-            <input
-              className={inputCls}
-              inputMode="decimal"
-              value={i.text}
-              onChange={(e) => setEdits((s) => ({ ...s, [i.asset_class]: e.target.value }))}
-            />
+          <Field key={i.asset_class} label={CLASS_LABEL[i.asset_class] ?? i.asset_class} error={i.error}>
+            <PercentInput value={i.text} onValueChange={(text) => setEdits((s) => ({ ...s, [i.asset_class]: text }))} />
           </Field>
         ))}
       </div>
@@ -316,7 +358,7 @@ function AllocationCard() {
           Salvar
         </Button>
         <span className={`text-sm ${ok ? "text-muted" : "text-bad"}`}>
-          {valid ? `Total: ${num(total, total % 1 ? 2 : 0)}%` : "Use só números"}
+          {valid ? `Total: ${num(total, total % 1 ? 2 : 0)}%` : "Preencha todas as classes"}
         </span>
         {msg && <span className="text-sm text-good">{msg}</span>}
       </div>
@@ -352,9 +394,10 @@ function RulesCard() {
     }
   }
 
+  const invalid = Object.entries(edits).some(([k, v]) => ruleValue(k, v) === null);
+
   function save() {
-    const bad = Object.entries(edits).find(([k, v]) => ruleValue(k, v) === null);
-    if (bad) return setErr(`Valor inválido em "${RULE_LABEL[bad[0]] ?? bad[0]}".`);
+    if (invalid) return;
     void send(Object.fromEntries(Object.entries(edits).map(([k, v]) => [k, ruleValue(k, v) ?? 0])));
   }
 
@@ -377,25 +420,19 @@ function RulesCard() {
               {shown
                 .filter((r) => section.matches(r.key))
                 .map((r) => (
-                  <Field
+                  <RuleField
                     key={r.key}
-                    label={RULE_LABEL[r.key] ?? r.key}
-                    hint={r.value !== r.default ? `padrão: ${ruleText(r.key, r.default)}` : undefined}
-                  >
-                    <input
-                      className={inputCls}
-                      inputMode="decimal"
-                      value={edits[r.key] ?? ruleText(r.key, r.value)}
-                      onChange={(e) => setEdits((s) => ({ ...s, [r.key]: e.target.value }))}
-                    />
-                  </Field>
+                    rule={r}
+                    text={edits[r.key] ?? ruleText(r.key, r.value)}
+                    onChange={(text) => setEdits((s) => ({ ...s, [r.key]: text }))}
+                  />
                 ))}
             </div>
           </section>
         ))}
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Button onClick={save} disabled={!Object.keys(edits).length}>
+        <Button onClick={save} disabled={!Object.keys(edits).length || invalid}>
           Salvar e reavaliar
         </Button>
         {confirmReset ? (
@@ -420,5 +457,21 @@ function RulesCard() {
         </div>
       )}
     </Card>
+  );
+}
+
+/** Um limite das regras, com o campo do tipo do valor e a mensagem de erro embaixo. Vazio também é erro. */
+function RuleField({ rule, text, onChange }: { rule: RuleConfigItem; text: string; onChange: (text: string) => void }) {
+  const { Input, check } = ruleInput(rule.key);
+  const checked = check(text);
+  const error = checked.value === null && !checked.error ? "Informe um valor." : checked.error;
+  return (
+    <Field
+      label={RULE_LABEL[rule.key] ?? rule.key}
+      hint={rule.value !== rule.default ? `padrão: ${ruleText(rule.key, rule.default)}` : undefined}
+      error={error}
+    >
+      <Input value={text} onValueChange={onChange} />
+    </Field>
   );
 }
