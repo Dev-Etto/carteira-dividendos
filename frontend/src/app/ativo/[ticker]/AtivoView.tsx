@@ -44,12 +44,25 @@ const ETF_GROUPS: Group[] = [{ key: "qualidade", title: "Checklist do ETF", help
 
 const GROUPS_BY_CLASS: Record<string, Group[]> = { acao: STOCK_GROUPS, fii: FII_GROUPS, etf: ETF_GROUPS };
 
-const SCORE_RING: Record<ScoreTone, string> = {
-  good: "border-good text-good",
-  warn: "border-warn text-warn",
-  neutral: "border-line text-ink",
-  bad: "border-bad text-bad",
+const SCORE_BOX: Record<ScoreTone, string> = {
+  good: "bg-good-soft text-good",
+  warn: "bg-warn-soft text-warn",
+  neutral: "bg-neutral-soft text-muted",
+  bad: "bg-bad-soft text-bad",
 };
+
+const AXIS_TICK = { fontSize: 11, fill: "var(--subtle)" };
+const TOOLTIP_STYLE = { background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, fontSize: 12 };
+
+/** Rótulo curto em reais para o eixo dos gráficos (sem centavos). */
+function axisBrl(value: number): string {
+  return `R$ ${num(value, 0)}`;
+}
+
+/** Uma marca por ano no eixo X: a primeira data de cada ano da série. */
+function yearTicks(points: { date: string }[]): string[] {
+  return points.filter((p, i) => i === 0 || p.date.slice(0, 4) !== points[i - 1]?.date.slice(0, 4)).map((p) => p.date);
+}
 
 /** Texto do preço-teto com o yield-alvo exigente; avaliações antigas não trazem esse yield. */
 function demandingCeilingHint(ex: Extras): string {
@@ -66,7 +79,7 @@ function BackLink() {
     router.push("/explorar");
   }
   return (
-    <button type="button" onClick={goBack} className="text-sm text-muted hover:text-ink">
+    <button type="button" onClick={goBack} className="text-sm font-semibold text-muted hover:text-ink">
       ← Voltar
     </button>
   );
@@ -140,18 +153,19 @@ function subtitle(data: AssetDetail): string {
 
 function ScoreHeader({ data }: { data: AssetDetail }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-5">
       <div
-        className={`flex h-16 w-16 items-center justify-center rounded-full border-4 text-xl font-bold ${SCORE_RING[verdictTone(data.verdict)]}`}
+        className={`flex h-[76px] w-[76px] shrink-0 flex-col items-center justify-center rounded-[18px] ${SCORE_BOX[verdictTone(data.verdict)]}`}
       >
-        {data.score}
+        <span className="text-[30px] font-extrabold leading-none tabular-nums">{data.score}</span>
+        <span className="text-[11px] font-semibold">de 100</span>
       </div>
       <div>
         <div className="flex items-center gap-2">
           <VerdictBadge verdict={data.verdict} />
           <Help slug="veredito" />
         </div>
-        <p className="mt-1 max-w-xl text-sm text-ink">{data.summary}</p>
+        <p className="mt-1.5 max-w-2xl text-base text-ink">{data.summary}</p>
       </div>
     </div>
   );
@@ -185,30 +199,32 @@ export function AtivoView() {
           <Investidor10Link ticker={data.ticker} assetClass={data.asset_class} />
           <Link
             href={`/carteira?novo=${data.ticker}`}
-            className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink hover:bg-neutral-soft"
+            className="inline-flex h-[42px] items-center whitespace-nowrap rounded-[10px] bg-accent px-[18px] text-sm font-semibold text-white hover:bg-accent-strong"
           >
             Registrar compra
           </Link>
         </div>
       </PageHeader>
 
-      <Card>
+      <Card className="p-7">
         <div className="flex flex-wrap items-center gap-6">
           {isEtf ? <EtfHeader data={data} onChange={() => void reload()} /> : <ScoreHeader data={data} />}
         </div>
-        <div className="mt-6 grid grid-cols-2 gap-5 border-t border-line pt-5 md:grid-cols-4">
+        <div
+          className={`mt-6 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-line pt-5 ${isEtf ? "md:grid-cols-5" : "md:grid-cols-4"}`}
+        >
           <ClassStats data={data} ex={ex} />
         </div>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="space-y-6 lg:col-span-3">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <div className="space-y-5">
           {groups.map((g) => {
             const rules = data.rules.filter((r) => r.group === g.key);
             if (!rules.length) return null;
             return (
-              <Card key={g.key} title={g.title} help={g.help}>
-                <ul className="space-y-4">
+              <Card key={g.key} title={g.title} help={g.help} className="pb-2">
+                <ul className="divide-y divide-line border-t border-line">
                   {rules.map((r) => (
                     <RuleItem key={r.id} r={r} />
                   ))}
@@ -217,20 +233,17 @@ export function AtivoView() {
             );
           })}
         </div>
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-5">
           <Card title="Proventos por ano" help="dividendos">
             {hist.data && hist.data.dividends_by_year.length ? (
               <div className="h-52">
                 <ResponsiveContainer>
                   <BarChart data={hist.data.dividends_by_year}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" />
-                    <XAxis dataKey="year" tick={{ fontSize: 11, fill: "var(--muted)" }} />
-                    <YAxis tick={{ fontSize: 11, fill: "var(--muted)" }} width={40} />
-                    <Tooltip
-                      formatter={(v) => [brl(Number(v)), unit]}
-                      contentStyle={{ background: "var(--surface)", border: "1px solid var(--line)", fontSize: 12 }}
-                    />
-                    <Bar dataKey="amount" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+                    <CartesianGrid vertical={false} stroke="var(--line)" />
+                    <XAxis dataKey="year" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: "var(--line-strong)" }} />
+                    <YAxis tick={AXIS_TICK} width={52} tickFormatter={axisBrl} tickLine={false} axisLine={false} />
+                    <Tooltip formatter={(v) => [brl(Number(v)), unit]} contentStyle={TOOLTIP_STYLE} />
+                    <Bar dataKey="amount" fill="var(--accent)" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -240,24 +253,33 @@ export function AtivoView() {
           </Card>
           <Card title={isFii ? "Preço × valor patrimonial (5 anos)" : "Preço (5 anos)"} help={isFii ? "p-vp" : undefined}>
             {hist.data && hist.data.prices.length ? (
-              <div className="h-52">
+              <div className="h-56">
                 <ResponsiveContainer>
                   <LineChart data={withNav(hist.data.prices, hist.data.nav)}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" />
+                    <CartesianGrid vertical={false} stroke="var(--line)" />
                     <XAxis
                       dataKey="date"
+                      ticks={yearTicks(hist.data.prices)}
                       tickFormatter={(d: string) => d.slice(0, 4)}
-                      minTickGap={40}
-                      tick={{ fontSize: 11, fill: "var(--muted)" }}
+                      tick={AXIS_TICK}
+                      tickLine={false}
+                      axisLine={{ stroke: "var(--line-strong)" }}
                     />
-                    <YAxis tick={{ fontSize: 11, fill: "var(--muted)" }} width={40} domain={["auto", "auto"]} />
+                    <YAxis
+                      tick={AXIS_TICK}
+                      width={56}
+                      domain={["auto", "auto"]}
+                      tickFormatter={axisBrl}
+                      tickLine={false}
+                      axisLine={false}
+                    />
                     <Tooltip
                       labelFormatter={(d) => dateBr(String(d))}
                       formatter={(v, name) => [brl(Number(v)), name === "nav" ? "valor patrimonial" : "fechamento"]}
-                      contentStyle={{ background: "var(--surface)", border: "1px solid var(--line)", fontSize: 12 }}
+                      contentStyle={TOOLTIP_STYLE}
                     />
-                    <Line dataKey="close" stroke="var(--accent)" dot={false} strokeWidth={1.5} />
-                    {isFii && <Line dataKey="nav" stroke="var(--muted)" dot={false} strokeWidth={1.5} strokeDasharray="4 3" />}
+                    <Line dataKey="close" stroke="var(--accent)" dot={false} strokeWidth={2.2} />
+                    {isFii && <Line dataKey="nav" stroke="var(--subtle)" dot={false} strokeWidth={2} strokeDasharray="5 4" />}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -265,7 +287,7 @@ export function AtivoView() {
               <p className="text-sm text-muted">Sem histórico ainda.</p>
             )}
             {data.ceiling_price && (
-              <p className="mt-2 text-xs text-muted">
+              <p className="mt-2 text-[13px] text-subtle">
                 {isFii ? "Preço máximo pelo P/VP" : "Preço-teto atual"}: {brl(data.ceiling_price)}
                 {isFii && " · linha tracejada: valor patrimonial da cota"}
               </p>
@@ -280,26 +302,28 @@ export function AtivoView() {
             />
           )}
           <Card title="O que pode dar errado">
-            <ul className="space-y-2 text-sm text-ink">
+            <ul className="space-y-2.5 text-sm text-label">
               {data.risks.map((r) => (
-                <li key={r} className="flex gap-2">
-                  <span className="text-warn">●</span>
+                <li key={r} className="flex gap-2.5">
+                  <span aria-hidden="true" className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-warn" />
                   <span>{r}</span>
                 </li>
               ))}
             </ul>
           </Card>
           <Card title="De onde vêm os dados">
-            <dl className="space-y-1.5 text-xs">
+            <dl className="space-y-2 text-[13px]">
               {Object.entries(data.data_sources).map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-3">
-                  <dt className="text-muted">{k}</dt>
+                  <dt className="text-subtle">{k}</dt>
                   <dd className="text-right text-ink">{v ?? "sem dado"}</dd>
                 </div>
               ))}
             </dl>
             {data.asset_class === "acao" && (
-              <p className="mt-3 text-xs text-muted">Anos pagando proventos sem interrupção: {num(ex.anos_pagando ?? 0, 0)}</p>
+              <p className="mt-3 text-[13px] text-subtle">
+                Anos pagando proventos sem interrupção: {num(ex.anos_pagando ?? 0, 0)}
+              </p>
             )}
           </Card>
         </div>
@@ -310,21 +334,21 @@ export function AtivoView() {
 
 function RuleItem({ r }: { r: RuleResult }) {
   return (
-    <li className="flex gap-3">
+    <li className="flex gap-3 py-4">
       <StatusIcon status={r.status} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-          <span className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+          <span className="flex items-center gap-1.5 text-[15px] font-semibold text-ink">
             {r.label}
             <Help slug={r.learn_more} />
             {r.eliminatory && (
-              <span className="rounded bg-neutral-soft px-1.5 py-0.5 text-[10px] font-medium text-muted">eliminatória</span>
+              <span className="rounded-md bg-neutral-soft px-1.5 py-0.5 text-[11px] font-semibold text-muted">eliminatória</span>
             )}
           </span>
-          <span className="text-sm tabular-nums text-ink">{r.value_display}</span>
+          <span className="whitespace-nowrap text-[15px] font-semibold tabular-nums text-ink">{r.value_display}</span>
         </div>
         <p className="mt-0.5 text-sm text-muted">{r.explanation}</p>
-        <p className="mt-0.5 text-xs text-muted">
+        <p className="mt-0.5 text-xs text-subtle">
           Critério: {r.threshold} · peso {r.weight}
         </p>
       </div>

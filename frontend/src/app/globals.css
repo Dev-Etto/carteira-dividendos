@@ -1,40 +1,48 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f6f7f5;
+  --bg: #f5f6f8;
   --surface: #ffffff;
-  --ink: #17201b;
-  --muted: #5f6b64;
-  --line: #e1e5e1;
-  --accent: #0f7a55;
-  --accent-strong: #0b6043;
-  --accent-soft: #e3f2ec;
-  --good: #137a4a;
-  --good-soft: #e2f3ea;
-  --warn: #9a5b00;
-  --warn-soft: #fbf0dc;
-  --bad: #b42323;
-  --bad-soft: #fbe7e7;
-  --neutral-soft: #eef0ee;
+  --ink: #101828;
+  --label: #344054;
+  --muted: #475467;
+  --subtle: #667085;
+  --line: #e4e7ec;
+  --line-strong: #d0d5dd;
+  --accent: #0e5a6f;
+  --accent-strong: #0a4757;
+  --accent-soft: #e3f0f3;
+  --good: #17663f;
+  --good-soft: #e6f4ec;
+  --warn: #8a5800;
+  --warn-soft: #fef4dc;
+  --bad: #a8201a;
+  --bad-soft: #fdecea;
+  --neutral-soft: #f0f2f5;
+  --card-shadow: 0 1px 2px rgb(16 24 40 / 0.05);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1412;
-    --surface: #161d1a;
-    --ink: #e8eee9;
-    --muted: #9aa8a0;
-    --line: #27322d;
-    --accent: #3fbf8a;
-    --accent-strong: #5fd3a2;
-    --accent-soft: #173327;
+    --bg: #0f1418;
+    --surface: #171e24;
+    --ink: #eef2f5;
+    --label: #d0d7de;
+    --muted: #a9b4bf;
+    --subtle: #8a96a3;
+    --line: #27313a;
+    --line-strong: #3a4550;
+    --accent: #5fb7cc;
+    --accent-strong: #84cadb;
+    --accent-soft: #15323b;
     --good: #5fd3a2;
     --good-soft: #173327;
     --warn: #f0b155;
     --warn-soft: #3a2c14;
     --bad: #f08080;
     --bad-soft: #3d1c1c;
-    --neutral-soft: #1f2825;
+    --neutral-soft: #1f2830;
+    --card-shadow: none;
   }
 }
 
@@ -42,8 +50,11 @@
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-ink: var(--ink);
+  --color-label: var(--label);
   --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
@@ -54,7 +65,8 @@
   --color-bad: var(--bad);
   --color-bad-soft: var(--bad-soft);
   --color-neutral-soft: var(--neutral-soft);
-  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-figtree), ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --shadow-card: var(--card-shadow);
 }
 
 body {

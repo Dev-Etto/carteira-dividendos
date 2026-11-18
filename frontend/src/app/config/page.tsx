@@ -114,9 +114,13 @@ export default function Config() {
   return (
     <div className="space-y-6">
       <PageHeader title="Configurações" subtitle="Dados do mercado, seu perfil, a divisão da carteira e os limites das regras." />
-      <SyncCard />
-      <ProfileCard />
-      <AllocationCard />
+      <div className="grid items-start gap-5 lg:grid-cols-[7fr_5fr]">
+        <SyncCard />
+        <div className="space-y-5">
+          <ProfileCard />
+          <AllocationCard />
+        </div>
+      </div>
       <RulesCard />
     </div>
   );
@@ -161,15 +165,15 @@ function SyncCard() {
       <p className="mb-3 text-sm text-muted">
         A primeira atualização baixa vários anos de balanços e preços e pode levar alguns minutos. Depois disso, o app atualiza
         sozinho todo dia às 19h enquanto a API estiver rodando. Para cotações em tempo real, coloque seu token gratuito da brapi
-        no arquivo <code className="rounded bg-neutral-soft px-1">backend/.env</code>.
+        no arquivo <code className="rounded bg-neutral-soft px-1.5 text-[13px]">backend/.env</code>.
       </p>
       {err && <ErrorBox error={err} />}
       {data && data.runs.length > 0 && (
-        <ul className="divide-y divide-line text-sm">
+        <ul className="divide-y divide-line border-t border-line text-sm">
           {data.runs.map((r, i) => (
-            <li key={i} className="flex flex-wrap justify-between gap-2 py-2">
+            <li key={i} className="flex flex-wrap justify-between gap-2 py-2.5">
               <span>{STEP_LABEL[r.source] ?? r.source}</span>
-              <span className={RUN_CLASS[r.status]}>{runLabel(r)}</span>
+              <span className={`font-semibold tabular-nums ${RUN_CLASS[r.status]}`}>{runLabel(r)}</span>
             </li>
           ))}
         </ul>
@@ -298,9 +302,9 @@ function RulesCard() {
       </p>
       <div className="space-y-5">
         {RULE_SECTIONS.map((section) => (
-          <section key={section.title}>
-            <h3 className="mb-2 text-sm font-semibold text-ink">{section.title}</h3>
-            <div className="grid gap-3 sm:grid-cols-3">
+          <section key={section.title} className="border-t border-line pt-4">
+            <h3 className="mb-3 text-[15px] font-bold text-ink">{section.title}</h3>
+            <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
               {shown
                 .filter((r) => section.matches(r.key))
                 .map((r) => (

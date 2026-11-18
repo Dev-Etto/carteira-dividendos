@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import { Figtree } from "next/font/google";
 
 import { Nav } from "@/components/Nav";
 
 import "./globals.css";
+
+const figtree = Figtree({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-figtree" });
 
 export const metadata: Metadata = {
   title: "Carteira de Dividendos",
@@ -11,21 +14,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="pt-BR" className="h-full antialiased">
-      <body className="min-h-full">
-        <div className="mx-auto flex min-h-screen max-w-7xl flex-col md:flex-row">
-          <aside className="border-b border-line px-4 py-4 md:sticky md:top-0 md:h-screen md:w-56 md:shrink-0 md:border-b-0 md:border-r md:py-6">
-            <div className="mb-4 px-3">
-              <div className="text-sm font-semibold text-ink">Carteira de Dividendos</div>
-              <div className="text-xs text-muted">método Barsi · uso pessoal</div>
-            </div>
-            <Nav />
-            <p className="mt-6 hidden px-3 text-[11px] leading-relaxed text-muted md:block">
-              O app aplica regras e explica o resultado. Não é recomendação de investimento; a decisão é sua.
-            </p>
-          </aside>
-          <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
-        </div>
+    <html lang="pt-BR" className={`${figtree.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col">
+        <Nav />
+        <main className="mx-auto w-full min-w-0 max-w-[1200px] flex-1 px-8 pb-20 pt-10">{children}</main>
+        <footer className="border-t border-line">
+          <p className="mx-auto max-w-[1200px] px-8 py-5 text-xs text-subtle">
+            O app aplica regras e explica o resultado. Não é recomendação de investimento; a decisão é sua.
+          </p>
+        </footer>
       </body>
     </html>
   );

@@ -26,6 +26,30 @@ import { decimalInput, scrollAndFocus } from "@/lib/inputs";
 import { useApi } from "@/lib/useApi";
 import { TickerOptions, useTickers } from "@/lib/useTickers";
 
+const TH = "whitespace-nowrap px-3.5 py-3 font-semibold";
+const TD = "whitespace-nowrap px-3.5 py-3";
+
+/** Alertas da carteira em caixa de atenção, com ícone para não depender só da cor. */
+function AlertsBox({ alerts }: { alerts: string[] }) {
+  return (
+    <section className="rounded-2xl border border-warn/30 bg-warn-soft px-6 py-4">
+      <h2 className="mb-2 text-base font-bold text-warn">Alertas</h2>
+      <ul className="space-y-1.5 text-sm text-ink">
+        {alerts.map((a) => (
+          <li key={a} className="flex items-start gap-2.5">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" className="mt-0.5 shrink-0 text-warn">
+              <path d="M8 2 L14.5 13.5 H1.5 Z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+              <path d="M8 6.5 V9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              <circle cx="8" cy="11.5" r="0.9" fill="currentColor" />
+            </svg>
+            {a}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default function CarteiraPage() {
   return (
     <Suspense fallback={<Loading />}>
@@ -55,7 +79,7 @@ function Carteira() {
   const d = pf.data!;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Minha carteira"
         subtitle="Suas posições, quanto rendem e como está a divisão em relação ao seu perfil."
@@ -86,18 +110,7 @@ function Carteira() {
         </Card>
       </div>
 
-      {d.alerts.length > 0 && (
-        <Card title="Alertas">
-          <ul className="space-y-2 text-sm">
-            {d.alerts.map((a) => (
-              <li key={a} className="flex gap-2">
-                <span className="text-warn">●</span>
-                {a}
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+      {d.alerts.length > 0 && <AlertsBox alerts={d.alerts} />}
 
       <Card title="Posições" help="preco-medio">
         {d.positions.length === 0 ? (
@@ -109,45 +122,46 @@ function Carteira() {
             .
           </Empty>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-sm">
-              <thead className="border-b border-line text-left text-xs text-muted">
+          <div className="-mx-6 -mb-6 overflow-x-auto">
+            <table className="w-full min-w-[900px] text-sm tabular-nums">
+              <thead className="border-y border-line bg-bg text-left text-xs text-muted">
                 <tr>
-                  <th className="py-2 pr-3 font-medium">Ativo</th>
-                  <th className="py-2 pr-3 text-right font-medium">Qtd.</th>
-                  <th className="py-2 pr-3 text-right font-medium">Preço médio</th>
-                  <th className="py-2 pr-3 text-right font-medium">Preço</th>
-                  <th className="py-2 pr-3 text-right font-medium">Valor</th>
-                  <th className="py-2 pr-3 text-right font-medium">Resultado</th>
-                  <th className="py-2 pr-3 text-right font-medium">Peso</th>
-                  <th className="py-2 pr-3 text-right font-medium">
+                  <th className={`${TH} pl-6`}>Ativo</th>
+                  <th className={`${TH} text-right`}>Qtd.</th>
+                  <th className={`${TH} text-right`}>Preço médio</th>
+                  <th className={`${TH} text-right`}>Preço</th>
+                  <th className={`${TH} text-right`}>Valor</th>
+                  <th className={`${TH} text-right`}>Resultado</th>
+                  <th className={`${TH} text-right`}>Peso</th>
+                  <th className={`${TH} text-right`}>
                     <span className="inline-flex items-center gap-1">
                       Yield on cost <Help slug="yield-on-cost" />
                     </span>
                   </th>
-                  <th className="py-2 font-medium">Veredito hoje</th>
+                  <th className={`${TH} pr-6`}>Veredito hoje</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {d.positions.map((p) => (
                   <tr key={p.ticker}>
-                    <td className="py-2.5 pr-3">
-                      <Link href={`/ativo/${p.ticker}`} className="font-semibold text-ink hover:text-accent">
+                    <td className={`${TD} pl-6`}>
+                      <Link href={`/ativo/${p.ticker}`} className="font-bold text-ink hover:text-accent">
                         {p.ticker}
                       </Link>
-                      <div className="text-xs text-muted">{groupLabel(p.asset_class, p.sector)}</div>
+                      <div className="text-xs text-subtle">{groupLabel(p.asset_class, p.sector)}</div>
                       <Investidor10Link ticker={p.ticker} assetClass={p.asset_class} compact />
                     </td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums">{num(p.quantity, 0)}</td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums">{brl(p.avg_price)}</td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums">{brl(p.price)}</td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums">{brl(p.value)}</td>
-                    <td className={`py-2.5 pr-3 text-right tabular-nums ${p.profit >= 0 ? "text-good" : "text-bad"}`}>
+                    <td className={`${TD} text-right`}>{num(p.quantity, 0)}</td>
+                    <td className={`${TD} text-right`}>{brl(p.avg_price)}</td>
+                    <td className={`${TD} text-right`}>{brl(p.price)}</td>
+                    <td className={`${TD} text-right font-semibold`}>{brl(p.value)}</td>
+                    <td className={`${TD} text-right ${p.profit >= 0 ? "text-good" : "text-bad"}`}>
+                      {p.profit > 0 ? "+" : ""}
                       {brl(p.profit)} <span className="text-xs">({pct(p.profit_pct)})</span>
                     </td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums">{num(p.weight_pct, 1)}%</td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums">{pct(p.yield_on_cost)}</td>
-                    <td className="py-2.5">
+                    <td className={`${TD} text-right`}>{num(p.weight_pct, 1)}%</td>
+                    <td className={`${TD} text-right`}>{pct(p.yield_on_cost)}</td>
+                    <td className={`${TD} pr-6`}>
                       <VerdictBadge verdict={p.verdict} />
                     </td>
                   </tr>
@@ -158,14 +172,14 @@ function Carteira() {
         )}
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid items-start gap-5 lg:grid-cols-2">
         <Card title="Divisão atual × alvo" help="diversificacao">
           <AllocationBars classes={d.classes} />
         </Card>
         <Card
           title="Renda fixa e reserva"
           actions={
-            <Link href="/renda-fixa" className="text-xs font-semibold text-accent">
+            <Link href="/renda-fixa" className="text-sm font-semibold text-accent">
               gerenciar →
             </Link>
           }
@@ -173,18 +187,18 @@ function Carteira() {
           {d.fixed_income.length === 0 ? (
             <p className="text-sm text-muted">Nenhuma aplicação cadastrada.</p>
           ) : (
-            <ul className="divide-y divide-line text-sm">
+            <ul className="divide-y divide-line border-t border-line text-sm">
               {d.fixed_income.map((h) => (
-                <li key={h.id} className="flex justify-between py-2">
+                <li key={h.id} className="flex justify-between gap-4 py-3">
                   <span>
                     {h.name}{" "}
                     {h.is_emergency_reserve && (
-                      <span className="ml-1 rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+                      <span className="ml-1 rounded-md bg-accent-soft px-1.5 py-0.5 text-xs font-semibold text-accent">
                         reserva
                       </span>
                     )}
                   </span>
-                  <span className="tabular-nums">{brl(h.amount)}</span>
+                  <span className="font-semibold tabular-nums">{brl(h.amount)}</span>
                 </li>
               ))}
             </ul>
@@ -245,46 +259,50 @@ function TxHistory({
     }
   }
   return (
-    <div className="overflow-x-auto">
+    <>
       {err && (
         <div className="mb-3">
           <ErrorBox error={err} />
         </div>
       )}
-      <table className="w-full min-w-[640px] text-sm">
-        <thead className="border-b border-line text-left text-xs text-muted">
-          <tr>
-            <th className="py-2 font-medium">Data</th>
-            <th className="py-2 font-medium">Ativo</th>
-            <th className="py-2 font-medium">Tipo</th>
-            <th className="py-2 text-right font-medium">Qtd.</th>
-            <th className="py-2 text-right font-medium">Preço</th>
-            <th className="py-2 text-right font-medium">Taxas</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-line">
-          {data.map((t) => (
-            <tr key={t.id} className={t.id === editingId ? "bg-accent-soft" : ""}>
-              <td className="py-2">{dateBr(t.date)}</td>
-              <td className="py-2 font-medium">{t.ticker}</td>
-              <td className={`py-2 ${t.kind === "compra" ? "text-good" : "text-bad"}`}>{t.kind}</td>
-              <td className="py-2 text-right tabular-nums">{num(Number(t.quantity), 0)}</td>
-              <td className="py-2 text-right tabular-nums">{brl(t.price)}</td>
-              <td className="py-2 text-right tabular-nums">{brl(t.fees)}</td>
-              <td className="py-2 text-right">
-                <span className="inline-flex items-center gap-3">
-                  <button type="button" className="text-xs text-accent hover:underline" onClick={() => onEdit(t)}>
-                    editar
-                  </button>
-                  <ConfirmAction label="excluir" onConfirm={() => void remove(t)} />
-                </span>
-              </td>
+      <div className="-mx-6 -mb-6 overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm tabular-nums">
+          <thead className="border-y border-line bg-bg text-left text-xs text-muted">
+            <tr>
+              <th className={`${TH} pl-6`}>Data</th>
+              <th className={TH}>Ativo</th>
+              <th className={TH}>Tipo</th>
+              <th className={`${TH} text-right`}>Qtd.</th>
+              <th className={`${TH} text-right`}>Preço</th>
+              <th className={`${TH} text-right`}>Taxas</th>
+              <th className={`${TH} pr-6`}>
+                <span className="sr-only">Ações</span>
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {data.map((t) => (
+              <tr key={t.id} className={t.id === editingId ? "bg-accent-soft" : ""}>
+                <td className={`${TD} pl-6`}>{dateBr(t.date)}</td>
+                <td className={`${TD} font-semibold`}>{t.ticker}</td>
+                <td className={`${TD} ${t.kind === "compra" ? "text-good" : "text-bad"}`}>{t.kind}</td>
+                <td className={`${TD} text-right`}>{num(Number(t.quantity), 0)}</td>
+                <td className={`${TD} text-right`}>{brl(t.price)}</td>
+                <td className={`${TD} text-right`}>{brl(t.fees)}</td>
+                <td className={`${TD} pr-6 text-right`}>
+                  <span className="inline-flex items-center gap-3">
+                    <button type="button" className="text-xs font-semibold text-accent hover:underline" onClick={() => onEdit(t)}>
+                      editar
+                    </button>
+                    <ConfirmAction label="excluir" onConfirm={() => void remove(t)} />
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 

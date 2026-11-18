@@ -46,14 +46,14 @@ export default function Aporte() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Aporte do mês"
         subtitle="Diga quanto vai investir. O app segue sempre a mesma ordem: reserva de emergência → classes abaixo do alvo → melhores ativos com preço bom."
       />
 
       {profile.data && !profile.data.onboarded && (
-        <div className="rounded-lg border border-warn/40 bg-warn-soft p-4 text-sm text-warn">
+        <div className="rounded-2xl border border-warn/30 bg-warn-soft px-5 py-4 text-sm text-warn">
           Você ainda não definiu seu perfil.{" "}
           <Link href="/onboarding" className="font-semibold underline">
             Defina agora
@@ -63,11 +63,11 @@ export default function Aporte() {
       )}
 
       <Card>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="w-56">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="w-72">
             <Field label="Valor do aporte (R$)">
               <input
-                className={inputCls}
+                className={`${inputCls} text-lg font-bold tabular-nums`}
                 inputMode="decimal"
                 value={value}
                 onChange={(e) => setAmount(e.target.value)}
@@ -78,7 +78,7 @@ export default function Aporte() {
           <Button onClick={calc} disabled={parsed === null || parsed <= 0 || busy}>
             {busy ? "Calculando…" : "Montar plano"}
           </Button>
-          <span className="flex items-center gap-1 text-xs text-muted">
+          <span className="flex items-center gap-1 pb-2.5 text-sm text-muted">
             Como o plano é montado? <Help slug="aporte" />
           </span>
         </div>
@@ -91,14 +91,16 @@ export default function Aporte() {
       {plan && (
         <>
           <Card title={`Plano para ${brl(plan.amount)}`}>
-            <ul className="divide-y divide-line">
+            <ul className="divide-y divide-line border-t border-line">
               {plan.lines.map((l, i) => (
-                <li key={i} className="flex flex-wrap items-start justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <li key={i} className="grid grid-cols-[110px_minmax(0,1fr)_auto] items-center gap-4 py-3.5">
+                  <span>
+                    <span className="rounded-md bg-neutral-soft px-2 py-0.5 text-xs font-semibold text-muted">
                       {CLASS_LABEL[l.asset_class] ?? l.asset_class}
-                    </div>
-                    <div className="text-sm font-semibold text-ink">
+                    </span>
+                  </span>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-ink">
                       {l.ticker ? (
                         <Link className="hover:text-accent" href={`/ativo/${l.ticker}`}>
                           {l.ticker}
@@ -108,12 +110,12 @@ export default function Aporte() {
                       )}
                       {l.ticker && <span className="font-normal text-muted"> · {l.product}</span>}
                     </div>
-                    <div className="text-sm text-muted">{l.reason}</div>
+                    <div className="text-[13px] text-subtle">{l.reason}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-semibold tabular-nums text-ink">{brl(l.amount)}</div>
+                    <div className="font-bold tabular-nums text-ink">{brl(l.amount)}</div>
                     {l.quantity && (
-                      <div className="text-xs tabular-nums text-muted">
+                      <div className="text-[13px] tabular-nums text-subtle">
                         {num(l.quantity, 0)} × {brl(l.unit_price)}
                       </div>
                     )}
@@ -122,7 +124,7 @@ export default function Aporte() {
               ))}
             </ul>
             {plan.notes.length > 0 && (
-              <div className="mt-4 space-y-1 rounded-lg bg-neutral-soft p-3 text-xs text-muted">
+              <div className="mt-4 space-y-1 rounded-xl bg-neutral-soft p-4 text-sm text-muted">
                 {plan.notes.map((n) => (
                   <p key={n}>{n}</p>
                 ))}
@@ -135,7 +137,7 @@ export default function Aporte() {
       )}
 
       <Card title="Regras do assistente">
-        <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted">
+        <ol className="list-decimal space-y-2 pl-5 text-sm text-label">
           <li>Enquanto a reserva de emergência não estiver completa, todo o aporte vai para ela.</li>
           <li>Depois, o valor é dividido entre as classes que estão mais abaixo do alvo do seu perfil.</li>
           <li>
@@ -166,7 +168,7 @@ function RegisteredNotice({ result }: { result: RegisterPlanOut }) {
   const purchases = result.transactions.length;
   const holdings = result.holdings.length;
   return (
-    <div className="rounded-lg border border-good/30 bg-good-soft p-4 text-sm text-good">
+    <div className="rounded-2xl border border-good/30 bg-good-soft px-5 py-4 text-sm text-good">
       Registrado: {plural(purchases, "compra", "compras")} e {plural(holdings, "aplicação", "aplicações")}.{" "}
       {purchases > 0 && (
         <Link href="/carteira" className="font-semibold underline">

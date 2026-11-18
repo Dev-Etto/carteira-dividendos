@@ -86,9 +86,13 @@ const VIEWS: Record<AssetClass, ClassView> = {
   },
 };
 
-const TAB_CLS = "rounded-md px-3 py-1.5";
-const ACTIVE_TAB_CLS = `${TAB_CLS} bg-accent-soft font-medium text-accent`;
-const IDLE_TAB_CLS = `${TAB_CLS} text-muted hover:text-ink`;
+const TAB_CLS = "flex h-10 items-center whitespace-nowrap rounded-[10px] px-4 text-sm transition";
+const ACTIVE_TAB_CLS = `${TAB_CLS} bg-surface font-semibold text-ink shadow-card`;
+const IDLE_TAB_CLS = `${TAB_CLS} font-medium text-muted hover:text-ink`;
+const TABLE_WRAP_CLS = "overflow-x-auto rounded-2xl border border-line bg-surface shadow-card";
+const THEAD_CLS = "border-b border-line bg-bg text-left text-xs text-muted";
+const TH_CLS = "px-4 py-3 font-semibold";
+const TD_CLS = "px-4 py-3.5";
 
 export default function Explorar() {
   const [assetClass, setAssetClass] = useState<AssetClass>("acao");
@@ -119,11 +123,12 @@ export default function Explorar() {
         </Button>
       </PageHeader>
 
-      <div className="flex gap-2 rounded-lg border border-line bg-surface p-1 text-sm">
+      <nav aria-label="Classe de ativo" className="inline-flex flex-wrap gap-1 rounded-xl bg-line p-1">
         {(Object.keys(VIEWS) as AssetClass[]).map((cls) => (
           <button
             key={cls}
             type="button"
+            aria-pressed={cls === assetClass}
             className={cls === assetClass ? ACTIVE_TAB_CLS : IDLE_TAB_CLS}
             onClick={() => {
               setAssetClass(cls);
@@ -134,10 +139,10 @@ export default function Explorar() {
             {VIEWS[cls].tab}
           </button>
         ))}
-        <Link href="/renda-fixa" className="px-3 py-1.5 text-muted hover:text-ink">
+        <Link href="/renda-fixa" className={IDLE_TAB_CLS}>
           Renda fixa
         </Link>
-      </div>
+      </nav>
 
       {adding && (
         <AddAsset
@@ -150,7 +155,7 @@ export default function Explorar() {
       )}
 
       {collecting.watching && (
-        <div className="rounded-lg border border-line bg-accent-soft px-4 py-3 text-sm text-accent">
+        <div className="rounded-xl border border-accent/20 bg-accent-soft px-4 py-3 text-sm text-accent">
           Coletando dados de {collecting.watching}… A lista atualiza sozinha quando terminar.
         </div>
       )}
@@ -158,13 +163,14 @@ export default function Explorar() {
       <div className="grid gap-3 sm:grid-cols-3">
         <input
           className={inputCls}
+          aria-label="Buscar por ticker ou nome"
           placeholder="Buscar por ticker ou nome"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         {assetClass !== "etf" && (
           <>
-            <select className={inputCls} value={sector} onChange={(e) => setSector(e.target.value)}>
+            <select aria-label={view.groupHeader} className={inputCls} value={sector} onChange={(e) => setSector(e.target.value)}>
               <option value="">{view.allGroups}</option>
               {Object.entries(view.groups).map(([k, v]) => (
                 <option key={k} value={k}>
@@ -172,7 +178,7 @@ export default function Explorar() {
                 </option>
               ))}
             </select>
-            <select className={inputCls} value={verdict} onChange={(e) => setVerdict(e.target.value)}>
+            <select aria-label="Veredito" className={inputCls} value={verdict} onChange={(e) => setVerdict(e.target.value)}>
               {VERDICTS.map((v) => (
                 <option key={v} value={v}>
                   {v ? v.charAt(0).toUpperCase() + v.slice(1) : "Todos os vereditos"}
@@ -221,25 +227,26 @@ function AssetsResult({
   return <AssetsTable view={view} rows={rows} />;
 }
 
+const STATUS_PILL_CLS = "inline-flex h-[26px] items-center rounded-full px-2.5 text-[13px] font-semibold";
+
 /** Situação do ETF no checklist: só a liquidez reprova; o resto apenas informa. */
 function EtfStatus({ verdict }: { verdict: string | null }) {
-  if (!verdict) return <span className="text-xs text-muted">sem avaliação</span>;
-  if (verdict === "evitar")
-    return <span className="rounded-md bg-bad-soft px-2 py-0.5 text-xs font-medium text-bad">Evitar</span>;
-  return <span className="rounded-md bg-good-soft px-2 py-0.5 text-xs font-medium text-good">Apto</span>;
+  if (!verdict) return <span className="text-xs text-subtle">sem avaliação</span>;
+  if (verdict === "evitar") return <span className={`${STATUS_PILL_CLS} bg-bad-soft text-bad`}>Evitar</span>;
+  return <span className={`${STATUS_PILL_CLS} bg-good-soft text-good`}>Apto</span>;
 }
 
 function EtfTable({ rows, onChange }: { rows: AssetRow[]; onChange: () => void }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-line bg-surface">
+    <div className={TABLE_WRAP_CLS}>
       <table className="w-full min-w-[560px] text-sm">
-        <thead className="border-b border-line text-left text-xs text-muted">
+        <thead className={THEAD_CLS}>
           <tr>
-            <th className="px-4 py-3 font-medium">ETF</th>
-            <th className="px-4 py-3 font-medium">Favorito</th>
-            <th className="px-4 py-3 font-medium">Situação</th>
-            <th className="px-4 py-3 text-right font-medium">Preço</th>
-            <th className="px-4 py-3 text-right font-medium">
+            <th className={TH_CLS}>ETF</th>
+            <th className={TH_CLS}>Favorito</th>
+            <th className={TH_CLS}>Situação</th>
+            <th className={`${TH_CLS} text-right`}>Preço</th>
+            <th className={`${TH_CLS} text-right`}>
               <span className="inline-flex items-center gap-1">
                 DY 12m <Help slug="etf-distribui" />
               </span>
@@ -248,22 +255,22 @@ function EtfTable({ rows, onChange }: { rows: AssetRow[]; onChange: () => void }
         </thead>
         <tbody className="divide-y divide-line">
           {rows.map((r) => (
-            <tr key={r.ticker} className="hover:bg-neutral-soft">
-              <td className="px-4 py-3">
-                <Link href={`/ativo/${r.ticker}`} className="font-semibold text-ink hover:text-accent">
+            <tr key={r.ticker} className="hover:bg-bg">
+              <td className={TD_CLS}>
+                <Link href={`/ativo/${r.ticker}`} className="font-bold text-ink hover:text-accent">
                   {r.ticker}
                 </Link>
-                <div className="text-xs text-muted">{r.name}</div>
+                <div className="text-[13px] text-subtle">{r.name}</div>
                 <Investidor10Link ticker={r.ticker} assetClass={r.asset_class} compact />
               </td>
-              <td className="px-4 py-3">
+              <td className={TD_CLS}>
                 <FavoriteButton ticker={r.ticker} favorite={r.favorite} onChange={onChange} />
               </td>
-              <td className="px-4 py-3">
+              <td className={TD_CLS}>
                 <EtfStatus verdict={r.verdict} />
               </td>
-              <td className="px-4 py-3 text-right tabular-nums">{brl(r.price)}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{r.dividend_yield ? pct(r.dividend_yield) : "—"}</td>
+              <td className={`${TD_CLS} text-right tabular-nums`}>{brl(r.price)}</td>
+              <td className={`${TD_CLS} text-right tabular-nums`}>{r.dividend_yield ? pct(r.dividend_yield) : "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -274,26 +281,26 @@ function EtfTable({ rows, onChange }: { rows: AssetRow[]; onChange: () => void }
 
 function AssetsTable({ view, rows }: { view: ClassView; rows: AssetRow[] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-line bg-surface">
+    <div className={TABLE_WRAP_CLS}>
       <table className="w-full min-w-[760px] text-sm">
-        <thead className="border-b border-line text-left text-xs text-muted">
+        <thead className={THEAD_CLS}>
           <tr>
-            <th className="px-4 py-3 font-medium">{view.noun}</th>
-            <th className="px-4 py-3 font-medium">{view.groupHeader}</th>
-            <th className="px-4 py-3 font-medium">
+            <th className={TH_CLS}>{view.noun}</th>
+            <th className={TH_CLS}>{view.groupHeader}</th>
+            <th className={TH_CLS}>
               <span className="inline-flex items-center gap-1">
                 Nota <Help slug="veredito" />
               </span>
             </th>
-            <th className="px-4 py-3 font-medium">Veredito</th>
-            <th className="px-4 py-3 text-right font-medium">Preço</th>
-            <th className="px-4 py-3 text-right font-medium">
+            <th className={TH_CLS}>Veredito</th>
+            <th className={`${TH_CLS} text-right`}>Preço</th>
+            <th className={`${TH_CLS} text-right`}>
               <span className="inline-flex items-center gap-1">
                 {view.ceilingHeader} <Help slug={view.ceilingHelp} />
               </span>
             </th>
-            <th className="px-4 py-3 text-right font-medium">Margem</th>
-            <th className="px-4 py-3 text-right font-medium">
+            <th className={`${TH_CLS} text-right`}>Margem</th>
+            <th className={`${TH_CLS} text-right`}>
               <span className="inline-flex items-center gap-1">
                 DY 12m <Help slug="dividend-yield" />
               </span>
@@ -302,25 +309,25 @@ function AssetsTable({ view, rows }: { view: ClassView; rows: AssetRow[] }) {
         </thead>
         <tbody className="divide-y divide-line">
           {rows.map((r) => (
-            <tr key={r.ticker} className="hover:bg-neutral-soft">
-              <td className="px-4 py-3">
-                <Link href={`/ativo/${r.ticker}`} className="font-semibold text-ink hover:text-accent">
+            <tr key={r.ticker} className="hover:bg-bg">
+              <td className={TD_CLS}>
+                <Link href={`/ativo/${r.ticker}`} className="font-bold text-ink hover:text-accent">
                   {r.ticker}
                 </Link>
-                <div className="text-xs text-muted">{r.name}</div>
+                <div className="text-[13px] text-subtle">{r.name}</div>
                 <Investidor10Link ticker={r.ticker} assetClass={r.asset_class} compact />
               </td>
-              <td className="px-4 py-3 text-muted">{groupLabel(r.asset_class, r.sector)}</td>
-              <td className="px-4 py-3">
+              <td className={`${TD_CLS} text-muted`}>{groupLabel(r.asset_class, r.sector)}</td>
+              <td className={TD_CLS}>
                 <ScorePill score={r.score} verdict={r.verdict} />
               </td>
-              <td className="px-4 py-3">
+              <td className={TD_CLS}>
                 <VerdictBadge verdict={r.verdict} />
               </td>
-              <td className="px-4 py-3 text-right tabular-nums">{brl(r.price)}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{brl(r.ceiling_price)}</td>
-              <td className={`px-4 py-3 text-right tabular-nums ${signClass(r.margin_pct)}`}>{pct(r.margin_pct)}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{pct(r.dividend_yield)}</td>
+              <td className={`${TD_CLS} text-right tabular-nums`}>{brl(r.price)}</td>
+              <td className={`${TD_CLS} text-right tabular-nums`}>{brl(r.ceiling_price)}</td>
+              <td className={`${TD_CLS} text-right tabular-nums ${signClass(r.margin_pct)}`}>{pct(r.margin_pct)}</td>
+              <td className={`${TD_CLS} text-right tabular-nums`}>{pct(r.dividend_yield)}</td>
             </tr>
           ))}
         </tbody>
@@ -397,7 +404,7 @@ function AddAsset({ assetClass, onDone }: { assetClass: AssetClass; onDone: (tic
           </Button>
         </div>
       </div>
-      <p className="mt-3 text-xs text-muted">{form.hint}</p>
+      <p className="mt-3 text-[13px] text-subtle">{form.hint}</p>
       {err && (
         <div className="mt-3">
           <ErrorBox error={err} />

@@ -4,15 +4,15 @@ type Slice = { asset_class: string; value: number; current_pct: number; target_p
 
 export function AllocationBars({ classes }: { classes: Slice[] }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {classes.map((c) => {
         const gap = c.target_pct - c.current_pct;
         return (
           <div key={c.asset_class}>
-            <div className="mb-1 flex items-baseline justify-between text-sm">
-              <span className="font-medium text-ink">{CLASS_LABEL[c.asset_class]}</span>
+            <div className="mb-2 flex items-baseline justify-between gap-3 text-sm">
+              <span className="font-bold text-ink">{CLASS_LABEL[c.asset_class]}</span>
               <span className="tabular-nums text-muted">
-                {num(c.current_pct, 0)}% <span className="text-xs">de {num(c.target_pct, 0)}% alvo</span> · {brl(c.value)}
+                <strong className="text-ink">{num(c.current_pct, 0)}%</strong> de {num(c.target_pct, 0)}% alvo · {brl(c.value)}
               </span>
             </div>
             <div className="relative h-2.5 w-full rounded-full bg-neutral-soft">
@@ -24,12 +24,14 @@ export function AllocationBars({ classes }: { classes: Slice[] }) {
               />
             </div>
             {gap > 2 && (
-              <div className="mt-1 text-xs text-muted">{num(gap, 0)} p.p. abaixo do alvo: recebe mais nos próximos aportes</div>
+              <div className="mt-1.5 text-[13px] text-subtle">
+                {num(gap, 0)} p.p. abaixo do alvo: recebe mais nos próximos aportes
+              </div>
             )}
           </div>
         );
       })}
-      <p className="text-xs text-muted">
+      <p className="text-[13px] text-subtle">
         A barra preta marca o alvo do seu perfil. O app corrige a diferença pelos aportes, sem vender nada.
       </p>
     </div>

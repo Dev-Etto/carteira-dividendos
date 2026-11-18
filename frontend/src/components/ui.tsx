@@ -9,8 +9,8 @@ export function PageHeader({ title, subtitle, children }: { title: string; subti
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">{title}</h1>
-        {subtitle && <p className="mt-1 max-w-2xl text-sm text-muted">{subtitle}</p>}
+        <h1 className="text-[30px] font-bold leading-tight tracking-tight text-ink">{title}</h1>
+        {subtitle && <p className="mt-1 max-w-3xl text-[15px] text-muted">{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -31,11 +31,11 @@ export function Card({
   actions?: ReactNode;
 }) {
   return (
-    <section className={`rounded-xl border border-line bg-surface p-5 ${className}`}>
+    <section className={`rounded-2xl border border-line bg-surface p-6 shadow-card ${className}`}>
       {(title || actions) && (
         <div className="mb-4 flex items-center justify-between gap-2">
           {title && (
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+            <h2 className="flex items-center gap-1.5 text-lg font-bold text-ink">
               {title}
               {help && <Help slug={help} />}
             </h2>
@@ -51,15 +51,27 @@ export function Card({
 export function Stat({ label, value, hint, help }: { label: string; value: ReactNode; hint?: ReactNode; help?: string }) {
   return (
     <div>
-      <div className="flex items-center gap-1 text-xs font-medium text-muted">
+      <div className="flex items-center gap-1 text-[13px] font-medium text-muted">
         {label}
         {help && <Help slug={help} />}
       </div>
-      <div className="mt-1 text-xl font-semibold tabular-nums text-ink">{value}</div>
-      {hint && <div className="mt-0.5 text-xs text-muted">{hint}</div>}
+      <div className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-ink">{value}</div>
+      {hint && <div className="mt-0.5 text-[13px] text-subtle">{hint}</div>}
     </div>
   );
 }
+
+const ICON_PATHS: Record<string, ReactNode> = {
+  comprar: <path d="M3 8.5 L6.5 12 L13 4.5" />,
+  aguardar: (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 5 V8.5 L10 10" />
+    </>
+  ),
+  neutro: <path d="M4 8 H12" />,
+  evitar: <path d="M4.5 4.5 L11.5 11.5 M11.5 4.5 L4.5 11.5" />,
+};
 
 const NEUTRO = { label: "Neutro", cls: "bg-neutral-soft text-muted" };
 const VERDICT: Record<string, { label: string; cls: string }> = {
@@ -69,10 +81,36 @@ const VERDICT: Record<string, { label: string; cls: string }> = {
   evitar: { label: "Evitar", cls: "bg-bad-soft text-bad" },
 };
 
+/** Ícone do veredito, para a cor nunca ser o único sinal. */
+function VerdictIcon({ verdict }: { verdict: string }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {ICON_PATHS[verdict] ?? ICON_PATHS.neutro}
+    </svg>
+  );
+}
+
 export function VerdictBadge({ verdict }: { verdict?: string | null }) {
-  if (!verdict) return <span className="text-xs text-muted">sem avaliação</span>;
+  if (!verdict) return <span className="text-xs text-subtle">sem avaliação</span>;
   const v = VERDICT[verdict] ?? NEUTRO;
-  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${v.cls}`}>{v.label}</span>;
+  return (
+    <span
+      className={`inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[13px] font-semibold ${v.cls}`}
+    >
+      <VerdictIcon verdict={verdict} />
+      {v.label}
+    </span>
+  );
 }
 
 /** Cor de um valor com sinal: verde se ≥ 0, vermelho se negativo, sem cor quando não há valor. */
@@ -93,11 +131,22 @@ export function verdictTone(verdict?: string | null): ScoreTone {
   return VERDICT_TONE[verdict ?? ""] ?? "neutral";
 }
 
-const SCORE_TEXT: Record<ScoreTone, string> = { good: "text-good", warn: "text-warn", neutral: "text-ink", bad: "text-bad" };
+const SCORE_STYLE: Record<ScoreTone, string> = {
+  good: "bg-good-soft text-good",
+  warn: "bg-warn-soft text-warn",
+  neutral: "bg-neutral-soft text-muted",
+  bad: "bg-bad-soft text-bad",
+};
 
 export function ScorePill({ score, verdict }: { score?: number | null; verdict?: string | null }) {
-  if (score === null || score === undefined) return <span className="text-muted">—</span>;
-  return <span className={`font-semibold tabular-nums ${SCORE_TEXT[verdictTone(verdict)]}`}>{score}</span>;
+  if (score === null || score === undefined) return <span className="text-subtle">—</span>;
+  return (
+    <span
+      className={`inline-flex h-7 min-w-[42px] items-center justify-center rounded-lg px-1.5 font-bold tabular-nums ${SCORE_STYLE[verdictTone(verdict)]}`}
+    >
+      {score}
+    </span>
+  );
 }
 
 /** Ação destrutiva com confirmação inline: o primeiro clique pede confirmação, o segundo executa. */
@@ -201,7 +250,7 @@ export function Loading({ text = "Carregando…" }: { text?: string }) {
 
 export function ErrorBox({ error, onRetry }: { error: string; onRetry?: () => void }) {
   return (
-    <div className="rounded-lg border border-bad/30 bg-bad-soft p-4 text-sm text-bad">
+    <div className="rounded-xl border border-bad/30 bg-bad-soft p-4 text-sm text-bad">
       {error}
       {onRetry && (
         <button onClick={onRetry} className="ml-3 font-semibold underline">
@@ -214,7 +263,7 @@ export function ErrorBox({ error, onRetry }: { error: string; onRetry?: () => vo
 
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed border-line p-8 text-center">
+    <div className="rounded-2xl border border-dashed border-line-strong p-8 text-center">
       <div className="text-sm font-semibold text-ink">{title}</div>
       {children && <div className="mt-2 text-sm text-muted">{children}</div>}
     </div>
@@ -228,14 +277,14 @@ export function Button({
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "ghost" | "danger" }) {
   const styles = {
-    primary: "bg-accent text-white hover:bg-accent-strong disabled:opacity-50",
-    ghost: "border border-line text-ink hover:bg-neutral-soft disabled:opacity-50",
+    primary: "bg-accent text-white hover:bg-accent-strong disabled:bg-line disabled:text-subtle",
+    ghost: "border border-line-strong bg-surface text-ink hover:bg-neutral-soft disabled:opacity-50",
     danger: "text-bad hover:bg-bad-soft",
   }[variant];
   return (
     <button
       {...props}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${styles} ${className}`}
+      className={`inline-flex h-[42px] items-center justify-center gap-2 whitespace-nowrap rounded-[10px] px-[18px] text-sm font-semibold transition ${styles} ${className}`}
     >
       {children}
     </button>
@@ -245,15 +294,15 @@ export function Button({
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium text-muted">{label}</span>
+      <span className="mb-1.5 block text-[13px] font-semibold text-label">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
+      {hint && <span className="mt-1 block text-[13px] text-subtle">{hint}</span>}
     </label>
   );
 }
 
 export const inputCls =
-  "w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20";
+  "h-[42px] w-full rounded-[10px] border border-line-strong bg-surface px-3 text-[15px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:bg-neutral-soft disabled:text-subtle";
 
 export function ProgressBar({ value, max, className = "" }: { value: number; max: number; className?: string }) {
   const p = max > 0 ? Math.min(100, (100 * value) / max) : 0;

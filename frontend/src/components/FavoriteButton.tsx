@@ -4,8 +4,28 @@ import { useState } from "react";
 
 import { api } from "@/lib/api/client";
 
-/** Estrela que marca o ETF como favorito: só os favoritos recebem a fatia de ETFs do aporte. */
-export function FavoriteButton({ ticker, favorite, onChange }: { ticker: string; favorite: boolean; onChange: () => void }) {
+const SIZE_CLS = {
+  normal: "h-9 w-9 rounded-[10px] text-xl",
+  large: "h-[52px] w-[52px] rounded-[14px] border text-[26px]",
+};
+
+const LARGE_TONE = { on: "border-warn/40 bg-warn-soft", off: "border-line-strong bg-surface" };
+
+/**
+ * Estrela que marca o ETF como favorito: só os favoritos recebem a fatia de ETFs do aporte.
+ * `large` é a versão com moldura usada no topo da ficha.
+ */
+export function FavoriteButton({
+  ticker,
+  favorite,
+  onChange,
+  large = false,
+}: {
+  ticker: string;
+  favorite: boolean;
+  onChange: () => void;
+  large?: boolean;
+}) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -23,6 +43,8 @@ export function FavoriteButton({ ticker, favorite, onChange }: { ticker: string;
   }
 
   const label = favorite ? "Tirar dos favoritos" : "Marcar como favorito para o aporte";
+  const tone = favorite ? "text-warn" : "text-subtle hover:text-ink";
+  const frame = large ? LARGE_TONE[favorite ? "on" : "off"] : "hover:bg-neutral-soft";
   return (
     <button
       type="button"
@@ -31,7 +53,7 @@ export function FavoriteButton({ ticker, favorite, onChange }: { ticker: string;
       aria-pressed={favorite}
       aria-label={label}
       title={err ?? label}
-      className={`text-lg leading-none disabled:opacity-50 ${favorite ? "text-warn" : "text-muted hover:text-ink"}`}
+      className={`inline-flex items-center justify-center leading-none transition disabled:opacity-50 ${SIZE_CLS[large ? "large" : "normal"]} ${frame} ${tone}`}
     >
       {favorite ? "★" : "☆"}
     </button>

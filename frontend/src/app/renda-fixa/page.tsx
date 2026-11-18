@@ -17,7 +17,7 @@ import {
   Stat,
 } from "@/components/ui";
 import { api, type Compare, type FixedIncome, type Portfolio, type Treasury } from "@/lib/api/client";
-import { brl, dateBr, decimalStr, parseNumber, pct, todayIso } from "@/lib/format";
+import { brl, dateBr, decimalStr, num, parseNumber, pct, todayIso } from "@/lib/format";
 import { decimalInput, scrollAndFocus } from "@/lib/inputs";
 import { useApi } from "@/lib/useApi";
 
@@ -61,7 +61,7 @@ function RendaFixa() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Renda fixa e reserva"
         subtitle="Aqui fica sua reserva de emergência e a parte de renda fixa da carteira. A reserva vem antes de qualquer ação ou FII."
@@ -111,12 +111,10 @@ function RendaFixa() {
         </div>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Comparator />
-        <Card title="Tesouro Direto hoje">
-          <TreasuryList loading={tesouro.loading} data={tesouro.data} />
-        </Card>
-      </div>
+      <Comparator />
+      <Card title="Tesouro Direto hoje">
+        <TreasuryList loading={tesouro.loading} data={tesouro.data} />
+      </Card>
     </div>
   );
 }
@@ -140,20 +138,20 @@ function HoldingsList({
   if (error) return <ErrorBox error={error} />;
   if (!data?.length) return <p className="text-sm text-muted">Nenhuma aplicação cadastrada.</p>;
   return (
-    <ul className="divide-y divide-line">
+    <ul className="divide-y divide-line border-t border-line">
       {data.map((h) => (
         <li
           key={h.id}
-          className={`flex flex-wrap items-start justify-between gap-3 py-3 text-sm ${h.id === editingId ? "bg-accent-soft" : ""}`}
+          className={`flex flex-wrap items-center justify-between gap-3 py-3.5 text-sm ${h.id === editingId ? "bg-accent-soft" : ""}`}
         >
           <div>
             <div className="font-semibold text-ink">
               {h.name}{" "}
               {h.is_emergency_reserve && (
-                <span className="ml-1 rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent">reserva</span>
+                <span className="ml-1 rounded-md bg-accent-soft px-1.5 py-0.5 text-xs font-semibold text-accent">reserva</span>
               )}
             </div>
-            <div className="text-xs text-muted">
+            <div className="text-[13px] text-subtle">
               {KIND_LABEL[h.kind]} · {h.issuer} · {rateLabel(h.indexer, h.rate)} · desde {dateBr(h.start_date)}
               {h.maturity ? ` · vence ${dateBr(h.maturity)}` : ""}
               {h.daily_liquidity ? " · liquidez diária" : ""}
@@ -163,8 +161,8 @@ function HoldingsList({
             )}
           </div>
           <div className="flex items-center gap-3">
-            <span className="font-semibold tabular-nums">{brl(h.amount)}</span>
-            <button type="button" className="text-xs text-accent hover:underline" onClick={() => onEdit(h)}>
+            <span className="font-bold tabular-nums">{brl(h.amount)}</span>
+            <button type="button" className="text-xs font-semibold text-accent hover:underline" onClick={() => onEdit(h)}>
               atualizar saldo / editar
             </button>
             <ConfirmAction label="remover" onConfirm={() => void onRemove(h)} />
@@ -186,14 +184,14 @@ function TreasuryList({ loading, data }: { loading: boolean; data: Treasury[] | 
   if (!data?.length) return <p className="text-sm text-muted">Sem dados. Rode a atualização em Configurações.</p>;
   return (
     <>
-      <p className="mb-3 text-xs text-muted">Taxas de compra em {dateBr(data[0]?.date)} (Tesouro Transparente).</p>
-      <ul className="max-h-80 divide-y divide-line overflow-y-auto text-sm">
+      <p className="mb-3 text-[13px] text-subtle">Taxas de compra em {dateBr(data[0]?.date)} (Tesouro Transparente).</p>
+      <ul className="grid gap-x-10 text-sm [grid-template-columns:repeat(auto-fit,minmax(320px,1fr))]">
         {data.map((b) => (
-          <li key={`${b.name}-${b.maturity}`} className="flex justify-between py-2">
+          <li key={`${b.name}-${b.maturity}`} className="flex justify-between gap-4 border-t border-line py-2.5">
             <span>
-              {b.name} <span className="text-muted">{b.maturity.slice(0, 4)}</span>
+              {b.name} <span className="text-subtle">{b.maturity.slice(0, 4)}</span>
             </span>
-            <span className="tabular-nums">{bondRate(b)}</span>
+            <span className="whitespace-nowrap font-semibold tabular-nums">{bondRate(b)}</span>
           </li>
         ))}
       </ul>
@@ -338,8 +336,8 @@ function HoldingForm({
     }
   }
   return (
-    <div ref={formRef} className="scroll-mt-6">
-      <div className="mb-1 text-sm font-semibold text-ink">{editing ? `Editar ${editing.name}` : "Cadastrar aplicação"}</div>
+    <div ref={formRef} className="scroll-mt-6 rounded-xl border border-line bg-bg p-5">
+      <div className="mb-1 text-[15px] font-bold text-ink">{editing ? `Editar ${editing.name}` : "Cadastrar aplicação"}</div>
       {editing && (
         <p className="mb-3 text-xs text-muted">Para atualizar o saldo, troque o valor pelo que aparece hoje na corretora.</p>
       )}
@@ -380,7 +378,7 @@ function HoldingForm({
           <input type="date" className={inputCls} value={f.maturity} onChange={set("maturity")} />
         </Field>
       </div>
-      <div className="mt-3 flex flex-wrap gap-5 text-sm">
+      <div className="mt-4 flex flex-wrap gap-5 text-sm text-label [&_input]:h-[18px] [&_input]:w-[18px] [&_input]:accent-accent">
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={f.daily_liquidity} onChange={set("daily_liquidity")} /> Liquidez diária
         </label>
@@ -411,6 +409,78 @@ function HoldingForm({
   );
 }
 
+const KIND_HINT = "LCI e LCA são isentas de IR para pessoa física.";
+const DAYS_PER_YEAR = 365;
+
+/** "≈ 2 anos" para o prazo digitado; vazio enquanto não é um número de dias válido. */
+function yearsHint(daysText: string): string {
+  const days = parseNumber(daysText);
+  if (days === null || days <= 0) return "dias corridos";
+  return `≈ ${num(days / DAYS_PER_YEAR, 1)} ${days >= 2 * DAYS_PER_YEAR ? "anos" : "ano"}`;
+}
+
+/** Conclusão em linguagem simples, montada só a partir do resultado do cálculo. */
+function conclusion(res: Compare): { title: string; text: string; tone: string } {
+  const exempt = res.tax_exempt ? ", sem IR" : " depois do IR";
+  const gap = `${pct(Math.abs(res.vs_cdi_net), 2)} ${res.vs_cdi_net >= 0 ? "acima" : "abaixo"} do CDI depois do IR, no mesmo prazo`;
+  const text = `Rende ${pct(res.net_annual, 2)} ao ano${exempt}: ${gap}.`;
+  if (res.vs_cdi_net >= 0) return { title: "Vale a pena.", text, tone: "bg-good-soft text-good" };
+  return { title: "Não compensa.", text, tone: "bg-warn-soft text-warn" };
+}
+
+function ComparatorResult({ res }: { res: Compare | null }) {
+  if (!res)
+    return (
+      <div className="flex min-w-0 flex-[1_1_380px] items-center justify-center rounded-[14px] border border-dashed border-line-strong p-6 text-center text-sm text-subtle">
+        Preencha os passos 1 e 2 e clique em Calcular para ver o resultado aqui.
+      </div>
+    );
+  const c = conclusion(res);
+  return (
+    <div aria-live="polite" className={`flex min-w-0 flex-[1_1_380px] flex-col gap-4 rounded-[14px] p-6 ${c.tone}`}>
+      <span className="text-[13px] font-bold">Resultado</span>
+      <p className="text-base text-ink">
+        <strong className="font-bold">{c.title}</strong> {c.text}
+      </p>
+      <dl className="grid gap-x-5 gap-y-4 border-t border-current/20 pt-4 text-ink [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]">
+        <ResultStat label="Rende por ano, antes do IR" value={pct(res.gross_annual, 2)} />
+        <ResultStat
+          label="Fica com você, depois do IR"
+          value={pct(res.net_annual, 2)}
+          hint={res.tax_exempt ? "isento de IR" : `IR de ${pct(res.ir_rate, 1)}`}
+        />
+        <ResultStat label={res.equivalent_label} value={pct(res.equivalent_rate, 2)} hint="ao ano" />
+        <ResultStat
+          label="Contra o CDI depois do IR"
+          value={`${res.vs_cdi_net >= 0 ? "+" : ""}${pct(res.vs_cdi_net, 2)}`}
+          valueClass={res.vs_cdi_net >= 0 ? "text-good" : "text-bad"}
+          hint="mesmo prazo"
+        />
+      </dl>
+    </div>
+  );
+}
+
+function ResultStat({
+  label,
+  value,
+  hint,
+  valueClass = "",
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-[13px] font-medium text-muted">{label}</dt>
+      <dd className={`text-[22px] font-bold tabular-nums tracking-tight ${valueClass}`}>{value}</dd>
+      {hint && <dd className="text-[13px] text-subtle">{hint}</dd>}
+    </div>
+  );
+}
+
 function Comparator() {
   const [f, setF] = useState({ kind: "cdb", indexer: "cdi", rate: "110", days: "730" });
   const [res, setRes] = useState<Compare | null>(null);
@@ -430,61 +500,57 @@ function Comparator() {
     }
   }
   return (
-    <Card title="Comparador: quanto rende de verdade?" help="ir-regressivo">
-      <div className="grid gap-3 sm:grid-cols-4">
-        <Field label="Tipo">
-          <select className={inputCls} value={f.kind} onChange={set("kind")}>
-            {Object.entries(KIND_LABEL).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Indexador">
-          <select className={inputCls} value={f.indexer} onChange={set("indexer")}>
-            <option value="cdi">% do CDI</option>
-            <option value="ipca">IPCA +</option>
-            <option value="pre">Prefixado</option>
-            <option value="selic">Selic</option>
-          </select>
-        </Field>
-        <Field label={f.indexer === "cdi" ? "% do CDI" : "Taxa % a.a."}>
-          <input className={inputCls} value={f.rate} onChange={set("rate")} />
-        </Field>
-        <Field label="Prazo (dias)">
-          <input className={inputCls} value={f.days} onChange={set("days")} />
-        </Field>
+    <section className="rounded-2xl border border-line bg-surface p-7 shadow-card">
+      <h2 className="flex items-center gap-1.5 text-lg font-bold text-ink">
+        Quanto rende de verdade? <Help slug="ir-regressivo" />
+      </h2>
+      <p className="mt-1 text-sm text-muted">
+        Te ofereceram um CDB, LCI ou título do Tesouro? Coloque a taxa aqui e veja quanto sobra depois do IR e se ele ganha do
+        CDI.
+      </p>
+      <div className="mt-6 flex flex-wrap items-stretch gap-7">
+        <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-5">
+          <fieldset className="flex flex-col gap-3">
+            <legend className="mb-3 text-[13px] font-bold text-accent">1. O que te ofereceram</legend>
+            <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
+              <Field label="Tipo">
+                <select className={inputCls} value={f.kind} onChange={set("kind")}>
+                  {Object.entries(KIND_LABEL).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Como rende">
+                <select className={inputCls} value={f.indexer} onChange={set("indexer")}>
+                  <option value="cdi">% do CDI</option>
+                  <option value="ipca">IPCA +</option>
+                  <option value="pre">Prefixado</option>
+                  <option value="selic">Selic</option>
+                </select>
+              </Field>
+              <Field label={f.indexer === "cdi" ? "Taxa (% do CDI)" : "Taxa (% a.a.)"}>
+                <input className={inputCls} inputMode="decimal" value={f.rate} onChange={set("rate")} />
+              </Field>
+            </div>
+            <span className="text-[13px] text-subtle">{KIND_HINT}</span>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-3 text-[13px] font-bold text-accent">2. Por quanto tempo</legend>
+            <div className="max-w-[220px]">
+              <Field label="Prazo (dias)" hint={yearsHint(f.days)}>
+                <input className={inputCls} inputMode="numeric" value={f.days} onChange={set("days")} />
+              </Field>
+            </div>
+          </fieldset>
+          <Button className="self-start" onClick={run}>
+            3. Calcular
+          </Button>
+          {err && <ErrorBox error={err} />}
+        </div>
+        <ComparatorResult res={res} />
       </div>
-      <Button className="mt-3" onClick={run}>
-        Calcular
-      </Button>
-      {err && (
-        <div className="mt-3">
-          <ErrorBox error={err} />
-        </div>
-      )}
-      {res && (
-        <div className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4">
-          <Stat label="Rendimento bruto ao ano" value={pct(res.gross_annual, 2)} />
-          <Stat
-            label="Líquido de IR ao ano"
-            value={pct(res.net_annual, 2)}
-            hint={res.tax_exempt ? "isento de IR" : `IR de ${pct(res.ir_rate, 1)}`}
-          />
-          <Stat label={res.equivalent_label} value={pct(res.equivalent_rate, 2)} />
-          <Stat
-            label="Contra o CDI líquido"
-            value={
-              <span className={res.vs_cdi_net >= 0 ? "text-good" : "text-bad"}>
-                {res.vs_cdi_net >= 0 ? "+" : ""}
-                {pct(res.vs_cdi_net, 2)}
-              </span>
-            }
-            hint="mesmo prazo"
-          />
-        </div>
-      )}
-    </Card>
+    </section>
   );
 }
