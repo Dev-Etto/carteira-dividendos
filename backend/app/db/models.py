@@ -110,7 +110,11 @@ class Split(Base):
 
 
 class Fundamental(Base):
-    """Números anuais da DFP (CVM), consolidados, em R$ (não em milhares)."""
+    """Números anuais da DFP (CVM), consolidados, em R$ (não em milhares).
+
+    current_assets e current_liabilities: ativo e passivo circulante (contas 1.01 e 2.01);
+    short_term_debt: empréstimos de curto prazo (2.01.04); fixed_assets: imobilizado líquido (1.02.03).
+    """
 
     __tablename__ = "fundamentals"
     __table_args__ = (UniqueConstraint("asset_id", "year"),)
@@ -128,6 +132,10 @@ class Fundamental(Base):
     operating_cash_flow: Mapped[float | None] = mapped_column(Float)
     investing_cash_flow: Mapped[float | None] = mapped_column(Float)
     dividends_paid: Mapped[float | None] = mapped_column(Float)
+    current_assets: Mapped[float | None] = mapped_column(Float)
+    current_liabilities: Mapped[float | None] = mapped_column(Float)
+    short_term_debt: Mapped[float | None] = mapped_column(Float)
+    fixed_assets: Mapped[float | None] = mapped_column(Float)
     published_at: Mapped[date | None] = mapped_column(Date)
     source: Mapped[str] = mapped_column(String(20), default="cvm")
 

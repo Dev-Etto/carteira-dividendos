@@ -53,6 +53,10 @@ FUNDAMENTAL_FIELDS = (
     "operating_cash_flow",
     "investing_cash_flow",
     "dividends_paid",
+    "current_assets",
+    "current_liabilities",
+    "short_term_debt",
+    "fixed_assets",
 )
 
 INCREMENTAL_OVERLAP_DAYS = 10
