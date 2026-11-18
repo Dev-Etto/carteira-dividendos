@@ -376,7 +376,7 @@ def test_metodologia_desconhecida_e_recusada(client):
 def test_escolher_metodologia_muda_o_veredito_mostrado(client, dois_metodos):
     antes = client.get("/api/ativos/TAEE11").json()
     assert antes["method"] == "barsi"
-    assert [m["key"] for m in antes["other_methods"]] == ["bazin", "teste"]
+    assert [m["key"] for m in antes["other_methods"]] == ["bazin", "graham", "teste"]
     perfil = client.put("/api/perfil/metodos", json={"selection_method": "teste", "allocation_method": "perfil"}).json()
     assert perfil["selection_method"] == "teste"
     depois = client.get("/api/ativos/TAEE11").json()
@@ -386,7 +386,7 @@ def test_escolher_metodologia_muda_o_veredito_mostrado(client, dois_metodos):
         "evitar",
         10,
     )
-    assert [m["key"] for m in depois["other_methods"]] == ["barsi", "bazin"]
+    assert [m["key"] for m in depois["other_methods"]] == ["barsi", "bazin", "graham"]
     linha = next(a for a in client.get("/api/ativos", params={"classe": "acao"}).json() if a["ticker"] == "TAEE11")
     assert linha["verdict"] == "evitar"
     fii = client.get("/api/ativos/HGLG11").json()
