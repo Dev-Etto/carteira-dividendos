@@ -298,6 +298,23 @@ export function useFieldErrorId(): string | undefined {
   return useContext(FieldErrorContext);
 }
 
+/** Erro do campo só depois que o usuário sai dele uma vez; devolve a mensagem à mostra e o id dela. */
+function useShownError(error: string | null | undefined) {
+  const [touched, setTouched] = useState(false);
+  const errorId = useId();
+  const shown = touched && error ? error : null;
+  return { shown, errorId, onBlur: () => setTouched(true) };
+}
+
+function FieldError({ id, message }: { id: string; message: string | null }) {
+  if (!message) return null;
+  return (
+    <span id={id} role="alert" className="mt-1 block text-[13px] font-medium text-bad">
+      {message}
+    </span>
+  );
+}
+
 /**
  * Rótulo, campo, dica e erro. O erro só aparece depois que o usuário sai do campo uma vez, para não
  * acusar "PET" enquanto ele ainda digita "PETR4"; dali em diante acompanha a digitação.
@@ -313,21 +330,54 @@ export function Field({
   error?: string | null;
   children: ReactNode;
 }) {
-  const [touched, setTouched] = useState(false);
-  const errorId = useId();
-  const shown = touched && error ? error : null;
+  const { shown, errorId, onBlur } = useShownError(error);
   return (
     <FieldErrorContext value={shown ? errorId : undefined}>
-      <label className="block" onBlur={() => setTouched(true)}>
+      <label className="block" onBlur={onBlur}>
         <span className="mb-1.5 block text-[13px] font-semibold text-label">{label}</span>
         {children}
         {hint && <span className="mt-1 block text-[13px] text-subtle">{hint}</span>}
-        {shown && (
-          <span id={errorId} role="alert" className="mt-1 block text-[13px] font-medium text-bad">
-            {shown}
-          </span>
-        )}
+        <FieldError id={errorId} message={shown} />
       </label>
+    </FieldErrorContext>
+  );
+}
+
+/**
+ * Campo em linha, para listas de ajustes: rótulo e descrição à esquerda, campo e erro numa coluna
+ * de largura fixa à direita, de modo que os campos fiquem alinhados por mais longo que seja o rótulo.
+ * `footer` fica embaixo do campo, fora do rótulo (para botões como "restaurar padrão").
+ * Em telas estreitas, as duas colunas se empilham.
+ */
+export function FieldRow({
+  label,
+  description,
+  error,
+  children,
+  footer,
+}: {
+  label: string;
+  description?: ReactNode;
+  error?: string | null;
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
+  const { shown, errorId, onBlur } = useShownError(error);
+  return (
+    <FieldErrorContext value={shown ? errorId : undefined}>
+      <div className="grid items-start gap-x-6 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,220px)]">
+        <label className="contents" onBlur={onBlur}>
+          <span className="block sm:pt-2.5">
+            <span className="block text-sm font-semibold text-ink">{label}</span>
+            {description && <span className="mt-0.5 block text-[13px] text-subtle">{description}</span>}
+          </span>
+          <span className="block">
+            {children}
+            <FieldError id={errorId} message={shown} />
+          </span>
+        </label>
+        {footer && <div className="sm:col-start-2">{footer}</div>}
+      </div>
     </FieldErrorContext>
   );
 }
