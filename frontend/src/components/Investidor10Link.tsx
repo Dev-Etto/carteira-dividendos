@@ -11,8 +11,8 @@ export function Investidor10Link({
   compact?: boolean;
 }) {
   const style = compact
-    ? "text-xs text-muted hover:text-accent"
-    : "rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink hover:bg-neutral-soft";
+    ? "text-xs text-subtle hover:text-accent"
+    : "inline-flex h-[42px] items-center whitespace-nowrap rounded-[10px] border border-line-strong bg-surface px-4 text-sm font-semibold text-ink hover:bg-neutral-soft";
   return (
     <a
       href={investidor10Url(ticker, assetClass)}
