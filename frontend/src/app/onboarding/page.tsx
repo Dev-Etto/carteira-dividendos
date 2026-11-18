@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { MoneyInput } from "@/components/inputs";
+import { MethodPicker } from "@/components/MethodPicker";
 import { Button, Card, ErrorBox, Field, Help, inputCls, Loading, PageHeader } from "@/components/ui";
-import { api, type ProfileOut, type Question } from "@/lib/api/client";
+import { api, type Methods, type ProfileOut, type Question } from "@/lib/api/client";
 import { brl, num, PROFILE_LABEL } from "@/lib/format";
+import { choiceChanged, methodLabel, resolveChoice, shouldKeepAllocation, type MethodDraft } from "@/lib/methods";
 import { useApi } from "@/lib/useApi";
 import { canSubmit, checkMoney } from "@/lib/validation";
 
@@ -40,15 +42,16 @@ function StepNumber({ n }: { n: number }) {
 export default function Onboarding() {
   const questions = useApi<Question[]>("/api/perfil/questionario");
   const profile = useApi<ProfileOut>("/api/perfil");
-  const error = questions.error ?? profile.error;
+  const methods = useApi<Methods>("/api/metodos");
+  const error = questions.error ?? profile.error ?? methods.error;
 
   if (error) return <ErrorBox error={error} />;
-  if (!questions.data || !profile.data) return <Loading />;
-  return <OnboardingForm qs={questions.data} profile={profile.data} />;
+  if (!questions.data || !profile.data || !methods.data) return <Loading />;
+  return <OnboardingForm qs={questions.data} profile={profile.data} methods={methods.data} />;
 }
 
 /** Questionário e números do perfil. Quem já tem perfil vê as respostas atuais preenchidas. */
-function OnboardingForm({ qs, profile }: { qs: Question[]; profile: ProfileOut }) {
+function OnboardingForm({ qs, profile, methods }: { qs: Question[]; profile: ProfileOut; methods: Methods }) {
   const router = useRouter();
   const known = profile.onboarded;
   const [answers, setAnswers] = useState<Record<string, number>>(known ? (profile.answers ?? {}) : {});
@@ -57,6 +60,7 @@ function OnboardingForm({ qs, profile }: { qs: Question[]; profile: ProfileOut }
   const [contribution, setContribution] = useState(moneyText(known, profile.monthly_contribution));
   const [goal, setGoal] = useState(moneyText(known, profile.passive_income_goal));
   const [keepAllocation, setKeepAllocation] = useState(false);
+  const [draft, setDraft] = useState<MethodDraft>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [result, setResult] = useState<ProfileOut | null>(null);
@@ -65,18 +69,21 @@ function OnboardingForm({ qs, profile }: { qs: Question[]; profile: ProfileOut }
   const complete =
     qs.every((q) => answers[q.id] !== undefined) && canSubmit([checks.expenses], [checks.contribution, checks.goal]);
   const hint = pendingHint(qs, answers);
+  const choice = resolveChoice(draft, profile);
+  const allocationChanged = choice.allocation_method !== profile.allocation_method;
 
   async function submit() {
     setSaving(true);
     setSaveError(null);
     try {
+      if (choiceChanged(choice, profile)) await api.put<ProfileOut>("/api/perfil/metodos", choice);
       const p = await api.put<ProfileOut>("/api/perfil", {
         answers,
         income_stability: stability,
         monthly_expenses: String(checks.expenses.value ?? 0),
         monthly_contribution: String(checks.contribution.value ?? 0),
         passive_income_goal: String(checks.goal.value ?? 0),
-        keep_allocation: known && keepAllocation,
+        keep_allocation: shouldKeepAllocation(known, keepAllocation, choice, profile),
       });
       setResult(p);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -106,12 +113,21 @@ function OnboardingForm({ qs, profile }: { qs: Question[]; profile: ProfileOut }
             <li className="flex gap-3.5">
               <StepNumber n={2} />
               <span>
-                <strong>Depois da reserva:</strong> o app divide seus aportes entre renda fixa, ações, FIIs e ETFs na proporção do
-                seu perfil. Você pode ajustar essa divisão em Configurações.
+                <strong>Depois da reserva:</strong> o app divide seus aportes entre as classes da metodologia{" "}
+                <strong>{methodLabel(methods.allocation, result.allocation_method)}</strong>. Você pode ajustar essa divisão em
+                Configurações.
               </span>
             </li>
             <li className="flex gap-3.5">
               <StepNumber n={3} />
+              <span>
+                <strong>Escolha das ações:</strong> vereditos e recomendações de compra seguem a metodologia{" "}
+                <strong>{methodLabel(methods.selection, result.selection_method)}</strong>. Dá para trocar de metodologia quando
+                quiser em Configurações.
+              </span>
+            </li>
+            <li className="flex gap-3.5">
+              <StepNumber n={4} />
               <span>
                 <strong>Reinvestimento:</strong> os proventos que você receber entram no aporte seguinte. É assim que a bola de
                 neve começa.
@@ -196,20 +212,30 @@ function OnboardingForm({ qs, profile }: { qs: Question[]; profile: ProfileOut }
         </div>
       </Card>
 
+      <Card title="Suas metodologias" help="metodologias">
+        <p className="mb-4 text-sm text-muted">
+          Escolha como o app avalia as ações e como divide a carteira entre as classes. Na dúvida, fique com o padrão (Barsi e
+          Perfil de risco): dá para trocar depois em Configurações, sem vender nada.
+        </p>
+        <MethodPicker methods={methods} value={choice} onChange={(c) => setDraft((d) => ({ ...d, ...c }))} columns />
+      </Card>
+
       {known && (
         <Card>
           <label className="flex cursor-pointer items-start gap-3 text-ink">
             <input
               type="checkbox"
               className="mt-0.5 accent-[var(--accent)]"
-              checked={keepAllocation}
+              checked={keepAllocation && !allocationChanged}
+              disabled={allocationChanged}
               onChange={(e) => setKeepAllocation(e.target.checked)}
             />
             <span>
               <strong>Manter minha divisão-alvo atual</strong>
               <span className="block text-sm text-muted">
-                Desmarcado, a divisão entre renda fixa, ações, FIIs e ETFs volta à sugerida para o perfil que sair destas
-                respostas.
+                {allocationChanged
+                  ? "Você trocou a metodologia de divisão, então a divisão-alvo passa a ser a sugerida por ela para o seu perfil."
+                  : "Desmarcado, a divisão-alvo volta à sugerida pela metodologia de divisão para o perfil que sair destas respostas."}
               </span>
             </span>
           </label>
