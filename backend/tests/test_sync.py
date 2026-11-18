@@ -28,7 +28,7 @@ from app.db.models import (
 from app.db.models import Filing as FilingRow
 from app.providers.b3 import CashDividend
 from app.providers.base import DividendEvent, PricePoint, SplitInfo
-from app.providers.bcb_ifdata import Basel
+from app.providers.bcb_ifdata import Basel, Overdue, OverdueReport
 from app.providers.cvm import AnnualStatement, QuarterStatement
 from app.providers.cvm_etf import IndexFund, name_key
 from app.providers.cvm_fii import FiiMonthly, FiiQuarterly
@@ -159,6 +159,11 @@ def yahoo(monkeypatch) -> FakeYahoo:
         return [Basel(BANK_CNPJ[:8], "BANCO - PRUDENCIAL", 15.35, "2T26"), Basel(BANK_CNPJ[:8], "BANCO", 9.0, "2T26")]
 
     monkeypatch.setattr(sync.bcb_ifdata, "fetch_basel", fetch_basel)
+
+    async def fetch_overdue() -> OverdueReport:
+        return OverdueReport([Overdue(BANK_CNPJ[:8], "BANCO - PRUDENCIAL", 2.96, "2T26")], 3.57, "2T26")
+
+    monkeypatch.setattr(sync.bcb_ifdata, "fetch_overdue", fetch_overdue)
 
     async def fetch_cash_dividends(ticker: str) -> list[CashDividend]:
         if ticker != "TAEE11":
@@ -437,7 +442,7 @@ async def test_basileia_do_ifdata_substitui_a_manual(db, yahoo):
     itub.cnpj = BANK_CNPJ
     db.add(SectorMetric(asset_id=itub.id, key="basileia", value=12.0, source="manual", updated_at=TODAY))
     db.commit()
-    assert await sync.sync_banks(db) == 1
+    assert await sync.sync_banks(db) == 4
     metric = db.scalar(select(SectorMetric).where(SectorMetric.asset_id == itub.id, SectorMetric.key == "basileia"))
     assert (metric.value, metric.reference, metric.source) == (15.35, "2T26", "BCB IF.data")
 
@@ -454,9 +459,12 @@ async def test_cnpj_do_fca_prevalece_sobre_o_do_universo(db, yahoo, monkeypatch)
     assert _asset(db, "BPAC11").cnpj == "30306294000145"
 
 
-async def test_inadimplencia_do_sistema_vem_do_banco_central(db, yahoo):
+async def test_credito_vencido_do_banco_e_do_sistema_vem_do_ifdata(db, yahoo):
     await sync.run_full_sync(db)
-    assert db.scalar(select(MacroRate.value).where(MacroRate.series == "inadimplencia_sfn")) == 0.15
-    banco = build_stock_snapshot(db, _asset(db, "ITUB4"))
-    assert banco.sector_metrics["inadimplencia_sistema"] == pytest.approx(15.0)
+    itub = _asset(db, "ITUB4")
+    itub.cnpj = BANK_CNPJ
+    db.commit()
+    assert await sync.sync_banks(db) == 4
+    banco = build_stock_snapshot(db, itub)
+    assert (banco.sector_metrics["inadimplencia"], banco.sector_metrics["inadimplencia_sistema"]) == (2.96, 3.57)
     assert "inadimplencia_sistema" not in build_stock_snapshot(db, _asset(db, "TAEE11")).sector_metrics

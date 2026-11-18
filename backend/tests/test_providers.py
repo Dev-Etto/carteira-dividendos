@@ -272,3 +272,25 @@ def test_ifdata_basileia_por_raiz_do_cnpj():
     ).encode()
     found = bcb_ifdata.parse_basel(cadastro, valores, 202606)
     assert found == [bcb_ifdata.Basel("60872504", "BANCO X - PRUDENCIAL", 15.35, "2T26")]
+
+
+def test_ifdata_credito_vencido_por_banco_e_sistema():
+    cadastro = json.dumps(
+        {"value": [{"CodInst": "C1", "NomeInstituicao": "BANCO X - PRUDENCIAL", "CnpjInstituicaoLider": "60872504"}]}
+    ).encode()
+    pf = json.dumps(
+        {
+            "value": [
+                {"CodInst": "C1", "Grupo": "Consignado", "NomeColuna": "Vencido a Partir de 15 Dias", "Saldo": 3.0},
+                {"CodInst": "C1", "Grupo": "Consignado", "NomeColuna": "Total", "Saldo": 100.0},
+                {"CodInst": "C1", "Grupo": None, "NomeColuna": "Total da Carteira de Pessoa Física", "Saldo": 999.0},
+                {"CodInst": "C2", "Grupo": "Veículos", "NomeColuna": "Vencido a Partir de 15 Dias", "Saldo": 7.0},
+                {"CodInst": "C2", "Grupo": "Veículos", "NomeColuna": "Total", "Saldo": 100.0},
+            ]
+        }
+    ).encode()
+    pj = json.dumps({"value": [{"CodInst": "C1", "Grupo": "Capital de Giro", "NomeColuna": "Total", "Saldo": 100.0}]}).encode()
+    report = bcb_ifdata.parse_overdue(cadastro, [pf, pj], 202606)
+    assert report.banks == [bcb_ifdata.Overdue("60872504", "BANCO X - PRUDENCIAL", 1.5, "2T26")]
+    assert report.system_pct == pytest.approx(round(100 * 10 / 300, 2))
+    assert report.reference == "2T26"
