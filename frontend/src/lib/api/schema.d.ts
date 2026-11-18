@@ -659,11 +659,20 @@ export interface components {
             /** Vs Cdi Net */
             vs_cdi_net: number;
         };
-        /** DashboardOut */
+        /**
+         * DashboardOut
+         * @description total_invested: o que está nas classes da divisão; cash_to_invest: sobras de aportes guardadas para o
+         *     próximo plano. O patrimônio fora da reserva é a soma dos dois.
+         */
         DashboardOut: {
             profile: components["schemas"]["ProfileOut"];
             /** Total Invested */
             total_invested: number;
+            /**
+             * Cash To Invest
+             * @default 0
+             */
+            cash_to_invest: number;
             /** Reserve Value */
             reserve_value: number;
             /** Reserve Target */
@@ -949,6 +958,11 @@ export interface components {
             };
             /** Total Invested */
             total_invested: number;
+            /**
+             * Cash To Invest
+             * @default 0
+             */
+            cash_to_invest: number;
             /** Reserve Value */
             reserve_value: number;
             /** Reserve Target */

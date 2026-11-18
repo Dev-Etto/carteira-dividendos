@@ -1980,6 +1980,11 @@
       "type": "number",
       "title": "Total Invested"
      },
+     "cash_to_invest": {
+      "type": "number",
+      "title": "Cash To Invest",
+      "default": 0.0
+     },
      "reserve_value": {
       "type": "number",
       "title": "Reserve Value"
@@ -2059,7 +2064,8 @@
      "macro",
      "last_sync"
     ],
-    "title": "DashboardOut"
+    "title": "DashboardOut",
+    "description": "total_invested: o que está nas classes da divisão; cash_to_invest: sobras de aportes guardadas para o\npróximo plano. O patrimônio fora da reserva é a soma dos dois."
    },
    "DividendYearOut": {
     "properties": {
@@ -2767,6 +2773,11 @@
      "total_invested": {
       "type": "number",
       "title": "Total Invested"
+     },
+     "cash_to_invest": {
+      "type": "number",
+      "title": "Cash To Invest",
+      "default": 0.0
      },
      "reserve_value": {
       "type": "number",

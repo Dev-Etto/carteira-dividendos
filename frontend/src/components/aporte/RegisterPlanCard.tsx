@@ -6,6 +6,7 @@ import { useState } from "react";
 import { DateInput, IntegerInput, MoneyInput } from "@/components/inputs";
 import { Button, Card, ErrorBox, Field } from "@/components/ui";
 import { api, type FixedIncomeIn, type Plan, type S } from "@/lib/api/client";
+import { effectiveCashUsed } from "@/lib/aporte";
 import { brl, CLASS_LABEL, num, todayIso } from "@/lib/format";
 import { checkDate, checkInteger, checkMoney } from "@/lib/validation";
 
@@ -106,7 +107,15 @@ export function RegisterPlanCard({ plan, onRegistered }: { plan: Plan; onRegiste
     setBusy(true);
     try {
       onRegistered(
-        await api.post<RegisterPlanOut>("/api/aporte/registrar", { date: day, cash_used: plan.cash_used, ...built.payload }),
+        await api.post<RegisterPlanOut>("/api/aporte/registrar", {
+          date: day,
+          cash_used: effectiveCashUsed(
+            plan.cash_used,
+            plan.lines,
+            plan.lines.map((_, i) => Boolean(entries[i]?.selected)),
+          ),
+          ...built.payload,
+        }),
       );
     } catch (e) {
       setErr(errorMessage(e));

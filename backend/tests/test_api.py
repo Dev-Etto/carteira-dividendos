@@ -491,3 +491,18 @@ def test_caixa_a_investir_entra_no_proximo_plano_e_e_descontado_ao_registrar(cli
         "/api/aporte/registrar", json={"date": date.today().isoformat(), "holdings": [sobra], "cash_used": 999999}
     )
     assert demais.status_code == 422
+
+
+def test_caixa_usado_inteiro_nao_deixa_aplicacao_zerada(client):
+    base = {"name": "Tesouro Selic", "issuer": "Tesouro Nacional", "kind": "tesouro", "indexer": "selic", "rate": 0}
+    base |= {"start_date": date.today().isoformat(), "daily_liquidity": True, "to_invest": True}
+    for valor in ("0.1", "0.2"):
+        assert client.post("/api/renda-fixa", json=base | {"amount": valor}).status_code == 201
+    total = sum(float(h["amount"]) for h in client.get("/api/renda-fixa").json() if h["to_invest"])
+    painel = client.get("/api/painel").json()
+    assert painel["cash_to_invest"] == pytest.approx(total)
+    compra = {"ticker": "TAEE11", "quantity": "1", "price": "1"}
+    r = client.post("/api/aporte/registrar", json={"date": date.today().isoformat(), "purchases": [compra], "cash_used": total})
+    assert r.status_code == 201, r.text
+    assert [h for h in client.get("/api/renda-fixa").json() if h["to_invest"]] == []
+    assert client.get("/api/carteira").json()["cash_to_invest"] == 0
