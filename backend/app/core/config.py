@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     sync_hour: hora local da atualização automática diária, enquanto a API estiver rodando.
     cvm_years: quantos anos de balanços da CVM baixar.
+    itr_years: quantos anos de balanços trimestrais (ITR) baixar, contando o atual.
     initial_sync: baixa todos os dados ao subir a API quando o banco nunca foi atualizado.
     """
 
@@ -24,6 +25,7 @@ class Settings(BaseSettings):
     enable_scheduler: bool = True
     initial_sync: bool = True
     cvm_years: int = 6
+    itr_years: int = 3
 
 
 @lru_cache
