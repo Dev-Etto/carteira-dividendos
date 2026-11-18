@@ -1,13 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 import { AllocationBars } from "@/components/AllocationBars";
 import { FilingList } from "@/components/FilingList";
+import { ShowMoreButton } from "@/components/ShowMoreButton";
 import { Card, ErrorBox, Loading, PageHeader, ProgressBar, ScorePill, Stat, VerdictBadge } from "@/components/ui";
 import type { Dashboard } from "@/lib/api/client";
 import { brl, dateBr, groupLabel, pct, PROFILE_LABEL } from "@/lib/format";
+import { hiddenCount, visibleItems } from "@/lib/lists";
 import { useApi } from "@/lib/useApi";
+
+const FILINGS_SHOWN = 5;
 
 function AlertIcon() {
   return (
@@ -31,6 +36,7 @@ function AlertIcon() {
 }
 
 export default function Inicio() {
+  const [showAllFilings, setShowAllFilings] = useState(false);
   const { data, error, loading, reload } = useApi<Dashboard>("/api/painel");
   if (loading && !data) return <Loading />;
   if (error) return <ErrorBox error={error} onRetry={reload} />;
@@ -88,7 +94,15 @@ export default function Inicio() {
           <ProgressBar className="mt-3" value={data.reserve_value} max={data.reserve_target} />
         </Card>
         <Card>
-          <Stat label="Patrimônio investido" value={brl(data.total_invested)} hint="sem contar a reserva" />
+          <Stat
+            label="Patrimônio investido"
+            value={brl(data.total_invested + data.cash_to_invest)}
+            hint={
+              data.cash_to_invest > 0
+                ? `sem a reserva; inclui ${brl(data.cash_to_invest)} de caixa a investir`
+                : "sem contar a reserva"
+            }
+          />
         </Card>
         <Card>
           <Stat
@@ -117,7 +131,11 @@ export default function Inicio() {
 
       {data.filings.length > 0 && (
         <Card title="Fatos relevantes da sua carteira (30 dias)" help="comunicados">
-          <FilingList filings={data.filings} showTicker />
+          <FilingList filings={visibleItems(data.filings, FILINGS_SHOWN, showAllFilings)} showTicker />
+          <ShowMoreButton
+            hidden={hiddenCount(data.filings.length, FILINGS_SHOWN, showAllFilings)}
+            onClick={() => setShowAllFilings(true)}
+          />
         </Card>
       )}
 

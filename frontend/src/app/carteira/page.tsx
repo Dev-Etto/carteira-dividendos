@@ -21,9 +21,11 @@ import {
   VerdictBadge,
 } from "@/components/ui";
 import { Investidor10Link } from "@/components/Investidor10Link";
+import { ShowMoreButton } from "@/components/ShowMoreButton";
 import { api, type AssetRow, type Portfolio, type Transaction } from "@/lib/api/client";
 import { brl, dateBr, groupLabel, num, pct, todayIso } from "@/lib/format";
 import { decimalInput, scrollAndFocus } from "@/lib/inputs";
+import { hiddenCount, visibleItems } from "@/lib/lists";
 import { useApi } from "@/lib/useApi";
 import { TickerOptions, useTickers } from "@/lib/useTickers";
 import { canSubmit, checkDate, checkInteger, checkMoney, checkTicker } from "@/lib/validation";
@@ -89,7 +91,11 @@ function Carteira() {
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
-          <Stat label="Investido (sem reserva)" value={brl(d.total_invested)} />
+          <Stat
+            label="Investido (sem reserva)"
+            value={brl(d.total_invested + d.cash_to_invest)}
+            hint={d.cash_to_invest > 0 ? `inclui ${brl(d.cash_to_invest)} de caixa a investir` : undefined}
+          />
         </Card>
         <Card>
           <Stat
@@ -234,6 +240,8 @@ function Carteira() {
   );
 }
 
+const HISTORY_SHOWN = 20;
+
 function TxHistory({
   loading,
   data,
@@ -248,6 +256,7 @@ function TxHistory({
   onChanged: () => void;
 }) {
   const [err, setErr] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   if (loading && !data) return <Loading />;
   if (!data?.length) return <p className="text-sm text-muted">Nenhuma operação registrada.</p>;
   async function remove(t: Transaction) {
@@ -283,7 +292,7 @@ function TxHistory({
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {data.map((t) => (
+            {visibleItems(data, HISTORY_SHOWN, showAll).map((t) => (
               <tr key={t.id} className={t.id === editingId ? "bg-accent-soft" : ""}>
                 <td className={`${TD} pl-6`}>{dateBr(t.date)}</td>
                 <td className={`${TD} font-semibold`}>{t.ticker}</td>
@@ -303,6 +312,9 @@ function TxHistory({
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="px-0 pt-1">
+        <ShowMoreButton hidden={hiddenCount(data.length, HISTORY_SHOWN, showAll)} onClick={() => setShowAll(true)} />
       </div>
     </>
   );
