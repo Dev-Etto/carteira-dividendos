@@ -18,7 +18,7 @@ Cada módulo cuida de um assunto e é o único lugar onde banco, motor e provide
 
 ## Atualização de dados
 
-`sync.py` roda as etapas em ordem: `universo`, `macro`, `tesouro`, `cvm`, `itr`, `fiis`, `etfs`, `mercado`, `avaliacoes`. Cada etapa é independente: uma falha é registrada em `sync_runs` e as seguintes continuam. `make sync ETAPAS=macro,mercado` roda só algumas.
+`sync.py` roda as etapas em ordem: `universo`, `macro`, `tesouro`, `cvm`, `itr`, `bancos`, `fiis`, `etfs`, `mercado`, `avaliacoes`. Cada etapa é independente: uma falha é registrada em `sync_runs` e as seguintes continuam. `make sync ETAPAS=macro,mercado` roda só algumas.
 
 Para criar uma etapa, escreva a função que grava os dados, inclua o nome em `STEPS` e a função no mapa de etapas. A etapa precisa poder rodar de novo sem duplicar nada, por isso use `upsert`.
 
