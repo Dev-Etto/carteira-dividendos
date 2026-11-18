@@ -20,6 +20,7 @@ const STEP_LABEL: Record<string, string> = {
   fiis: "Informes de FIIs (CVM)",
   etfs: "Patrimônio dos ETFs (CVM)",
   mercado: "Preços e proventos",
+  proventos: "Proventos que faltam no Yahoo (B3)",
   avaliacoes: "Avaliações",
 };
 
