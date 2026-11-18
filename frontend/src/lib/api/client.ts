@@ -19,6 +19,9 @@ export type TransactionIn = S["TransactionIn"];
 export type RuleConfigItem = S["RuleConfigItem"];
 export type AllocationItem = S["AllocationItem"];
 export type SyncStatus = S["SyncStatus"];
+export type Methods = S["MethodsOut"];
+export type Method = S["MethodOut"];
+export type MethodVerdict = S["MethodVerdictOut"];
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 

@@ -318,6 +318,14 @@ export const GLOSSARIO: Termo[] = [
     categoria: "carteira",
   },
   {
+    slug: "metodologias",
+    termo: "Metodologias",
+    curto: "O conjunto de regras que o app usa para avaliar ações e dividir a carteira.",
+    explicacao:
+      "Cada investidor famoso tem um jeito de escolher ações e de dividir o dinheiro entre as classes. O app calcula o veredito de cada ação em todas as metodologias e mostra o da que você escolheu; a ficha da ação mostra os outros para comparar. Trocar de metodologia muda vereditos e recomendações de compra, nunca vende nada.",
+    categoria: "carteira",
+  },
+  {
     slug: "fii",
     termo: "FII (fundo imobiliário)",
     curto: "Fundo negociado na bolsa que investe em imóveis ou em dívidas ligadas a imóveis.",

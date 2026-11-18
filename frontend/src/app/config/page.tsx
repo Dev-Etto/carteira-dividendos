@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Button, Card, ErrorBox, Field, inputCls, Loading, PageHeader } from "@/components/ui";
-import { api, type AllocationItem, type ProfileOut, type RuleConfigItem, type SyncStatus } from "@/lib/api/client";
+import { api, type AllocationItem, type Methods, type ProfileOut, type RuleConfigItem, type SyncStatus } from "@/lib/api/client";
 import { CLASS_LABEL, num, parseNumber, PROFILE_LABEL } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
@@ -111,6 +111,7 @@ function ruleValue(key: string, text: string): number | null {
 }
 
 export default function Config() {
+  const [methodsVersion, setMethodsVersion] = useState(0);
   return (
     <div className="space-y-6">
       <PageHeader title="Configurações" subtitle="Dados do mercado, seu perfil, a divisão da carteira e os limites das regras." />
@@ -118,7 +119,8 @@ export default function Config() {
         <SyncCard />
         <div className="space-y-5">
           <ProfileCard />
-          <AllocationCard />
+          <MethodsCard onSaved={() => setMethodsVersion((v) => v + 1)} />
+          <AllocationCard key={methodsVersion} />
         </div>
       </div>
       <RulesCard />
@@ -197,6 +199,73 @@ function ProfileCard() {
       <p className="text-sm text-ink">
         {data.onboarded ? `${PROFILE_LABEL[data.risk_profile]}: ${data.risk_description}` : "Ainda não definido."}
       </p>
+    </Card>
+  );
+}
+
+/** Metodologias: uma para escolher as ações e outra para dividir a carteira. */
+function MethodsCard({ onSaved }: { onSaved: () => void }) {
+  const methods = useApi<Methods>("/api/metodos");
+  const profile = useApi<ProfileOut>("/api/perfil");
+  const [choice, setChoice] = useState<{ selection_method?: string; allocation_method?: string }>({});
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  if (!methods.data || !profile.data) return null;
+  const selection = choice.selection_method ?? profile.data.selection_method;
+  const allocation = choice.allocation_method ?? profile.data.allocation_method;
+  const pickedSelection = methods.data.selection.find((m) => m.key === selection);
+  const pickedAllocation = methods.data.allocation.find((m) => m.key === allocation);
+  async function save() {
+    setErr(null);
+    setMsg(null);
+    try {
+      await api.put("/api/perfil/metodos", { selection_method: selection, allocation_method: allocation });
+      setChoice({});
+      await profile.reload();
+      onSaved();
+      setMsg("Metodologias salvas. Vereditos e recomendações já seguem a escolha.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+  return (
+    <Card title="Metodologias" help="metodologias">
+      <div className="space-y-4">
+        <Field label="Para escolher as ações">
+          <select
+            className={inputCls}
+            value={selection}
+            onChange={(e) => setChoice((c) => ({ ...c, selection_method: e.target.value }))}
+          >
+            {methods.data.selection.map((m) => (
+              <option key={m.key} value={m.key}>
+                {m.label} ({m.author})
+              </option>
+            ))}
+          </select>
+        </Field>
+        {pickedSelection && <p className="text-[13px] text-muted">{pickedSelection.summary}</p>}
+        <Field label="Para dividir a carteira">
+          <select
+            className={inputCls}
+            value={allocation}
+            onChange={(e) => setChoice((c) => ({ ...c, allocation_method: e.target.value }))}
+          >
+            {methods.data.allocation.map((m) => (
+              <option key={m.key} value={m.key}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {pickedAllocation && <p className="text-[13px] text-muted">{pickedAllocation.summary}</p>}
+        <p className="text-[13px] text-subtle">Trocar a divisão substitui a divisão-alvo abaixo pela sugerida pelo método.</p>
+        <div className="flex items-center gap-3">
+          <Button onClick={() => void save()}>Salvar metodologias</Button>
+          {msg && <span className="text-sm text-good">{msg}</span>}
+        </div>
+        {err && <p className="text-sm text-bad">{err}</p>}
+      </div>
     </Card>
   );
 }
