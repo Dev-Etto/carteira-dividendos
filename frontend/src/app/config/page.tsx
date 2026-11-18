@@ -131,6 +131,7 @@ const MONEY_RULES = new Set([
   "etf_liquidez_min",
   "etf_pl_ok",
   "etf_pl_min",
+  "graham_receita_min",
 ]);
 
 /** Limites que só fazem sentido inteiros (anos, número de imóveis, nota). */
@@ -142,6 +143,10 @@ const INTEGER_RULES = new Set([
   "fii_anos_min",
   "fii_imoveis_ok",
   "fii_imoveis_min",
+  "bazin_anos_pagando",
+  "graham_anos_lucro",
+  "graham_anos_proventos",
+  "graham_pl_ligado_juros",
 ]);
 
 const MAX_SCORE = 100;
