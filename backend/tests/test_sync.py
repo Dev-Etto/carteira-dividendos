@@ -20,11 +20,12 @@ from app.db.models import (
     Fundamental,
     MacroRate,
     PriceDaily,
+    QuarterlyFundamental,
     SyncRun,
     TreasuryBond,
 )
 from app.providers.base import DividendEvent, PricePoint, SplitInfo
-from app.providers.cvm import AnnualStatement
+from app.providers.cvm import AnnualStatement, QuarterStatement
 from app.providers.cvm_etf import IndexFund, name_key
 from app.providers.cvm_fii import FiiMonthly, FiiQuarterly
 from app.providers.tesouro import BondQuote
@@ -108,6 +109,14 @@ def yahoo(monkeypatch) -> FakeYahoo:
             raise httpx.HTTPStatusError("404", request=httpx.Request("GET", "https://cvm"), response=httpx.Response(404))
         return {TAEE_CNPJ: AnnualStatement(TAEE_CNPJ, year, None, {"net_income": 1e9, "equity": 6e9})}
 
+    async def fetch_itr(year: int, cnpjs: set[str]) -> list[QuarterStatement]:
+        ends = {1: date(year, 3, 31), 2: date(year, 6, 30), 3: date(year, 9, 30)}
+        return [
+            QuarterStatement(TAEE_CNPJ, year, q, end, {"net_income": 2e8, "equity": 5.5e9 + q * 1e8})
+            for q, end in ends.items()
+            if TAEE_CNPJ in cnpjs
+        ]
+
     async def brapi_quote(ticker: str) -> None:
         return None
 
@@ -133,6 +142,7 @@ def yahoo(monkeypatch) -> FakeYahoo:
     monkeypatch.setattr(sync.tesouro, "fetch_bonds", fetch_bonds)
     monkeypatch.setattr(sync.cvm, "fetch_ticker_map", fetch_ticker_map)
     monkeypatch.setattr(sync.cvm, "fetch_dfp", fetch_dfp)
+    monkeypatch.setattr(sync.cvm, "fetch_itr", fetch_itr)
     monkeypatch.setattr(sync.market, "yahoo_history", fake)
     monkeypatch.setattr(sync.market, "brapi_quote", brapi_quote)
 
@@ -337,3 +347,18 @@ async def test_sync_completo_avalia_os_etfs(db, yahoo):
     regras = {r["id"]: r for r in avaliacao.rules}
     assert regras["etf-patrimonio"]["status"] == "ok"
     assert regras["etf-taxa-adm"]["status"] == "na"
+
+
+async def test_itr_grava_trimestres_e_calcula_o_quarto_pela_dfp(db, yahoo):
+    assert await sync.run_full_sync(db) is True
+    taee = _asset(db, "TAEE11")
+    rows = {
+        (q.year, q.quarter): q for q in db.scalars(select(QuarterlyFundamental).where(QuarterlyFundamental.asset_id == taee.id))
+    }
+    com_dfp = TODAY.year - 2
+    assert {q for (y, q) in rows if y == com_dfp} == {1, 2, 3, 4}
+    quarto = rows[(com_dfp, 4)]
+    assert quarto.source == "dfp-itr"
+    assert quarto.net_income == pytest.approx(1e9 - 3 * 2e8)
+    assert quarto.equity == 6e9
+    assert (TODAY.year - 1, 4) not in rows
