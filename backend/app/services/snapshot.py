@@ -8,8 +8,18 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Asset, Dividend, EtfReport, FiiQuarterlyReport, FiiReport, Fundamental, PriceDaily, SectorMetric
-from app.engine.types import EtfSnapshot, FiiKind, FiiSnapshot, StockSnapshot, YearFundamentals
+from app.db.models import (
+    Asset,
+    Dividend,
+    EtfReport,
+    FiiQuarterlyReport,
+    FiiReport,
+    Fundamental,
+    PriceDaily,
+    QuarterlyFundamental,
+    SectorMetric,
+)
+from app.engine.types import EtfSnapshot, FiiKind, FiiSnapshot, QuarterFundamentals, StockSnapshot, YearFundamentals
 from app.services.macro import latest_rate, ntnb_real_rate
 
 LIQUIDITY_WINDOW = 63
@@ -126,7 +136,17 @@ def build_stock_snapshot(db: Session, asset: Asset, today: date | None = None) -
         pb_history=pb_hist,
         current_year=today.year,
         ntnb_real=ntnb_real_rate(db),
+        quarters=stock_quarters(db, asset.id),
     )
+
+
+def stock_quarters(db: Session, asset_id: int) -> list[QuarterFundamentals]:
+    rows = db.scalars(
+        select(QuarterlyFundamental)
+        .where(QuarterlyFundamental.asset_id == asset_id)
+        .order_by(QuarterlyFundamental.year, QuarterlyFundamental.quarter)
+    )
+    return [QuarterFundamentals(year=q.year, quarter=q.quarter, revenue=q.revenue, net_income=q.net_income) for q in rows]
 
 
 def _report_fields(report: FiiReport | None) -> dict[str, Any]:

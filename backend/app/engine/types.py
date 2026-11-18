@@ -80,6 +80,21 @@ class YearFundamentals:
         return self.operating_cash_flow + self.investing_cash_flow
 
 
+@dataclass(frozen=True)
+class QuarterFundamentals:
+    """Resultado de um trimestre (só os 3 meses), do ITR ou, no 4º, da DFP menos os três primeiros."""
+
+    year: int
+    quarter: int
+    revenue: float | None = None
+    net_income: float | None = None
+
+    @property
+    def index(self) -> int:
+        """Posição contínua do trimestre (ano × 4 + trimestre), para achar trimestres seguidos."""
+        return self.year * 4 + self.quarter
+
+
 @dataclass
 class StockSnapshot:
     """Tudo o que o motor de ações precisa saber sobre um ativo, já carregado.
@@ -90,6 +105,7 @@ class StockSnapshot:
     dividends_by_year: proventos por ação somados por ano civil (anos completos).
     pe_history / pb_history: séries mensais de P/L e P/VP dos últimos 5 anos, para "barato vs si mesmo".
     ntnb_real: juro real da NTN-B (Tesouro IPCA+) mais longa, em fração; o Graham liga o P/L máximo a ele.
+    quarters: resultados trimestrais em ordem cronológica.
     """
 
     ticker: str
@@ -108,6 +124,7 @@ class StockSnapshot:
     pb_history: list[float] = field(default_factory=list)
     current_year: int = 2026
     ntnb_real: float | None = None
+    quarters: list[QuarterFundamentals] = field(default_factory=list)
 
 
 @dataclass
