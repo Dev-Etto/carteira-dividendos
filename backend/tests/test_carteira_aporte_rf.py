@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.engine.aporte import Candidate, build_plan, split_by_class
+from app.engine.aporte import Candidate, build_plan, fund_one_unit, split_by_class
 from app.engine.carteira import SplitEvent, Tx, compute_position, entitled_income, quantity_on
 from app.engine.perfil import profile_from_answers
 from app.engine.renda_fixa import (
@@ -313,3 +313,36 @@ def test_aporte_sem_etf_favorito_deixa_nota():
         stock_candidates=[],
     )
     assert any("Nenhum ETF favorito apto" in n for n in plan.notes)
+
+
+def test_classe_abaixo_do_alvo_recebe_uma_cota_mesmo_que_a_parte_dela_nao_pague():
+    ajustado = fund_one_unit({"acoes": 553.0, "internacional": 447.0}, {"internacional": 483.47}, {"internacional": 600.0})
+    assert ajustado["internacional"] == 483.47
+    assert ajustado["acoes"] == pytest.approx(1000 - 483.47)
+    sem_deficit = fund_one_unit({"acoes": 553.0, "internacional": 447.0}, {"internacional": 483.47}, {"internacional": 300.0})
+    assert sem_deficit["internacional"] == 447.0
+
+
+def test_plano_compra_a_cota_internacional_e_explica_quando_nao_da():
+    ivvb = [Candidate("IVVB11", "iShares S&P 500", 483.47, 100, 0.0, "etf")]
+    plano = build_plan(
+        amount=1000,
+        reserve_current=0,
+        reserve_target=0,
+        class_current={"acoes": 2600.0, "internacional": 2400.0},
+        targets={"acoes": 50.0, "internacional": 50.0},
+        stock_candidates=[],
+        international_candidates=ivvb,
+    )
+    assert [(ln.ticker, ln.quantity) for ln in plano.lines if ln.asset_class == "internacional"] == [("IVVB11", 1)]
+    caro = build_plan(
+        amount=300,
+        reserve_current=0,
+        reserve_target=0,
+        class_current={"acoes": 0.0, "internacional": 0.0},
+        targets={"acoes": 50.0, "internacional": 50.0},
+        stock_candidates=[],
+        international_candidates=ivvb,
+    )
+    caixa = next(ln for ln in caro.lines if ln.asset_class == "caixa")
+    assert "a cota de IVVB11 (R$ 483,47) não coube na parte da classe" in caixa.reason
