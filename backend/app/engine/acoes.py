@@ -333,6 +333,26 @@ def rule_liquidez(s: StockSnapshot, c: Rules) -> RuleResult:
     return _rule(**base, status=status, value=v, value_display=fmt.brl(v), explanation=exp)
 
 
+def linked_yield(fixed: float, linked: float, real_rate: float | None) -> float:
+    """Yield-alvo efetivo. Barsi e Bazin usavam 6% nominal, calibrado para o Brasil de 1970–1990; com a
+    opção ligada (linked ≥ 1), o alvo passa a ser o maior entre o fixo e o juro real do Tesouro IPCA+,
+    para o dividendo render ao menos o que a renda fixa sem risco já paga acima da inflação."""
+    if linked < 1 or real_rate is None:
+        return fixed
+    return max(fixed, real_rate)
+
+
+def with_linked_yields(c: Rules, s: StockSnapshot) -> Rules:
+    """Limites com os yields-alvo do Barsi e do Bazin já ajustados ao juro real, quando a opção está ligada.
+    O yield exigente nunca fica abaixo do normal."""
+    target = linked_yield(c["yield_alvo"], c["yield_ligado_juros"], s.ntnb_real)
+    return c | {
+        "yield_alvo": target,
+        "yield_alvo_exigente": max(c["yield_alvo_exigente"], target),
+        "bazin_yield_alvo": linked_yield(c["bazin_yield_alvo"], c["bazin_yield_ligado_juros"], s.ntnb_real),
+    }
+
+
 def ceiling_price(s: StockSnapshot, yield_target: float) -> float | None:
     vals = [s.dividends_by_year.get(y, 0.0) for y in _last_full_years(s, 5)]
     if sum(v > 0 for v in vals) < 3:
@@ -673,7 +693,7 @@ def graham_value(s: StockSnapshot, multiple: float = 22.5) -> float | None:
 
 
 def evaluate_stock(s: StockSnapshot, overrides: dict[str, float] | None = None) -> Evaluation:
-    c = merged_rules(overrides)
+    c = with_linked_yields(merged_rules(overrides), s)
     rules: list[RuleResult] = [
         rule_setor(s),
         rule_historico(s, c),

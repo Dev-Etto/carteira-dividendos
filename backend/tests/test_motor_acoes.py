@@ -247,3 +247,14 @@ def test_limites_inconsistentes():
     assert "roe_min (0.2) não pode ser maior que roe_ok (0.15)" in errors
     assert "yield_alvo precisa ser maior que zero" in errors
     assert "liquidez_min não pode ser negativo" in errors
+
+
+def test_yield_alvo_ligado_ao_juro_real():
+    assert acoes.linked_yield(0.06, 0, 0.08) == 0.06
+    assert acoes.linked_yield(0.06, 1, 0.08) == 0.08
+    assert acoes.linked_yield(0.06, 1, 0.04) == 0.06
+    assert acoes.linked_yield(0.06, 1, None) == 0.06
+    fixo = evaluate_stock(transmissora(ntnb_real=0.08))
+    ligado = evaluate_stock(transmissora(ntnb_real=0.08), {"yield_ligado_juros": 1})
+    assert ligado.ceiling_price == pytest.approx(fixo.ceiling_price * 0.06 / 0.08)
+    assert ligado.extras["yield_alvo_exigente"] >= ligado.extras["yield_alvo"]
