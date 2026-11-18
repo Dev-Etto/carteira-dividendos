@@ -32,12 +32,17 @@ class AssetRow(BaseModel):
 
 
 class AssetDetail(AssetRow):
+    """method: a metodologia desta avaliação; other_methods: o veredito do ativo nas demais (só ações)."""
+
     summary: str | None
     rules: list[RuleResult]
     extras: dict
     economic_group: str | None
     data_sources: dict[str, str | None]
     risks: list[str]
+    method: str = "barsi"
+    method_label: str = ""
+    other_methods: list["MethodVerdictOut"] = []
 
 
 class AssetCreate(BaseModel):
@@ -125,6 +130,39 @@ class ProfileOut(ORM):
     passive_income_goal: Decimal
     onboarded: bool
     answers: dict[str, int] = Field(default_factory=dict)
+    selection_method: str = "barsi"
+    allocation_method: str = "perfil"
+
+
+class MethodOut(BaseModel):
+    """Uma metodologia como a tela mostra. focus: renda | valor | valorizacao | divisao."""
+
+    key: str
+    label: str
+    author: str
+    summary: str
+    focus: str
+
+
+class MethodsOut(BaseModel):
+    selection: list[MethodOut]
+    allocation: list[MethodOut]
+
+
+class MethodChoiceIn(BaseModel):
+    selection_method: str
+    allocation_method: str
+
+
+class MethodVerdictOut(BaseModel):
+    """O veredito do ativo em outra metodologia de seleção, para comparar na ficha."""
+
+    key: str
+    label: str
+    score: int
+    verdict: str
+    summary: str
+    ceiling_price: float | None
 
 
 class AllocationItem(BaseModel):
