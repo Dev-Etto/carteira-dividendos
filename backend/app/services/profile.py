@@ -8,13 +8,12 @@ from sqlalchemy.orm import Session
 from app.core.errors import BusinessRuleError
 from app.db.models import AllocationTarget, Profile, RuleConfig
 from app.engine.config import DEFAULT_RULES, merged_rules, rule_errors
+from app.engine.metodos.base import MetodoDivisao
 from app.engine.metodos.registro import allocation_method
 from app.engine.perfil import DESCRIPTIONS, QUESTIONS, profile_from_answers
 from app.engine.renda_fixa import emergency_target, reserve_months_for
 from app.schemas.api import AllocationItem, ProfileIn, ProfileOut, Question, QuestionOption, RuleConfigItem
 from app.services.evaluation import evaluate_all
-
-ASSET_CLASSES = ("renda_fixa", "acoes", "fiis", "etfs")
 
 
 def get_profile(db: Session) -> Profile:
@@ -26,6 +25,11 @@ def get_profile(db: Session) -> Profile:
     db.add(profile)
     db.commit()
     return profile
+
+
+def current_allocation(db: Session) -> MetodoDivisao:
+    """Metodologia de divisão escolhida no perfil."""
+    return allocation_method(get_profile(db).allocation_method)
 
 
 def reserve_target(profile: Profile) -> float:
@@ -75,21 +79,25 @@ def save_profile(db: Session, body: ProfileIn) -> ProfileOut:
 
 
 def targets(db: Session) -> dict[str, float]:
-    """Divisão-alvo salva; sem nenhuma salva, a sugerida pela metodologia de divisão do perfil."""
-    saved = {t.asset_class: t.weight_pct for t in db.scalars(select(AllocationTarget))}
+    """Divisão-alvo salva, nas classes da metodologia de divisão; sem nenhuma salva (ou salva para
+    outras classes), a sugerida pela metodologia."""
     profile = get_profile(db)
-    return saved or allocation_method(profile.allocation_method).targets(profile.risk_profile)
+    method = allocation_method(profile.allocation_method)
+    saved = {t.asset_class: t.weight_pct for t in db.scalars(select(AllocationTarget))}
+    return saved if set(saved) == set(method.classes) else method.targets(profile.risk_profile)
 
 
 def read_allocation(db: Session) -> list[AllocationItem]:
     current = targets(db)
-    return [AllocationItem(asset_class=cls, weight_pct=current.get(cls, 0.0)) for cls in ASSET_CLASSES]
+    return [AllocationItem(asset_class=cls, weight_pct=current.get(cls, 0.0)) for cls in current_allocation(db).classes]
 
 
 def save_allocation(db: Session, items: list[AllocationItem]) -> list[AllocationItem]:
-    if abs(sum(i.weight_pct for i in items) - 100) > 0.01:
-        raise BusinessRuleError("Os pesos precisam somar 100%")
-    replace_targets(db, {i.asset_class: i.weight_pct for i in items})
+    weights: dict[str, float] = {i.asset_class: i.weight_pct for i in items}
+    problems = current_allocation(db).errors(weights)
+    if problems:
+        raise BusinessRuleError(problems[0])
+    replace_targets(db, weights)
     db.commit()
     return items
 

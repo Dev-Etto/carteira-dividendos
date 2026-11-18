@@ -29,6 +29,7 @@ class AssetRow(BaseModel):
     avg_daily_volume_brl: float | None = None
     evaluated_on: date | None
     favorite: bool = False
+    region: str = "nacional"
 
 
 class AssetDetail(AssetRow):
@@ -66,11 +67,13 @@ class AssetUpdate(BaseModel):
     """Ajustes do usuário num ETF. Só os campos enviados mudam; null apaga o valor informado.
 
     admin_fee: taxa de administração ao ano, em fração (0,005 = 0,5%).
-    distributes: se o ETF repassa os proventos (true) ou reinveste (false)."""
+    distributes: se o ETF repassa os proventos (true) ou reinveste (false).
+    region: se o índice do ETF é brasileiro (nacional) ou estrangeiro (internacional)."""
 
     favorite: bool | None = None
     admin_fee: float | None = Field(default=None, ge=0, le=0.1)
     distributes: bool | None = None
+    region: Literal["nacional", "internacional"] | None = None
 
 
 class PricePointOut(BaseModel):
@@ -166,7 +169,7 @@ class MethodVerdictOut(BaseModel):
 
 
 class AllocationItem(BaseModel):
-    asset_class: Literal["renda_fixa", "acoes", "fiis", "etfs"]
+    asset_class: Literal["renda_fixa", "acoes", "fiis", "etfs", "internacional"]
     weight_pct: float = Field(ge=0, le=100)
 
 
