@@ -6,7 +6,7 @@ Cada provider baixa uma fonte e a transforma em objetos simples (dataclasses de 
 | --- | --- |
 | `bcb.py` | Banco Central, API SGS: Selic, CDI e IPCA. |
 | `tesouro.py` | Tesouro Transparente: preços e taxas do Tesouro Direto. |
-| `cvm.py` | CVM: balanços anuais (DFP) e cadastro das companhias (FCA). |
+| `cvm.py` | CVM: balanços anuais (DFP), trimestrais (ITR) e cadastro das companhias (FCA). |
 | `cvm_fii.py` | CVM: informes mensal e trimestral dos FIIs. |
 | `cvm_etf.py` | CVM: cadastro de classes de fundos, para o patrimônio dos ETFs. |
 | `market.py` | Yahoo Finance (preços, proventos, desdobramentos) e brapi (cotação). |
