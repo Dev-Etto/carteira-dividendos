@@ -8,6 +8,9 @@ from sqlalchemy import select
 
 from app.db.models import Asset, Dividend, Fundamental, PriceDaily
 from app.db.session import SessionLocal
+from app.engine.metodos.base import MethodInfo, MetodoPorAtivo
+from app.engine.metodos.registro import SELECTION_METHODS
+from app.engine.types import Evaluation
 from app.main import app
 from app.services.evaluation import evaluate_all
 
@@ -337,3 +340,54 @@ def test_novo_etf_dispara_etapa_de_etfs(client, monkeypatch):
     assert r.status_code == 201, r.text
     assert r.json()["sector"] == "etf"
     assert chamadas == [({"etfs", "mercado", "avaliacoes"}, {"HASH11"})]
+
+
+class SempreEvitar(MetodoPorAtivo):
+    """Metodologia falsa, só para provar que o app lida com mais de uma sem conhecer nenhuma."""
+
+    info = MethodInfo(key="teste", label="Método de teste", author="testes", summary="Reprova tudo.", focus="valor")
+
+    def evaluate_one(self, snapshot, rules):
+        return Evaluation(ticker=snapshot.ticker, score=10, verdict="evitar", summary="Reprovada.", rules=[], engine_version="t")
+
+
+@pytest.fixture
+def dois_metodos(client, monkeypatch):
+    monkeypatch.setitem(SELECTION_METHODS, "teste", SempreEvitar())
+    with SessionLocal() as db:
+        evaluate_all(db)
+    yield
+    client.put("/api/perfil/metodos", json={"selection_method": "barsi", "allocation_method": "perfil"})
+
+
+def test_lista_metodologias(client):
+    metodos = client.get("/api/metodos").json()
+    assert metodos["selection"][0]["key"] == "barsi"
+    assert [m["key"] for m in metodos["allocation"]] == ["perfil"]
+    assert metodos["selection"][0]["author"] == "Luiz Barsi Filho"
+
+
+def test_metodologia_desconhecida_e_recusada(client):
+    r = client.put("/api/perfil/metodos", json={"selection_method": "nada", "allocation_method": "perfil"})
+    assert r.status_code == 422
+    assert "desconhecida" in r.json()["detail"]
+
+
+def test_escolher_metodologia_muda_o_veredito_mostrado(client, dois_metodos):
+    antes = client.get("/api/ativos/TAEE11").json()
+    assert antes["method"] == "barsi"
+    assert [m["key"] for m in antes["other_methods"]] == ["teste"]
+    perfil = client.put("/api/perfil/metodos", json={"selection_method": "teste", "allocation_method": "perfil"}).json()
+    assert perfil["selection_method"] == "teste"
+    depois = client.get("/api/ativos/TAEE11").json()
+    assert (depois["method"], depois["method_label"], depois["verdict"], depois["score"]) == (
+        "teste",
+        "Método de teste",
+        "evitar",
+        10,
+    )
+    assert [m["key"] for m in depois["other_methods"]] == ["barsi"]
+    linha = next(a for a in client.get("/api/ativos", params={"classe": "acao"}).json() if a["ticker"] == "TAEE11")
+    assert linha["verdict"] == "evitar"
+    fii = client.get("/api/ativos/HGLG11").json()
+    assert (fii["method"], fii["other_methods"]) == ("fii", [])
