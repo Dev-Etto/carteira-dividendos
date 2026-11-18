@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
 import { AllocationBars } from "@/components/AllocationBars";
+import { DateInput, IntegerInput, MoneyInput, TickerInput } from "@/components/inputs";
 import {
   Button,
   Card,
@@ -21,10 +22,11 @@ import {
 } from "@/components/ui";
 import { Investidor10Link } from "@/components/Investidor10Link";
 import { api, type AssetRow, type Portfolio, type Transaction } from "@/lib/api/client";
-import { brl, dateBr, decimalStr, groupLabel, num, pct, todayIso } from "@/lib/format";
+import { brl, dateBr, groupLabel, num, pct, todayIso } from "@/lib/format";
 import { decimalInput, scrollAndFocus } from "@/lib/inputs";
 import { useApi } from "@/lib/useApi";
 import { TickerOptions, useTickers } from "@/lib/useTickers";
+import { canSubmit, checkDate, checkInteger, checkMoney, checkTicker } from "@/lib/validation";
 
 const TH = "whitespace-nowrap px-3.5 py-3 font-semibold";
 const TD = "whitespace-nowrap px-3.5 py-3";
@@ -343,15 +345,25 @@ function TxForm({
   useEffect(() => {
     if (focusOnMount) scrollAndFocus(cardRef.current, quantityRef.current);
   }, [focusOnMount]);
-  const set = (k: keyof TxFields) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setF((s) => ({ ...s, [k]: e.target.value }));
+  const set = (k: keyof TxFields) => (text: string) => setF((s) => ({ ...s, [k]: text }));
+  const checks = {
+    ticker: checkTicker(f.ticker),
+    date: checkDate(f.date, { max: todayIso() }),
+    quantity: checkInteger(f.quantity, { positive: true }),
+    price: checkMoney(f.price, { positive: true }),
+    fees: checkMoney(f.fees),
+  };
+  const ready = canSubmit([checks.ticker, checks.date, checks.quantity, checks.price], [checks.fees]);
   async function save() {
     setErr(null);
     setOk(false);
-    const nums = { quantity: decimalStr(f.quantity), price: decimalStr(f.price), fees: decimalStr(f.fees || "0") };
-    if (Object.values(nums).some((v) => v === null))
-      return setErr("Quantidade, preço e taxas precisam ser números (ex.: 34,50).");
-    const body = { ...f, ...nums, ticker: f.ticker.trim().toUpperCase() };
+    const body = {
+      ...f,
+      ticker: checks.ticker.value,
+      quantity: String(checks.quantity.value),
+      price: String(checks.price.value),
+      fees: String(checks.fees.value ?? 0),
+    };
     try {
       await (editing ? api.put(`/api/transacoes/${editing.id}`, body) : api.post("/api/transacoes", body));
       setF((s) => ({ ...s, quantity: "", price: "", fees: "0" }));
@@ -365,37 +377,31 @@ function TxForm({
     <div ref={cardRef} className="scroll-mt-6">
       <Card title={editing ? `Editar operação de ${editing.ticker} em ${dateBr(editing.date)}` : "Registrar operação"}>
         <div className="grid gap-3 sm:grid-cols-6">
-          <Field label="Ticker">
-            <input
-              className={inputCls}
-              list="tickers-carteira"
-              value={f.ticker}
-              onChange={(e) => setF((s) => ({ ...s, ticker: e.target.value.toUpperCase() }))}
-              placeholder="TAEE11"
-            />
+          <Field label="Ticker" error={checks.ticker.error}>
+            <TickerInput list="tickers-carteira" value={f.ticker} onValueChange={set("ticker")} placeholder="TAEE11" />
             <TickerOptions id="tickers-carteira" assets={tickers} />
           </Field>
-          <Field label="Data">
-            <input type="date" className={inputCls} value={f.date} max={todayIso()} onChange={set("date")} />
+          <Field label="Data" error={checks.date.error}>
+            <DateInput value={f.date} max={todayIso()} onValueChange={set("date")} />
           </Field>
           <Field label="Tipo">
-            <select className={inputCls} value={f.kind} onChange={set("kind")}>
+            <select className={inputCls} value={f.kind} onChange={(e) => set("kind")(e.target.value)}>
               <option value="compra">Compra</option>
               <option value="venda">Venda</option>
             </select>
           </Field>
-          <Field label="Quantidade">
-            <input ref={quantityRef} className={inputCls} inputMode="numeric" value={f.quantity} onChange={set("quantity")} />
+          <Field label="Quantidade" error={checks.quantity.error}>
+            <IntegerInput ref={quantityRef} value={f.quantity} onValueChange={set("quantity")} />
           </Field>
-          <Field label="Preço (R$)">
-            <input className={inputCls} inputMode="decimal" value={f.price} onChange={set("price")} />
+          <Field label="Preço (R$)" error={checks.price.error}>
+            <MoneyInput value={f.price} onValueChange={set("price")} />
           </Field>
-          <Field label="Taxas (R$)">
-            <input className={inputCls} inputMode="decimal" value={f.fees} onChange={set("fees")} />
+          <Field label="Taxas (R$)" error={checks.fees.error}>
+            <MoneyInput value={f.fees} onValueChange={set("fees")} />
           </Field>
         </div>
         <div className="mt-4 flex items-center gap-3">
-          <Button onClick={save} disabled={!f.ticker || !f.quantity || !f.price}>
+          <Button onClick={save} disabled={!ready}>
             {editing ? "Salvar alterações" : "Salvar"}
           </Button>
           {editing && (

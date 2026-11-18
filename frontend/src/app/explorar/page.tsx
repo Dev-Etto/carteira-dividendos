@@ -18,11 +18,13 @@ import {
   VerdictBadge,
 } from "@/components/ui";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { TickerInput } from "@/components/inputs";
 import { Investidor10Link } from "@/components/Investidor10Link";
 import { api, type AssetRow } from "@/lib/api/client";
 import { brl, FII_KIND_LABEL, groupLabel, pct, SECTOR_LABEL } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 import { useSyncWatch } from "@/lib/useSyncWatch";
+import { checkTicker } from "@/lib/validation";
 
 const VERDICTS = ["", "comprar", "aguardar", "neutro", "evitar"];
 
@@ -363,12 +365,15 @@ function AddAsset({ assetClass, onDone }: { assetClass: AssetClass; onDone: (tic
   const [name, setName] = useState("");
   const [sector, setSector] = useState("perene");
   const [err, setErr] = useState<string | null>(null);
+  const tickerCheck = checkTicker(ticker);
   async function save() {
     setErr(null);
-    const body = { ticker, name: name || ticker, asset_class: assetClass, sector: assetClass === "acao" ? sector : null };
+    const code = tickerCheck.value;
+    if (code === null) return;
+    const body = { ticker: code, name: name || code, asset_class: assetClass, sector: assetClass === "acao" ? sector : null };
     try {
       await api.post("/api/ativos", body);
-      onDone(ticker);
+      onDone(code);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
@@ -376,13 +381,8 @@ function AddAsset({ assetClass, onDone }: { assetClass: AssetClass; onDone: (tic
   return (
     <Card title={form.title}>
       <div className="grid gap-3 sm:grid-cols-4">
-        <Field label="Ticker">
-          <input
-            className={inputCls}
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value.toUpperCase())}
-            placeholder={form.tickerHint}
-          />
+        <Field label="Ticker" error={tickerCheck.error}>
+          <TickerInput value={ticker} onValueChange={setTicker} placeholder={form.tickerHint} />
         </Field>
         <Field label="Nome">
           <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={form.nameHint} />
@@ -399,7 +399,7 @@ function AddAsset({ assetClass, onDone }: { assetClass: AssetClass; onDone: (tic
           </Field>
         )}
         <div className="flex items-end">
-          <Button onClick={save} disabled={ticker.length < 4}>
+          <Button onClick={save} disabled={tickerCheck.value === null}>
             Adicionar
           </Button>
         </div>
