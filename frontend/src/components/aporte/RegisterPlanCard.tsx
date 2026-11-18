@@ -101,13 +101,13 @@ export function RegisterPlanCard({ plan, onRegistered }: { plan: Plan; onRegiste
         Marque o que você fez, ajuste os valores reais e registre tudo de uma vez: ações, FIIs e ETFs entram na Carteira e as
         aplicações em Renda fixa.
       </p>
-      <ul className="divide-y divide-line">
+      <ul className="divide-y divide-line border-t border-line">
         {plan.lines.map((line, i) => (
           <PlanLineEntry key={i} line={line} entry={entries[i]} onChange={(patch) => update(i, patch)} />
         ))}
       </ul>
-      <div className="mt-4 flex flex-wrap items-end gap-3">
-        <div className="w-44">
+      <div className="mt-5 flex flex-wrap items-end gap-4 border-t border-line pt-5">
+        <div className="w-48">
           <Field label="Data da operação">
             <input type="date" className={inputCls} value={day} max={todayIso()} onChange={(e) => setDay(e.target.value)} />
           </Field>
@@ -129,20 +129,22 @@ function PlanLineEntry({ line, entry, onChange }: { line: PlanLine; entry?: Entr
   if (!entry) return null;
   const title = line.ticker ? `${line.ticker} · ${line.product}` : line.product;
   return (
-    <li className="flex flex-wrap items-start gap-3 py-3">
+    <li className="grid grid-cols-[24px_110px_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2 py-3 lg:grid-cols-[24px_110px_minmax(0,1fr)_minmax(0,340px)]">
       <input
         type="checkbox"
-        className="mt-1"
+        className="h-[18px] w-[18px] accent-accent"
         aria-label={`Registrar ${title}`}
         checked={entry.selected}
         disabled={!isRegistrable(line)}
         onChange={(e) => onChange({ selected: e.target.checked })}
       />
-      <div className="min-w-0 flex-1">
-        <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+      <span>
+        <span className="rounded-md bg-neutral-soft px-2 py-0.5 text-xs font-semibold text-muted">
           {CLASS_LABEL[line.asset_class] ?? line.asset_class}
-        </div>
-        <div className="text-sm font-semibold text-ink">{title}</div>
+        </span>
+      </span>
+      <span className="min-w-0 font-semibold text-ink">{title}</span>
+      <div className="col-start-3 lg:col-start-4">
         <LineFields line={line} entry={entry} onChange={onChange} />
       </div>
     </li>
@@ -152,7 +154,7 @@ function PlanLineEntry({ line, entry, onChange }: { line: PlanLine; entry?: Entr
 function LineFields({ line, entry, onChange }: { line: PlanLine; entry: Entry; onChange: (patch: Partial<Entry>) => void }) {
   if (line.ticker) {
     return (
-      <div className="mt-2 grid max-w-md gap-3 sm:grid-cols-2">
+      <div className="grid gap-2.5 sm:grid-cols-2">
         <Field label="Quantidade">
           <input
             className={inputCls}
@@ -176,7 +178,7 @@ function LineFields({ line, entry, onChange }: { line: PlanLine; entry: Entry; o
   }
   if (line.holding) {
     return (
-      <div className="mt-2 max-w-[14rem]">
+      <div>
         <Field label="Valor aplicado (R$)">
           <input
             className={inputCls}
@@ -191,7 +193,7 @@ function LineFields({ line, entry, onChange }: { line: PlanLine; entry: Entry; o
   }
   const params = new URLSearchParams({ nome: line.product, valor: num(line.amount, 2), reserva: "0" });
   return (
-    <p className="mt-1 text-sm text-muted">
+    <p className="text-sm text-muted">
       Aqui você escolhe o título ou CDB ({brl(line.amount)}).{" "}
       <Link className="font-semibold text-accent underline" href={`/renda-fixa?${params.toString()}`}>
         Cadastrar em Renda fixa →
