@@ -21,11 +21,13 @@ from app.db.models import (
     MacroRate,
     PriceDaily,
     QuarterlyFundamental,
+    SectorMetric,
     SyncRun,
     TreasuryBond,
 )
 from app.db.models import Filing as FilingRow
 from app.providers.base import DividendEvent, PricePoint, SplitInfo
+from app.providers.bcb_ifdata import Basel
 from app.providers.cvm import AnnualStatement, QuarterStatement
 from app.providers.cvm_etf import IndexFund, name_key
 from app.providers.cvm_fii import FiiMonthly, FiiQuarterly
@@ -150,6 +152,11 @@ def yahoo(monkeypatch) -> FakeYahoo:
     monkeypatch.setattr(sync.cvm, "fetch_dfp", fetch_dfp)
     monkeypatch.setattr(sync.cvm, "fetch_itr", fetch_itr)
     monkeypatch.setattr(sync.cvm_ipe, "fetch_filings", fetch_filings)
+
+    async def fetch_basel() -> list[Basel]:
+        return [Basel(BANK_CNPJ[:8], "BANCO - PRUDENCIAL", 15.35, "2T26"), Basel(BANK_CNPJ[:8], "BANCO", 9.0, "2T26")]
+
+    monkeypatch.setattr(sync.bcb_ifdata, "fetch_basel", fetch_basel)
     monkeypatch.setattr(sync.market, "yahoo_history", fake)
     monkeypatch.setattr(sync.market, "brapi_quote", brapi_quote)
 
@@ -378,3 +385,17 @@ async def test_comunicados_gravados_por_ativo_sem_duplicar(db, yahoo):
     gravados = list(db.scalars(select(FilingRow).where(FilingRow.asset_id == taee.id)))
     assert len(gravados) == sync.FILING_YEARS
     assert {f.category for f in gravados} == {"fato_relevante"}
+
+
+BANK_CNPJ = "60872504000123"
+
+
+async def test_basileia_do_ifdata_substitui_a_manual(db, yahoo):
+    await sync.run_full_sync(db)
+    itub = _asset(db, "ITUB4")
+    itub.cnpj = BANK_CNPJ
+    db.add(SectorMetric(asset_id=itub.id, key="basileia", value=12.0, source="manual", updated_at=TODAY))
+    db.commit()
+    assert await sync.sync_banks(db) == 1
+    metric = db.scalar(select(SectorMetric).where(SectorMetric.asset_id == itub.id, SectorMetric.key == "basileia"))
+    assert (metric.value, metric.reference, metric.source) == (15.35, "2T26", "BCB IF.data")
