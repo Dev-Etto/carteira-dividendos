@@ -26,6 +26,9 @@ Grupos de limites dos FIIs (prefixo fii_):
 - tijolo: número de imóveis e vacância física;
 - taxa de administração ao ano.
 
+Limites do método Bazin (prefixo bazin_): yield-alvo e yield de venda sobre os proventos dos últimos
+12 meses, anos seguidos pagando e dívida líquida ÷ patrimônio máxima.
+
 Limites dos ETFs (prefixo etf_): liquidez média diária (ideal e mínima, eliminatória), patrimônio
 (ideal e mínimo) e taxa de administração ao ano (ideal e máxima). ETFs não têm nota Barsi: o
 checklist só informa, e o aporte escolhe entre os favoritos do usuário.
@@ -72,6 +75,8 @@ FII_CONCENTRACAO = {
 FII_TIJOLO = {"fii_imoveis_ok": 8, "fii_imoveis_min": 4, "fii_vacancia_ok": 0.10, "fii_vacancia_max": 0.20}
 FII_TAXA = {"fii_taxa_adm_ok": 0.010, "fii_taxa_adm_max": 0.015}
 
+BAZIN = {"bazin_yield_alvo": 0.06, "bazin_yield_venda": 0.04, "bazin_anos_pagando": 3, "bazin_divida_pl_max": 1.0}
+
 ETF_LIMITES = {
     "etf_liquidez_ok": 5_000_000,
     "etf_liquidez_min": 1_000_000,
@@ -106,6 +111,7 @@ DEFAULT_RULES: dict[str, float] = {
     **FII_TIJOLO,
     **FII_TAXA,
     **ETF_LIMITES,
+    **BAZIN,
 }
 
 
@@ -145,8 +151,11 @@ ORDERED_LIMITS: tuple[tuple[str, str], ...] = (
     ("etf_liquidez_min", "etf_liquidez_ok"),
     ("etf_pl_min", "etf_pl_ok"),
     ("etf_taxa_adm_ok", "etf_taxa_adm_max"),
+    ("bazin_yield_venda", "bazin_yield_alvo"),
 )
-STRICTLY_POSITIVE = frozenset({"yield_alvo", "yield_alvo_exigente", "fii_pvp_papel_max", "fii_pvp_tijolo_max"})
+STRICTLY_POSITIVE = frozenset(
+    {"yield_alvo", "yield_alvo_exigente", "fii_pvp_papel_max", "fii_pvp_tijolo_max", "bazin_yield_alvo"}
+)
 
 
 def rule_errors(cfg: dict[str, float]) -> list[str]:

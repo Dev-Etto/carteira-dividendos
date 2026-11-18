@@ -180,6 +180,14 @@ export const GLOSSARIO: Termo[] = [
     categoria: "ações",
   },
   {
+    slug: "metodo-bazin",
+    termo: "Método Bazin",
+    curto: "Comprar quem paga pelo menos 6% ao ano em proventos, todo ano, com dívida moderada.",
+    explicacao:
+      "Décio Bazin, no livro Faça Fortuna com Ações (1992), só comprava ações que pagaram ao menos 6% do preço em dividendos e JCP nos últimos 12 meses, que pagam com regularidade e não devem demais. Vendia quando o yield caía a 4%. O livro não diz como medir a dívida: o app usa dívida líquida ÷ patrimônio até 1. Bancos e seguradoras não passam por essa regra. No app, o yield decide entre comprar e aguardar, e a nota mede só a qualidade.",
+    categoria: "ações",
+  },
+  {
     slug: "graham",
     termo: "Valor de Graham",
     curto: "√(22,5 × lucro por ação × valor patrimonial por ação).",
