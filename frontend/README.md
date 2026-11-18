@@ -4,13 +4,13 @@ Telas em Next.js (App Router) com Tailwind. Elas só falam com a API em `/api`, 
 
 ## Estrutura
 
-| Pasta | O que vai nela |
-| --- | --- |
-| `src/app/` | Uma pasta por rota (`page.tsx`). Partes grandes de uma tela ficam ao lado dela (ex.: `ativo/[ticker]/EtfParts.tsx`). |
-| `src/components/` | Componentes usados por mais de uma tela. `ui.tsx` reúne os básicos. |
-| `src/lib/` | Funções puras e hooks: formatação, links, séries de gráfico, `useApi`. Cada arquivo puro tem seu `*.test.ts`. |
-| `src/lib/api/` | Cliente da API e `schema.d.ts`, gerado do OpenAPI (`make types`). Não edite o gerado. |
-| `src/content/` | Textos longos, como o glossário. |
+| Pasta             | O que vai nela                                                                                                       |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `src/app/`        | Uma pasta por rota (`page.tsx`). Partes grandes de uma tela ficam ao lado dela (ex.: `ativo/[ticker]/EtfParts.tsx`). |
+| `src/components/` | Componentes usados por mais de uma tela. `ui.tsx` reúne os básicos.                                                  |
+| `src/lib/`        | Funções puras e hooks: formatação, links, séries de gráfico, `useApi`. Cada arquivo puro tem seu `*.test.ts`.        |
+| `src/lib/api/`    | Cliente da API e `schema.d.ts`, gerado do OpenAPI (`make types`). Não edite o gerado.                                |
+| `src/content/`    | Textos longos, como o glossário.                                                                                     |
 
 ## Padrões
 
