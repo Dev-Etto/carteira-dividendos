@@ -273,6 +273,7 @@ class PortfolioOut(BaseModel):
     classes: list[ClassSlice]
     sectors: dict[str, float]
     total_invested: float
+    cash_to_invest: float = 0.0
     reserve_value: float
     reserve_target: float
     income_12m: float
@@ -383,8 +384,12 @@ class FilingOut(BaseModel):
 
 
 class DashboardOut(BaseModel):
+    """total_invested: o que está nas classes da divisão; cash_to_invest: sobras de aportes guardadas para o
+    próximo plano. O patrimônio fora da reserva é a soma dos dois."""
+
     profile: ProfileOut
     total_invested: float
+    cash_to_invest: float = 0.0
     reserve_value: float
     reserve_target: float
     income_12m: float

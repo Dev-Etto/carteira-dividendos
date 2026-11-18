@@ -262,6 +262,7 @@ def build_portfolio(db: Session) -> PortfolioOut:
         classes=class_slices(state, targets(db)),
         sectors=state.sector_values,
         total_invested=state.total_invested,
+        cash_to_invest=state.cash_to_invest,
         reserve_value=state.reserve,
         reserve_target=reserve_target(profile),
         income_12m=state.income_12m,
