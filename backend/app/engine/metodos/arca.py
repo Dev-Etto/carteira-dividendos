@@ -25,6 +25,7 @@ class Arca(MetodoDivisao):
     classes = ("acoes", "fiis", "renda_fixa", INTERNATIONAL)
     min_weight = 10.0
     max_weight = 40.0
+    liquid_fixed_income = True
 
     def targets(self, risk_profile: str) -> dict[str, float]:
         return dict.fromkeys(self.classes, EQUAL_SHARE)
