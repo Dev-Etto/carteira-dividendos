@@ -399,3 +399,15 @@ async def test_basileia_do_ifdata_substitui_a_manual(db, yahoo):
     assert await sync.sync_banks(db) == 1
     metric = db.scalar(select(SectorMetric).where(SectorMetric.asset_id == itub.id, SectorMetric.key == "basileia"))
     assert (metric.value, metric.reference, metric.source) == (15.35, "2T26", "BCB IF.data")
+
+
+def test_cnpj_do_universo_cobre_ticker_que_o_fca_nao_liga():
+    assert sync.universe_cnpjs()["BPAC11"] == "30306294000145"
+    assert "ITUB4" not in sync.universe_cnpjs()
+
+
+async def test_cnpj_do_fca_prevalece_sobre_o_do_universo(db, yahoo, monkeypatch):
+    monkeypatch.setattr(sync, "universe_cnpjs", lambda: {"TAEE11": "99999999000199", "BPAC11": "30306294000145"})
+    await sync.run_full_sync(db)
+    assert _asset(db, "TAEE11").cnpj == TAEE_CNPJ
+    assert _asset(db, "BPAC11").cnpj == "30306294000145"

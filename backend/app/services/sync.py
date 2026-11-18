@@ -206,10 +206,19 @@ async def sync_treasury(db: Session) -> int:
     return n
 
 
+def universe_cnpjs() -> dict[str, str]:
+    """CNPJ informado no universo.csv para os tickers que o FCA da CVM não liga sozinho (ex.: o BTG
+    Pactual entrega o código de negociação da unit como "000000")."""
+    with open(DATA_DIR / "universo.csv", encoding="utf-8") as f:
+        return {
+            r["ticker"].strip().upper(): cvm.only_digits(r["cnpj"]) for r in csv.DictReader(f) if (r.get("cnpj") or "").strip()
+        }
+
+
 async def sync_cvm(db: Session) -> int:
     today = date.today()
     assets = list(db.scalars(select(Asset).where(Asset.asset_class == "acao")))
-    mapping = await cvm.fetch_ticker_map(today.year)
+    mapping = universe_cnpjs() | await cvm.fetch_ticker_map(today.year)
     for a in assets:
         if a.ticker in mapping:
             a.cnpj = mapping[a.ticker]

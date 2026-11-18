@@ -219,7 +219,7 @@ Taxa e distribuição não estão em nenhuma fonte gratuita estruturada (o Yahoo
 | Preços, proventos, desdobramentos                                | Yahoo Finance via `yfinance` (não oficial)                                    |
 | Cotação do dia                                                   | brapi (plano gratuito, opcional)                                              |
 
-As ações, os FIIs e os ETFs do universo inicial ficam em `backend/app/data/universo.csv`, e outros podem ser adicionados pela tela Explorar.
+As ações, os FIIs e os ETFs do universo inicial ficam em `backend/app/data/universo.csv`, e outros podem ser adicionados pela tela Explorar. A coluna `cnpj` desse arquivo só é preenchida quando o cadastro da CVM não liga o ticker à empresa (o BTG Pactual, por exemplo, informa o código da unit como "000000").
 
 ## Stacks
 
