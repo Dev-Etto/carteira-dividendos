@@ -26,6 +26,7 @@ from app.db.models import (
     Fundamental,
     MacroRate,
     PriceDaily,
+    QuarterlyFundamental,
     SectorMetric,
     Split,
     SyncRun,
@@ -80,7 +81,7 @@ ASSET_FIELDS = ["name", "asset_class", "sector", "segment", "economic_group"]
 FII_SEED_FIELDS = ["name", "asset_class", "economic_group"]
 """Num FII, tipo (sector) e segmento vêm do informe da CVM; o universo.csv só dá o palpite inicial."""
 
-STEPS = ("universo", "macro", "tesouro", "cvm", "fiis", "etfs", "mercado", "avaliacoes")
+STEPS = ("universo", "macro", "tesouro", "cvm", "itr", "fiis", "etfs", "mercado", "avaliacoes")
 
 _lock = threading.Lock()
 _current_step: str | None = None
@@ -237,6 +238,57 @@ async def sync_cvm(db: Session) -> int:
             keys=["asset_id", "year"],
             update=["published_at", "source", *FUNDAMENTAL_FIELDS],
         )
+        db.commit()
+    return total
+
+
+QUARTER_FIELDS = ("revenue", "ebit", "net_income", "equity", "gross_debt", "cash")
+
+
+def _fourth_quarters(db: Session, year: int) -> list[dict[str, object]]:
+    """4º trimestre de cada ação que tem o ano na DFP e os três primeiros trimestres no ITR."""
+    quarters: dict[int, list[QuarterlyFundamental]] = {}
+    for q in db.scalars(select(QuarterlyFundamental).where(QuarterlyFundamental.year == year, QuarterlyFundamental.quarter < 4)):
+        quarters.setdefault(q.asset_id, []).append(q)
+    complete = {aid: qs for aid, qs in quarters.items() if len(qs) == 3}
+    annuals = db.scalars(select(Fundamental).where(Fundamental.year == year, Fundamental.asset_id.in_(complete)))
+    return [
+        {"asset_id": f.asset_id, "year": year, "quarter": 4, "period_end": date(year, 12, 31), "source": "dfp-itr"}
+        | dict.fromkeys(QUARTER_FIELDS)
+        | cvm.fourth_quarter(
+            {k: v for k in QUARTER_FIELDS if (v := getattr(f, k)) is not None},
+            [{k: v for k in QUARTER_FIELDS if (v := getattr(q, k)) is not None} for q in complete[f.asset_id]],
+        )
+        for f in annuals
+    ]
+
+
+async def sync_itr(db: Session) -> int:
+    """Trimestres do ITR dos últimos anos e o 4º trimestre calculado pela DFP. Precisa do CNPJ que a etapa
+    cvm grava."""
+    assets = list(db.scalars(select(Asset).where(Asset.asset_class == "acao", Asset.cnpj.is_not(None))))
+    by_cnpj: dict[str, list[Asset]] = {}
+    for a in assets:
+        by_cnpj.setdefault(a.cnpj or "", []).append(a)
+    today = date.today()
+    total = 0
+    for year in range(today.year - get_settings().itr_years + 1, today.year + 1):
+        try:
+            statements = await cvm.fetch_itr(year, set(by_cnpj))
+        except DOWNLOAD_ERRORS:
+            log.warning("ITR %s indisponível", year)
+            continue
+        rows = [
+            {"asset_id": a.id, "year": st.year, "quarter": st.quarter, "period_end": st.period_end, "source": "itr"}
+            | {k: st.values.get(k) for k in QUARTER_FIELDS}
+            for st in statements
+            for a in by_cnpj[st.cnpj]
+        ]
+        keys = ["asset_id", "year", "quarter"]
+        update = ["period_end", "source", *QUARTER_FIELDS]
+        total += upsert(db, QuarterlyFundamental, rows, keys=keys, update=update)
+        db.commit()
+        total += upsert(db, QuarterlyFundamental, _fourth_quarters(db, year), keys=keys, update=update)
         db.commit()
     return total
 
@@ -415,6 +467,7 @@ async def _run_steps(db: Session, only: set[str] | None, tickers: set[str] | Non
         "macro": lambda: sync_macro(db),
         "tesouro": lambda: sync_treasury(db),
         "cvm": lambda: sync_cvm(db),
+        "itr": lambda: sync_itr(db),
         "fiis": lambda: sync_fii(db),
         "etfs": lambda: sync_etf(db),
         "mercado": lambda: sync_market(db, tickers),

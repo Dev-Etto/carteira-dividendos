@@ -176,3 +176,45 @@ def test_yahoo_history():
     assert len(prices) == 2
     assert divs[0].amount == 0.5
     assert splits[0].ratio == 2.0
+
+
+def _itr_line(code: str, val: float, refer: str, start: str, versao: int = 1, ds: str = "conta") -> str:
+    return f"{CNPJ};{refer};{versao};EMPRESA SA;12345;DF Consolidado;REAL;MIL;ÚLTIMO;{start};{refer};{code};{ds};{val};S"
+
+
+def _itr_zip() -> bytes:
+    """1º trimestre só com a linha acumulada; 2º com a acumulada e a dos 3 meses; o 2º tem uma reapresentação
+    (versão 2) que precisa prevalecer, sem apagar o 1º, que só tem versão 1."""
+    dre = [
+        CVM_HEADER,
+        _itr_line("3.01", 1000, "2026-03-31", "2026-01-01"),
+        _itr_line("3.11", 300, "2026-03-31", "2026-01-01"),
+        _itr_line("3.11.01", 0, "2026-03-31", "2026-01-01"),
+        _itr_line("3.01", 2100, "2026-06-30", "2026-01-01", versao=2),
+        _itr_line("3.01", 1100, "2026-06-30", "2026-04-01", versao=2),
+        _itr_line("3.11.01", 350, "2026-06-30", "2026-04-01", versao=2),
+        _itr_line("3.11.01", 999, "2026-06-30", "2026-04-01", versao=1),
+    ]
+    bpp = [CVM_HEADER, _itr_line("2.03", 6000, "2026-06-30", "2026-01-01", versao=2, ds="Patrimônio Líquido Consolidado")]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("itr_cia_aberta_DRE_con_2026.csv", "\n".join(dre).encode("latin-1"))
+        z.writestr("itr_cia_aberta_BPP_con_2026.csv", "\n".join(bpp).encode("latin-1"))
+    return buf.getvalue()
+
+
+def test_cvm_itr_extrai_so_os_3_meses_de_cada_trimestre():
+    quarters = {q.quarter: q for q in cvm.parse_itr_zip(_itr_zip(), {"07859971000130"}, 2026)}
+    assert set(quarters) == {1, 2}
+    assert quarters[1].values["revenue"] == 1_000_000
+    assert quarters[1].values["net_income"] == 300_000
+    assert quarters[2].values["revenue"] == 1_100_000
+    assert quarters[2].values["net_income"] == 350_000
+    assert quarters[2].values["equity"] == 6_000_000
+    assert quarters[2].period_end == date(2026, 6, 30)
+
+
+def test_quarto_trimestre_e_o_ano_menos_os_tres_primeiros():
+    anual = {"net_income": 1000.0, "revenue": 4000.0, "equity": 600.0}
+    tri = [{"net_income": 200.0, "revenue": 900.0}, {"net_income": 250.0, "revenue": 1000.0}, {"net_income": 300.0}]
+    assert cvm.fourth_quarter(anual, tri) == {"net_income": 250.0, "equity": 600.0}

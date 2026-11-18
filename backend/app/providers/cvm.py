@@ -1,4 +1,4 @@
-"""CVM Dados Abertos — balanços anuais (DFP) e mapeamento CNPJ ↔ ticker (FCA).
+"""CVM Dados Abertos — balanços anuais (DFP), trimestrais (ITR) e mapeamento CNPJ ↔ ticker (FCA).
 
 Os arquivos são ZIPs com CSVs em latin-1 separados por ';'. Valores vêm em
 milhares (ESCALA_MOEDA = MIL) na maioria das empresas; convertemos para reais.
@@ -14,6 +14,7 @@ import pandas as pd
 from app.providers.base import DOWNLOAD_ERRORS, get_cached, normalize
 
 DFP_URL = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/dfp_cia_aberta_{year}.zip"
+ITR_URL = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ITR/DADOS/itr_cia_aberta_{year}.zip"
 FCA_URL = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FCA/DADOS/fca_cia_aberta_{year}.zip"
 
 
@@ -37,7 +38,10 @@ def _read_member(zf: zipfile.ZipFile, contains: str) -> pd.DataFrame | None:
         return pd.read_csv(f, sep=";", encoding="latin-1", dtype=str)
 
 
-def _prepare(df: pd.DataFrame | None, cnpjs: set[str]) -> pd.DataFrame:
+def _prepare(df: pd.DataFrame | None, cnpjs: set[str], document: tuple[str, ...] = ("cnpj",)) -> pd.DataFrame:
+    """Linhas das empresas pedidas, do exercício mais recente e da versão mais nova de cada documento,
+    com o valor em reais. `document` identifica um documento: na DFP basta a empresa; no ITR, cada
+    trimestre (DT_REFER) é um documento com versão própria."""
     if df is None or df.empty:
         return pd.DataFrame()
     df = df.copy()
@@ -48,7 +52,7 @@ def _prepare(df: pd.DataFrame | None, cnpjs: set[str]) -> pd.DataFrame:
     if df.empty:
         return df
     df["VERSAO"] = df["VERSAO"].astype(int)
-    df = df[df["VERSAO"] == df.groupby("cnpj")["VERSAO"].transform("max")]
+    df = df[df["VERSAO"] == df.groupby(list(document))["VERSAO"].transform("max")]
     scale = df["ESCALA_MOEDA"].map(lambda s: 1000.0 if normalize(str(s)) == "mil" else 1.0)
     df["valor"] = pd.to_numeric(df["VL_CONTA"], errors="coerce") * scale
     df["ds"] = df["DS_CONTA"].map(lambda s: normalize(str(s)))
@@ -71,9 +75,14 @@ def _depth(code: str) -> int:
 
 
 def extract_net_income(dre: pd.DataFrame) -> float | None:
+    """Lucro atribuído aos sócios da controladora (3.11.01). Algumas empresas entregam essa linha zerada
+    com o lucro consolidado (3.11) preenchido; nesse caso vale o consolidado menos os minoritários (3.11.02)."""
     v = _code(dre, "3.11.01")
-    if v is not None:
+    total = _code(dre, "3.11")
+    if v is not None and (v != 0 or not total):
         return v
+    if total is not None:
+        return total - (_code(dre, "3.11.02") or 0.0)
     top = dre[(dre["cd"].map(_depth) == 1) & dre["ds"].str.contains("lucro") & dre["ds"].str.contains("periodo")]
     if top.empty:
         return None
@@ -173,6 +182,75 @@ def parse_dfp_zip(content: bytes, cnpjs: set[str], year: int) -> dict[str, Annua
     return out
 
 
+@dataclass
+class QuarterStatement:
+    """Um trimestre do ITR. Receita, EBIT e lucro são só dos 3 meses; patrimônio, dívida e caixa, do fim
+    do trimestre. O 4º trimestre não existe no ITR: sai da DFP menos os três primeiros."""
+
+    cnpj: str
+    year: int
+    quarter: int
+    period_end: date
+    values: dict[str, float] = field(default_factory=dict)
+
+
+QUARTER_START_MONTH = {3: 1, 6: 4, 9: 7}
+"""Mês em que começa o trimestre que termina em março, junho e setembro."""
+
+
+def _quarter_only(dre: pd.DataFrame, end: pd.Timestamp) -> pd.DataFrame:
+    """Linhas da DRE só dos 3 meses do trimestre; no ITR também vêm as acumuladas desde janeiro."""
+    start = date(end.year, QUARTER_START_MONTH[end.month], 1).isoformat()
+    return dre[dre["DT_INI_EXERC"] == start]
+
+
+def _quarter_values(dre: pd.DataFrame, bpa: pd.DataFrame, bpp: pd.DataFrame) -> dict[str, float]:
+    v: dict[str, float | None] = {
+        "revenue": _code(dre, "3.01"),
+        "ebit": _code(dre, "3.05"),
+        "net_income": extract_net_income(dre) if not dre.empty else None,
+        "equity": extract_equity(bpp) if not bpp.empty else None,
+        "gross_debt": _sum_codes(bpp, ["2.01.04", "2.02.01"]) if not bpp.empty else None,
+        "cash": _sum_codes(bpa, ["1.01.01", "1.01.02"]) if not bpa.empty else None,
+    }
+    return {k: x for k, x in v.items() if x is not None}
+
+
+def _of(df: pd.DataFrame, cnpj: object, refer: object) -> pd.DataFrame:
+    """Linhas de um documento (empresa e data de referência)."""
+    if df.empty:
+        return df
+    return df[(df["cnpj"] == cnpj) & (df["DT_REFER"] == refer)]
+
+
+def parse_itr_zip(content: bytes, cnpjs: set[str], year: int) -> list[QuarterStatement]:
+    """Trimestres do ano de cada empresa pedida, na versão mais nova de cada ITR."""
+    zf = zipfile.ZipFile(io.BytesIO(content))
+    document = ("cnpj", "DT_REFER")
+    dre = _prepare(_read_member(zf, f"DRE_con_{year}"), cnpjs, document)
+    bpa = _prepare(_read_member(zf, f"BPA_con_{year}"), cnpjs, document)
+    bpp = _prepare(_read_member(zf, f"BPP_con_{year}"), cnpjs, document)
+    if dre.empty:
+        return []
+    out = []
+    for (cnpj, refer), rows in dre.groupby(["cnpj", "DT_REFER"]):
+        end = pd.Timestamp(str(refer))
+        if end.month not in QUARTER_START_MONTH:
+            continue
+        values = _quarter_values(_quarter_only(rows, end), _of(bpa, cnpj, refer), _of(bpp, cnpj, refer))
+        out.append(QuarterStatement(cnpj=str(cnpj), year=year, quarter=end.month // 3, period_end=end.date(), values=values))
+    return out
+
+
+def fourth_quarter(annual: dict[str, float], first_three: list[dict[str, float]]) -> dict[str, float]:
+    """4º trimestre: o ano da DFP menos os três primeiros trimestres nas contas de resultado; nas de
+    balanço, o próprio fim do ano. Uma conta que falte em algum dos trimestres fica de fora."""
+    flows = ("revenue", "ebit", "net_income")
+    stocks = ("equity", "gross_debt", "cash")
+    out = {k: annual[k] - sum(q[k] for q in first_three) for k in flows if k in annual and all(k in q for q in first_three)}
+    return out | {k: annual[k] for k in stocks if k in annual}
+
+
 def parse_fca_tickers(content: bytes) -> dict[str, str]:
     """Devolve {ticker: cnpj} a partir do arquivo de valores mobiliários do FCA."""
     zf = zipfile.ZipFile(io.BytesIO(content))
@@ -191,6 +269,11 @@ def parse_fca_tickers(content: bytes) -> dict[str, str]:
 async def fetch_dfp(year: int, cnpjs: set[str]) -> dict[str, AnnualStatement]:
     path = await get_cached(DFP_URL.format(year=year), max_age_hours=24 * 7, suffix=".zip")
     return parse_dfp_zip(path.read_bytes(), cnpjs, year)
+
+
+async def fetch_itr(year: int, cnpjs: set[str]) -> list[QuarterStatement]:
+    path = await get_cached(ITR_URL.format(year=year), max_age_hours=24, suffix=".zip")
+    return parse_itr_zip(path.read_bytes(), cnpjs, year)
 
 
 async def _ticker_map_of(year: int) -> dict[str, str]:

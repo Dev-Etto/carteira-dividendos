@@ -143,6 +143,28 @@ class Fundamental(Base):
     source: Mapped[str] = mapped_column(String(20), default="cvm")
 
 
+class QuarterlyFundamental(Base):
+    """Números de um trimestre, consolidados, em R$. Receita, EBIT e lucro são só dos 3 meses; patrimônio,
+    dívida bruta e caixa, do fim do trimestre. source: itr (1º a 3º trimestres) ou dfp-itr (4º, calculado
+    como o ano da DFP menos os três primeiros)."""
+
+    __tablename__ = "quarterly_fundamentals"
+    __table_args__ = (UniqueConstraint("asset_id", "year", "quarter", name="uq_quarterly_fundamentals_asset"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
+    year: Mapped[int] = mapped_column(Integer)
+    quarter: Mapped[int] = mapped_column(Integer)
+    period_end: Mapped[date] = mapped_column(Date)
+    revenue: Mapped[float | None] = mapped_column(Float)
+    ebit: Mapped[float | None] = mapped_column(Float)
+    net_income: Mapped[float | None] = mapped_column(Float)
+    equity: Mapped[float | None] = mapped_column(Float)
+    gross_debt: Mapped[float | None] = mapped_column(Float)
+    cash: Mapped[float | None] = mapped_column(Float)
+    source: Mapped[str] = mapped_column(String(10), default="itr")
+
+
 class SectorMetric(Base):
     """Indicadores setoriais (Basileia, inadimplência, índice combinado, concessões).
 

@@ -55,7 +55,7 @@ VOLUME_MIN_DAYS = 20
 MAX_WARN_RISKS = 3
 CHART_EVERY_N_DAYS = 5
 NEW_ASSET_SYNC_STEPS = {
-    "acao": {"cvm", "mercado", "avaliacoes"},
+    "acao": {"cvm", "itr", "mercado", "avaliacoes"},
     "fii": {"fiis", "mercado", "avaliacoes"},
     "etf": {"etfs", "mercado", "avaliacoes"},
 }

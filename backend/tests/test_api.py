@@ -229,7 +229,7 @@ def test_novo_ativo_dispara_sync_so_dele(client, monkeypatch):
     monkeypatch.setattr("app.services.assets.start_background_sync", lambda only, tickers: chamadas.append((only, tickers)))
     r = client.post("/api/ativos", json={"ticker": "grnd3", "name": "Grendene", "sector": "perene"})
     assert r.status_code == 201, r.text
-    assert chamadas == [({"cvm", "mercado", "avaliacoes"}, {"GRND3"})]
+    assert chamadas == [({"cvm", "itr", "mercado", "avaliacoes"}, {"GRND3"})]
     assert client.post("/api/ativos", json={"ticker": "GRND3", "name": "Grendene", "sector": "perene"}).status_code == 409
 
 
