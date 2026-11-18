@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import {
   Card,
@@ -253,6 +253,7 @@ export function AtivoView() {
               <p className="text-sm text-muted">Sem histórico ainda.</p>
             )}
           </Card>
+          {hist.data && hist.data.quarters.length > 0 && <QuartersCard quarters={hist.data.quarters} />}
           <Card title={isFii ? "Preço × valor patrimonial (5 anos)" : "Preço (5 anos)"} help={isFii ? "p-vp" : undefined}>
             {hist.data && hist.data.prices.length ? (
               <div className="h-56">
@@ -332,6 +333,30 @@ export function AtivoView() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Lucro de cada trimestre (ITR; o 4º é a DFP menos os três primeiros). Prejuízo em vermelho. */
+function QuartersCard({ quarters }: { quarters: AssetHistory["quarters"] }) {
+  return (
+    <Card title="Lucro por trimestre" help="lucro">
+      <div className="h-52">
+        <ResponsiveContainer>
+          <BarChart data={quarters}>
+            <CartesianGrid vertical={false} stroke="var(--line)" />
+            <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: "var(--line-strong)" }} />
+            <YAxis tick={AXIS_TICK} width={60} tickFormatter={(v: number) => brlCompact(v)} tickLine={false} axisLine={false} />
+            <Tooltip formatter={(v) => [brlCompact(Number(v)), "lucro"]} contentStyle={TOOLTIP_STYLE} />
+            <Bar dataKey="net_income" radius={[6, 6, 0, 0]}>
+              {quarters.map((q) => (
+                <Cell key={q.label} fill={(q.net_income ?? 0) < 0 ? "var(--bad)" : "var(--accent)"} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="mt-2 text-[13px] text-subtle">Só os 3 meses de cada trimestre, pelos balanços entregues à CVM.</p>
+    </Card>
   );
 }
 

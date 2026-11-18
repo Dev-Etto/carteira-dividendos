@@ -1577,6 +1577,14 @@
       "type": "array",
       "title": "Nav",
       "default": []
+     },
+     "quarters": {
+      "items": {
+       "$ref": "#/components/schemas/QuarterOut"
+      },
+      "type": "array",
+      "title": "Quarters",
+      "default": []
      }
     },
     "type": "object",
@@ -1586,7 +1594,7 @@
      "scores"
     ],
     "title": "AssetHistory",
-    "description": "nav: valor patrimonial da cota mês a mês (só FIIs), para comparar com o preço."
+    "description": "nav: valor patrimonial da cota mês a mês (só FIIs), para comparar com o preço.\nquarters: receita e lucro dos últimos trimestres (só ações)."
    },
    "AssetRow": {
     "properties": {
@@ -2980,6 +2988,44 @@
      "onboarded"
     ],
     "title": "ProfileOut"
+   },
+   "QuarterOut": {
+    "properties": {
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "revenue": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revenue"
+     },
+     "net_income": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Net Income"
+     }
+    },
+    "type": "object",
+    "required": [
+     "label",
+     "revenue",
+     "net_income"
+    ],
+    "title": "QuarterOut",
+    "description": "Um trimestre para o gráfico. label: \"3T26\"."
    },
    "Question": {
     "properties": {
