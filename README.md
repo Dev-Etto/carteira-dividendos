@@ -113,6 +113,8 @@ Regras do método Barsi, regras setoriais e sustentabilidade do dividendo. Cada 
 
 **Nota** = soma ponderada (✓ = 1, ! = 0,5, ✕ = 0) sobre as regras que têm dado. **Comprar:** nota alta e preço abaixo do teto. **Aguardar:** nota alta e preço acima do teto. **Evitar:** nota baixa ou eliminatória reprovada. As notas de corte (70 e 50 por padrão) e os demais limites são editáveis em Configurações.
 
+O yield-alvo de 6% vem dos anos 1970–1990. Com a opção "yield-alvo acompanha o juro real" ligada em Configurações (desligada por padrão), o alvo passa a ser o maior entre 6% e o juro real do Tesouro IPCA+, e o preço-teto cai quando a renda fixa sem risco paga mais. A mesma opção existe para o Bazin.
+
 Indicadores setoriais (Basileia, inadimplência, índice combinado, vencimento de concessões) ainda são cadastrados à mão em `backend/app/data/sector_metrics.csv`. Formato (valores ilustrativos, confira no RI de cada empresa):
 
 ```csv
