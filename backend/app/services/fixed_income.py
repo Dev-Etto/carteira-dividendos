@@ -55,6 +55,10 @@ def add_holdings(db: Session, items: list[FixedIncomeIn]) -> list[FixedIncomeHol
     return holdings
 
 
+CENT = Decimal("0.01")
+"""Abaixo de um centavo, a sobra é resto de arredondamento e sai da lista."""
+
+
 def consume_cash_to_invest(db: Session, amount: Decimal) -> None:
     """Desconta das sobras guardadas (caixa a investir) o que o plano usou, das mais antigas para as mais
     novas: as usadas inteiras saem, a última é reduzida. Quem chama faz o commit."""
@@ -74,7 +78,7 @@ def consume_cash_to_invest(db: Session, amount: Decimal) -> None:
         used = min(h.amount, left)
         h.amount -= used
         left -= used
-        if h.amount <= 0:
+        if h.amount < CENT:
             db.delete(h)
 
 
