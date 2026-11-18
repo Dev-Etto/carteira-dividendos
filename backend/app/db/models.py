@@ -233,12 +233,16 @@ class TreasuryBond(Base):
 
 
 class Evaluation(Base):
+    """Avaliação de um ativo num dia por uma metodologia. method: a chave da metodologia de seleção
+    (barsi, bazin…) nas ações; nos FIIs e ETFs, que têm um motor só, a própria classe (fii, etf)."""
+
     __tablename__ = "evaluations"
-    __table_args__ = (UniqueConstraint("asset_id", "date"),)
+    __table_args__ = (UniqueConstraint("asset_id", "date", "method", name="uq_evaluations_asset_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
     date: Mapped[date] = mapped_column(Date)
+    method: Mapped[str] = mapped_column(String(20), default="barsi", server_default="barsi")
     score: Mapped[int] = mapped_column(Integer)
     verdict: Mapped[str] = mapped_column(String(12))
     ceiling_price: Mapped[float | None] = mapped_column(Float)
@@ -253,6 +257,9 @@ class Evaluation(Base):
 
 
 class Profile(Base):
+    """Perfil do investidor. selection_method e allocation_method: as metodologias escolhidas para
+    avaliar ações e para dividir a carteira (chaves de `app/engine/metodos/registro.py`)."""
+
     __tablename__ = "profile"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -264,6 +271,8 @@ class Profile(Base):
     passive_income_goal: Mapped[Decimal] = mapped_column(Money, default=Decimal(0))
     onboarded: Mapped[bool] = mapped_column(Boolean, default=False)
     answers: Mapped[dict] = mapped_column(JSON, default=dict)
+    selection_method: Mapped[str] = mapped_column(String(20), default="barsi", server_default="barsi")
+    allocation_method: Mapped[str] = mapped_column(String(20), default="perfil", server_default="perfil")
 
 
 class AllocationTarget(Base):

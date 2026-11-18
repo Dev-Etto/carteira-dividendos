@@ -16,11 +16,13 @@ Diretivas de ferramenta são a única exceção aos comentários e só quando in
 
 ## Arquitetura do backend
 
+Detalhes e o passo a passo de cada área estão nos READMEs: [backend](backend/README.md), [motor e metodologias](backend/app/engine/README.md), [services](backend/app/services/README.md), [providers](backend/app/providers/README.md) e [frontend](frontend/README.md).
+
 ```
 app/api/routers/   HTTP fino: recebe, delega a um service e devolve o schema. Sem regra de negócio, sem SQL.
 app/services/      casos de uso: orquestram banco, motor e providers. Um módulo por assunto
-                   (assets, portfolio, transactions, fixed_income, profile, planner, dashboard, macro, sync).
-app/engine/        regras de negócio puras (método Barsi, carteira, aporte, renda fixa). Sem banco e sem rede;
+                   (assets, evaluation, methods, portfolio, transactions, fixed_income, profile, planner, dashboard, macro, sync).
+app/engine/        regras de negócio puras (ações, FIIs, ETFs, metodologias, carteira, aporte, renda fixa). Sem banco e sem rede;
                    testadas com dados em memória.
 app/providers/     integração com fontes externas (BCB, Tesouro, CVM, Yahoo, brapi). Só baixam e interpretam.
 app/schemas/       contrato da API (Pydantic). O front gera os tipos dele com `make types`.

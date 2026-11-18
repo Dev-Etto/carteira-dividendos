@@ -68,10 +68,10 @@ export const GLOSSARIO: Termo[] = [
   },
   {
     slug: "besst",
-    termo: "BESST",
-    curto: "Bancos, Energia, Saneamento, Seguros e Telecom: os setores preferidos do Barsi.",
+    termo: "BEST",
+    curto: "Bancos, Energia, Seguros, Saneamento e Telecom: os setores preferidos do Barsi.",
     explicacao:
-      "Luiz Barsi prefere setores perenes: serviços que as pessoas usam em qualquer cenário econômico. Isso deixa lucros e dividendos mais previsíveis do que em setores cíclicos, como mineração e siderurgia.",
+      "Luiz Barsi prefere setores perenes: serviços que as pessoas usam em qualquer cenário econômico. Isso deixa lucros e dividendos mais previsíveis do que em setores cíclicos, como mineração e siderurgia. A sigla é de Louise Barsi; em alguns sites aparece como BESST.",
     categoria: "ações",
   },
   {
@@ -318,6 +318,14 @@ export const GLOSSARIO: Termo[] = [
     categoria: "carteira",
   },
   {
+    slug: "metodologias",
+    termo: "Metodologias",
+    curto: "O conjunto de regras que o app usa para avaliar ações e dividir a carteira.",
+    explicacao:
+      "Cada investidor famoso tem um jeito de escolher ações e de dividir o dinheiro entre as classes. O app calcula o veredito de cada ação em todas as metodologias e mostra o da que você escolheu; a ficha da ação mostra os outros para comparar. Trocar de metodologia muda vereditos e recomendações de compra, nunca vende nada.",
+    categoria: "carteira",
+  },
+  {
     slug: "fii",
     termo: "FII (fundo imobiliário)",
     curto: "Fundo negociado na bolsa que investe em imóveis ou em dívidas ligadas a imóveis.",
@@ -434,7 +442,7 @@ export const TRILHA_INICIO = [
   },
   {
     titulo: "3. Conheça o método Barsi",
-    texto: "Setores perenes (BESST), empresas que pagam há muitos anos e comprar abaixo do preço-teto.",
+    texto: "Setores perenes (BEST), empresas que pagam há muitos anos e comprar abaixo do preço-teto.",
     slug: "besst",
   },
   {

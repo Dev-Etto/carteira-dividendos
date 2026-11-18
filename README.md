@@ -1,6 +1,6 @@
 # Carteira de Dividendos
 
-Assistente **local e de código aberto** para montar e manter uma carteira de renda passiva com dividendos, seguindo o **método Barsi**. Ele avalia ações por regras explícitas, explica cada nota em português simples, cuida da reserva de emergência e diz onde colocar o aporte do mês.
+Assistente **local e de código aberto** para montar e manter uma carteira de renda passiva com dividendos, seguindo metodologias conhecidas de investidores brasileiros e estrangeiros, com o **método Barsi** como padrão. Ele avalia ações por regras explícitas, explica cada nota em português simples, cuida da reserva de emergência e diz onde colocar o aporte do mês.
 
 > O app aplica regras e mostra o porquê de cada resultado. **Não é recomendação de investimento**: a decisão é sempre sua.
 
@@ -13,7 +13,8 @@ Este projeto existe para tirar esse trabalho braçal do caminho sem tirar o ente
 ## Abordagem
 
 - **Regras explícitas, não caixa-preta.** Cada ação passa por um checklist (✓ ok, ! atenção, ✕ reprovada). A nota é a soma ponderada dessas regras, e cada linha diz qual dado foi usado, de onde veio e por que passou ou não.
-- **Método Barsi como base.** Setores perenes (bancos, energia, saneamento, seguros, telecom), longo histórico de proventos, lucro consistente, dívida controlada e compra só abaixo do preço-teto. Em cima disso entram regras por setor e a sustentabilidade do dividendo.
+- **Metodologias que você escolhe.** O método Barsi é o padrão, e a arquitetura recebe outras (Bazin, Graham, Fórmula Mágica, ARCA) sem mexer no resto do app. Veja [Metodologias](#metodologias).
+- **Método Barsi como base.** Setores perenes BEST (bancos, energia, seguros, saneamento, telecom), longo histórico de proventos, lucro consistente, dívida controlada e compra só abaixo do preço-teto. Em cima disso entram regras por setor e a sustentabilidade do dividendo.
 - **Você no controle.** Todos os limites (yield-alvo, ROE mínimo, dívida máxima, notas de corte) são editáveis na tela de Configurações.
 - **Reserva primeiro.** O plano de aporte completa a reserva de emergência antes de qualquer ação, depois equilibra as classes abaixo da divisão-alvo e só então escolhe as melhores ações.
 - **Local e privado.** Tudo roda na sua máquina, num SQLite. Não há conta, nuvem nem envio da sua carteira para lugar nenhum.
@@ -82,7 +83,27 @@ CVM_YEARS=6             # anos de balanços da CVM a baixar
 | Configurações | Atualização de dados, perfil, divisão-alvo e limites das regras |
 
 
-## Como as ações são avaliadas
+## Metodologias
+
+Uma metodologia é um jeito de investir com nome e autor. O app separa dois tipos:
+
+- **Seleção** escolhe as ações. O app avalia cada ação por todas as metodologias a cada atualização e mostra o veredito da que você escolheu; a ficha da ação mostra os vereditos nas outras, para comparar.
+- **Divisão** define quanto vai para cada classe (renda fixa, ações, FIIs, ETFs). Trocar a divisão troca a divisão-alvo pela sugerida pela metodologia.
+
+A escolha fica em Configurações e muda vereditos, recomendações e o plano de aporte. O app nunca sugere vender para rebalancear: o equilíbrio vem pelos aportes.
+
+| Metodologia | Tipo | Situação |
+| --- | --- | --- |
+| Barsi (Luiz Barsi Filho) | seleção | disponível, padrão |
+| Perfil de risco (questionário do app) | divisão | disponível, padrão |
+| Bazin (Décio Bazin) | seleção | próxima |
+| Graham (Benjamin Graham) | seleção | planejada |
+| Fórmula Mágica (Joel Greenblatt) | seleção | planejada |
+| ARCA (Thiago Nigro) | divisão | planejada |
+
+Como criar uma metodologia nova está em [`backend/app/engine/README.md`](backend/app/engine/README.md#metodologias-metodos).
+
+## Como as ações são avaliadas pelo método Barsi
 
 Regras do método Barsi, regras setoriais e sustentabilidade do dividendo. Cada regra tem peso e pode ser **eliminatória**:
 
@@ -145,6 +166,20 @@ Taxa e distribuição não estão em nenhuma fonte gratuita estruturada (o Yahoo
 
 As ações, os FIIs e os ETFs do universo inicial ficam em `backend/app/data/universo.csv`, e outros podem ser adicionados pela tela Explorar.
 
+## Stacks
+
+| Camada | Tecnologias |
+| --- | --- |
+| API | Python 3.12, [FastAPI](https://fastapi.tiangolo.com/), [Pydantic](https://docs.pydantic.dev/) v2, [Uvicorn](https://www.uvicorn.org/) |
+| Dados | [SQLite](https://www.sqlite.org/), [SQLAlchemy](https://www.sqlalchemy.org/) 2, [Alembic](https://alembic.sqlalchemy.org/) para migrações |
+| Coleta | [httpx](https://www.python-httpx.org/) com [tenacity](https://tenacity.readthedocs.io/) (retry), [pandas](https://pandas.pydata.org/) para os CSVs da CVM, [yfinance](https://github.com/ranaroussi/yfinance), [APScheduler](https://apscheduler.readthedocs.io/) para a atualização diária, [Typer](https://typer.tiangolo.com/) para a CLI |
+| Telas | [Next.js](https://nextjs.org/) 16 (App Router), React 19, TypeScript, [Tailwind CSS](https://tailwindcss.com/) 4, [Recharts](https://recharts.org/), fonte Figtree |
+| Contrato | OpenAPI gerado pelo FastAPI e tipos do front gerados com [openapi-typescript](https://openapi-ts.dev/) |
+| Qualidade | [uv](https://docs.astral.sh/uv/), [Ruff](https://docs.astral.sh/ruff/), [mypy](https://mypy-lang.org/), [pytest](https://docs.pytest.org/) com cobertura mínima, [ESLint](https://eslint.org/), [Prettier](https://prettier.io/), [Vitest](https://vitest.dev/), regras da casa próprias |
+| Entrega | Docker e Docker Compose; CI no GitHub Actions com lint, testes e build das imagens |
+
+Os padrões de projeto usados estão documentados nos READMEs de cada área: **Strategy** e **Registry** nas metodologias, camadas com dependências apontando para dentro (routers → services → motor), e providers isolados das gravações.
+
 ## Desenvolvimento
 
 Para mexer no código sem Docker, você precisa de [uv](https://docs.astral.sh/uv/) e Node 22+.
@@ -161,15 +196,25 @@ make types    # regenera os tipos do front após mudar schemas da API
 ```
 backend/            FastAPI + SQLAlchemy + Alembic (SQLite em backend/data/)
   app/api/routers/  endpoints REST finos
-  app/services/     casos de uso: ativos, carteira, operações, renda fixa, perfil, aporte, painel, sync
-  app/engine/       motor de regras puro (ações, renda fixa, carteira, aporte, perfil)
-  app/providers/    coletores: bcb, tesouro, cvm, market (brapi + Yahoo)
+  app/services/     casos de uso: ativos, avaliações, metodologias, carteira, renda fixa, perfil, aporte, sync
+  app/engine/       motor de regras puro (ações, FIIs, ETFs, metodologias, aporte, perfil)
+  app/providers/    coletores: bcb, tesouro, cvm, cvm_fii, cvm_etf, market (brapi + Yahoo)
   tests/            pytest: motor, carteira, aporte, renda fixa, parsers, sync, API e regras da casa
 frontend/           Next.js + Tailwind + Recharts; tipos gerados do OpenAPI; testes com Vitest
 docker-compose.yml  API e telas prontas para uso
 ```
 
-Os padrões de código e a arquitetura estão em [CONTRIBUTING.md](CONTRIBUTING.md). Contribuições são bem-vindas: abra uma issue ou um pull request.
+Cada área tem um README com o padrão a seguir:
+
+| Área | README |
+| --- | --- |
+| Backend (camadas, migrações, testes) | [backend/README.md](backend/README.md) |
+| Motor de regras e metodologias | [backend/app/engine/README.md](backend/app/engine/README.md) |
+| Casos de uso, atualização e avaliações | [backend/app/services/README.md](backend/app/services/README.md) |
+| Fontes externas | [backend/app/providers/README.md](backend/app/providers/README.md) |
+| Frontend (estrutura, componentes, tokens) | [frontend/README.md](frontend/README.md) |
+
+As regras de código valem para o repositório todo e estão em [CONTRIBUTING.md](CONTRIBUTING.md). Contribuições são bem-vindas: abra uma issue ou um pull request.
 
 ## Licença
 

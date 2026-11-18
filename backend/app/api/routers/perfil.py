@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.api import AllocationItem, ProfileIn, ProfileOut, Question, RuleConfigItem
-from app.services import profile
+from app.schemas.api import AllocationItem, MethodChoiceIn, MethodsOut, ProfileIn, ProfileOut, Question, RuleConfigItem
+from app.services import methods, profile
 
 router = APIRouter(prefix="/api", tags=["perfil"])
 
@@ -21,6 +21,16 @@ def read_profile(db: Session = Depends(get_db)) -> ProfileOut:
 @router.put("/perfil", response_model=ProfileOut)
 def save_profile(body: ProfileIn, db: Session = Depends(get_db)) -> ProfileOut:
     return profile.save_profile(db, body)
+
+
+@router.get("/metodos", response_model=MethodsOut)
+def list_methods() -> MethodsOut:
+    return methods.list_methods()
+
+
+@router.put("/perfil/metodos", response_model=ProfileOut)
+def choose_methods(body: MethodChoiceIn, db: Session = Depends(get_db)) -> ProfileOut:
+    return methods.choose_methods(db, body)
 
 
 @router.get("/alocacao", response_model=list[AllocationItem])

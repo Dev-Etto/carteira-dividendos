@@ -904,6 +904,68 @@
     }
    }
   },
+  "/api/metodos": {
+   "get": {
+    "tags": [
+     "perfil"
+    ],
+    "summary": "List Methods",
+    "operationId": "list_methods_api_metodos_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MethodsOut"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/perfil/metodos": {
+   "put": {
+    "tags": [
+     "perfil"
+    ],
+    "summary": "Choose Methods",
+    "operationId": "choose_methods_api_perfil_metodos_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MethodChoiceIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProfileOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/alocacao": {
    "get": {
     "tags": [
@@ -1434,6 +1496,24 @@
       },
       "type": "array",
       "title": "Risks"
+     },
+     "method": {
+      "type": "string",
+      "title": "Method",
+      "default": "barsi"
+     },
+     "method_label": {
+      "type": "string",
+      "title": "Method Label",
+      "default": ""
+     },
+     "other_methods": {
+      "items": {
+       "$ref": "#/components/schemas/MethodVerdictOut"
+      },
+      "type": "array",
+      "title": "Other Methods",
+      "default": []
      }
     },
     "type": "object",
@@ -1458,7 +1538,8 @@
      "data_sources",
      "risks"
     ],
-    "title": "AssetDetail"
+    "title": "AssetDetail",
+    "description": "method: a metodologia desta avaliação; other_methods: o veredito do ativo nas demais (só ações)."
    },
    "AssetHistory": {
     "properties": {
@@ -2190,6 +2271,128 @@
     ],
     "title": "MacroOut"
    },
+   "MethodChoiceIn": {
+    "properties": {
+     "selection_method": {
+      "type": "string",
+      "title": "Selection Method"
+     },
+     "allocation_method": {
+      "type": "string",
+      "title": "Allocation Method"
+     }
+    },
+    "type": "object",
+    "required": [
+     "selection_method",
+     "allocation_method"
+    ],
+    "title": "MethodChoiceIn"
+   },
+   "MethodOut": {
+    "properties": {
+     "key": {
+      "type": "string",
+      "title": "Key"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "author": {
+      "type": "string",
+      "title": "Author"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "focus": {
+      "type": "string",
+      "title": "Focus"
+     }
+    },
+    "type": "object",
+    "required": [
+     "key",
+     "label",
+     "author",
+     "summary",
+     "focus"
+    ],
+    "title": "MethodOut",
+    "description": "Uma metodologia como a tela mostra. focus: renda | valor | valorizacao | divisao."
+   },
+   "MethodVerdictOut": {
+    "properties": {
+     "key": {
+      "type": "string",
+      "title": "Key"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "score": {
+      "type": "integer",
+      "title": "Score"
+     },
+     "verdict": {
+      "type": "string",
+      "title": "Verdict"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "ceiling_price": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ceiling Price"
+     }
+    },
+    "type": "object",
+    "required": [
+     "key",
+     "label",
+     "score",
+     "verdict",
+     "summary",
+     "ceiling_price"
+    ],
+    "title": "MethodVerdictOut",
+    "description": "O veredito do ativo em outra metodologia de seleção, para comparar na ficha."
+   },
+   "MethodsOut": {
+    "properties": {
+     "selection": {
+      "items": {
+       "$ref": "#/components/schemas/MethodOut"
+      },
+      "type": "array",
+      "title": "Selection"
+     },
+     "allocation": {
+      "items": {
+       "$ref": "#/components/schemas/MethodOut"
+      },
+      "type": "array",
+      "title": "Allocation"
+     }
+    },
+    "type": "object",
+    "required": [
+     "selection",
+     "allocation"
+    ],
+    "title": "MethodsOut"
+   },
    "NextStep": {
     "properties": {
      "title": {
@@ -2728,6 +2931,16 @@
       },
       "type": "object",
       "title": "Answers"
+     },
+     "selection_method": {
+      "type": "string",
+      "title": "Selection Method",
+      "default": "barsi"
+     },
+     "allocation_method": {
+      "type": "string",
+      "title": "Allocation Method",
+      "default": "perfil"
      }
     },
     "type": "object",

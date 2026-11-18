@@ -283,6 +283,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/metodos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Methods */
+        get: operations["list_methods_api_metodos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/perfil/metodos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Choose Methods */
+        put: operations["choose_methods_api_perfil_metodos_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/alocacao": {
         parameters: {
             query?: never;
@@ -406,7 +440,10 @@ export interface components {
             /** Economic Group */
             economic_group?: string | null;
         };
-        /** AssetDetail */
+        /**
+         * AssetDetail
+         * @description method: a metodologia desta avaliação; other_methods: o veredito do ativo nas demais (só ações).
+         */
         AssetDetail: {
             /** Ticker */
             ticker: string;
@@ -457,6 +494,21 @@ export interface components {
             };
             /** Risks */
             risks: string[];
+            /**
+             * Method
+             * @default barsi
+             */
+            method: string;
+            /**
+             * Method Label
+             * @default
+             */
+            method_label: string;
+            /**
+             * Other Methods
+             * @default []
+             */
+            other_methods: components["schemas"]["MethodVerdictOut"][];
         };
         /**
          * AssetHistory
@@ -697,6 +749,54 @@ export interface components {
             /** As Of */
             as_of: string | null;
         };
+        /** MethodChoiceIn */
+        MethodChoiceIn: {
+            /** Selection Method */
+            selection_method: string;
+            /** Allocation Method */
+            allocation_method: string;
+        };
+        /**
+         * MethodOut
+         * @description Uma metodologia como a tela mostra. focus: renda | valor | valorizacao | divisao.
+         */
+        MethodOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Author */
+            author: string;
+            /** Summary */
+            summary: string;
+            /** Focus */
+            focus: string;
+        };
+        /**
+         * MethodVerdictOut
+         * @description O veredito do ativo em outra metodologia de seleção, para comparar na ficha.
+         */
+        MethodVerdictOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Score */
+            score: number;
+            /** Verdict */
+            verdict: string;
+            /** Summary */
+            summary: string;
+            /** Ceiling Price */
+            ceiling_price: number | null;
+        };
+        /** MethodsOut */
+        MethodsOut: {
+            /** Selection */
+            selection: components["schemas"]["MethodOut"][];
+            /** Allocation */
+            allocation: components["schemas"]["MethodOut"][];
+        };
         /** NextStep */
         NextStep: {
             /** Title */
@@ -873,6 +973,16 @@ export interface components {
             answers?: {
                 [key: string]: number;
             };
+            /**
+             * Selection Method
+             * @default barsi
+             */
+            selection_method: string;
+            /**
+             * Allocation Method
+             * @default perfil
+             */
+            allocation_method: string;
         };
         /** Question */
         Question: {
@@ -1717,6 +1827,59 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_methods_api_metodos_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MethodsOut"];
+                };
+            };
+        };
+    };
+    choose_methods_api_perfil_metodos_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MethodChoiceIn"];
             };
         };
         responses: {
