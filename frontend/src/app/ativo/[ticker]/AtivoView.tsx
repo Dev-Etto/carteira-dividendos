@@ -10,6 +10,7 @@ import {
   Help,
   Loading,
   PageHeader,
+  ScorePill,
   Stat,
   StatusIcon,
   VerdictBadge,
@@ -17,7 +18,7 @@ import {
   type ScoreTone,
 } from "@/components/ui";
 import { Investidor10Link } from "@/components/Investidor10Link";
-import type { AssetDetail, AssetHistory, RuleResult } from "@/lib/api/client";
+import type { AssetDetail, AssetHistory, MethodVerdict, RuleResult } from "@/lib/api/client";
 import { brl, brlCompact, dateBr, groupLabel, num, pct, SEGMENT_LABEL } from "@/lib/format";
 import { withNav } from "@/lib/series";
 import { useApi } from "@/lib/useApi";
@@ -164,6 +165,7 @@ function ScoreHeader({ data }: { data: AssetDetail }) {
         <div className="flex items-center gap-2">
           <VerdictBadge verdict={data.verdict} />
           <Help slug="veredito" />
+          {data.method_label && <span className="text-[13px] text-subtle">pelo método {data.method_label}</span>}
         </div>
         <p className="mt-1.5 max-w-2xl text-base text-ink">{data.summary}</p>
       </div>
@@ -301,6 +303,7 @@ export function AtivoView() {
               onChange={() => void reload()}
             />
           )}
+          {data.other_methods.length > 0 && <OtherMethodsCard methods={data.other_methods} />}
           <Card title="O que pode dar errado">
             <ul className="space-y-2.5 text-sm text-label">
               {data.risks.map((r) => (
@@ -329,6 +332,35 @@ export function AtivoView() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** O veredito da ação nas metodologias que o usuário não escolheu, para comparar. */
+function OtherMethodsCard({ methods }: { methods: MethodVerdict[] }) {
+  return (
+    <Card
+      title="Nos outros métodos"
+      actions={
+        <Link href="/config" className="text-sm font-semibold text-accent">
+          trocar método →
+        </Link>
+      }
+    >
+      <ul className="divide-y divide-line border-t border-line">
+        {methods.map((m) => (
+          <li key={m.key} className="flex gap-3 py-3">
+            <ScorePill score={m.score} verdict={m.verdict} />
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-ink">{m.label}</span>
+                <VerdictBadge verdict={m.verdict} />
+              </div>
+              <p className="mt-1 text-[13px] text-muted">{m.summary}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 
