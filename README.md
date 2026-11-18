@@ -115,13 +115,12 @@ Regras do método Barsi, regras setoriais e sustentabilidade do dividendo. Cada 
 
 O yield-alvo de 6% vem dos anos 1970–1990. Com a opção "yield-alvo acompanha o juro real" ligada em Configurações (desligada por padrão), o alvo passa a ser o maior entre 6% e o juro real do Tesouro IPCA+, e o preço-teto cai quando a renda fixa sem risco paga mais. A mesma opção existe para o Bazin.
 
-O índice de Basileia dos bancos vem do IF.data do Banco Central, atualizado a cada trimestre. Os demais indicadores setoriais (inadimplência dos bancos, índice combinado das seguradoras, vencimento de concessões) ainda são cadastrados à mão em `backend/app/data/sector_metrics.csv`, porque não há fonte aberta com a mesma definição. Formato (valores ilustrativos, confira no RI de cada empresa):
+O índice de Basileia dos bancos vem do IF.data do Banco Central, atualizado a cada trimestre. A inadimplência média do sistema financeiro, régua da regra de inadimplência, vem da série 21082 do Banco Central. Os demais indicadores setoriais (inadimplência de cada banco, índice combinado das seguradoras, vencimento de concessões) ainda são cadastrados à mão em `backend/app/data/sector_metrics.csv`, porque não há fonte aberta com a mesma definição. Formato (valores ilustrativos, confira no RI de cada empresa):
 
 ```csv
 ticker,chave,valor,referencia,fonte
 ITUB4,basileia,14.2,3T26,RI do banco
 ITUB4,inadimplencia,2.1,3T26,RI do banco
-ITUB4,inadimplencia_sistema,3.4,3T26,BCB
 BBSE3,indice_combinado,72,3T26,RI
 TAEE11,concessao_anos,18,2026,manual
 ```

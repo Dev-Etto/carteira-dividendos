@@ -34,6 +34,7 @@ from app.providers.cvm_fii import FiiMonthly, FiiQuarterly
 from app.providers.cvm_ipe import Filing
 from app.providers.tesouro import BondQuote
 from app.services import sync
+from app.services.snapshot import build_stock_snapshot
 
 TODAY = date.today()
 TAEE_CNPJ = "07859971000130"
@@ -411,3 +412,11 @@ async def test_cnpj_do_fca_prevalece_sobre_o_do_universo(db, yahoo, monkeypatch)
     await sync.run_full_sync(db)
     assert _asset(db, "TAEE11").cnpj == TAEE_CNPJ
     assert _asset(db, "BPAC11").cnpj == "30306294000145"
+
+
+async def test_inadimplencia_do_sistema_vem_do_banco_central(db, yahoo):
+    await sync.run_full_sync(db)
+    assert db.scalar(select(MacroRate.value).where(MacroRate.series == "inadimplencia_sfn")) == 0.15
+    banco = build_stock_snapshot(db, _asset(db, "ITUB4"))
+    assert banco.sector_metrics["inadimplencia_sistema"] == pytest.approx(15.0)
+    assert "inadimplencia_sistema" not in build_stock_snapshot(db, _asset(db, "TAEE11")).sector_metrics
