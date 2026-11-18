@@ -152,6 +152,11 @@ function HoldingsList({
               {h.is_emergency_reserve && (
                 <span className="ml-1 rounded-md bg-accent-soft px-1.5 py-0.5 text-xs font-semibold text-accent">reserva</span>
               )}
+              {h.to_invest && (
+                <span className="ml-1 rounded-md bg-warn-soft px-1.5 py-0.5 text-xs font-semibold text-warn">
+                  caixa a investir
+                </span>
+              )}
             </div>
             <div className="text-[13px] text-subtle">
               {KIND_LABEL[h.kind]} · {h.issuer} · {rateLabel(h.indexer, h.rate)} · desde {dateBr(h.start_date)}
@@ -220,6 +225,7 @@ type HoldingFields = {
   amount: string;
   is_emergency_reserve: boolean;
   fgc_covered: boolean;
+  to_invest: boolean;
 };
 
 function tesouroSelic(): HoldingFields {
@@ -235,6 +241,7 @@ function tesouroSelic(): HoldingFields {
     amount: "",
     is_emergency_reserve: true,
     fgc_covered: true,
+    to_invest: false,
   };
 }
 
@@ -280,6 +287,7 @@ function fromHolding(h: FixedIncome): HoldingFields {
     amount: decimalInput(h.amount),
     is_emergency_reserve: h.is_emergency_reserve,
     fgc_covered: h.fgc_covered,
+    to_invest: h.to_invest,
   };
 }
 
@@ -396,6 +404,10 @@ function HoldingForm({
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={f.is_emergency_reserve} onChange={set("is_emergency_reserve")} /> Faz parte da reserva
           de emergência
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={f.to_invest} onChange={set("to_invest")} /> Caixa a investir: sobra de aporte que entra
+          no próximo plano
         </label>
       </div>
       <div className="mt-4 flex items-center gap-3">

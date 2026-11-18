@@ -2209,6 +2209,11 @@
       "type": "boolean",
       "title": "Fgc Covered",
       "default": true
+     },
+     "to_invest": {
+      "type": "boolean",
+      "title": "To Invest",
+      "default": false
      }
     },
     "type": "object",
@@ -2288,6 +2293,11 @@
      "fgc_covered": {
       "type": "boolean",
       "title": "Fgc Covered"
+     },
+     "to_invest": {
+      "type": "boolean",
+      "title": "To Invest",
+      "default": false
      },
      "reserve_ok": {
       "anyOf": [
@@ -2638,6 +2648,11 @@
       "type": "number",
       "title": "Amount"
      },
+     "cash_used": {
+      "type": "number",
+      "title": "Cash Used",
+      "default": 0.0
+     },
      "lines": {
       "items": {
        "$ref": "#/components/schemas/PlanLineOut"
@@ -2664,7 +2679,8 @@
      "notes",
      "leftover"
     ],
-    "title": "PlanOut"
+    "title": "PlanOut",
+    "description": "amount: o total distribuído, que é o aporte informado mais `cash_used`, o caixa a investir de\naportes anteriores que entra neste plano."
    },
    "PlanPurchaseIn": {
     "properties": {
@@ -3185,6 +3201,19 @@
       },
       "type": "array",
       "title": "Holdings"
+     },
+     "cash_used": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Cash Used",
+      "default": "0"
      }
     },
     "type": "object",
@@ -3192,7 +3221,7 @@
      "date"
     ],
     "title": "RegisterPlanIn",
-    "description": "Compras de ações e aplicações de renda fixa feitas a partir do plano. Precisa de pelo menos uma."
+    "description": "Compras de ações e aplicações de renda fixa feitas a partir do plano. Precisa de pelo menos uma.\ncash_used: quanto do caixa a investir o plano usou; é descontado das sobras guardadas."
    },
    "RegisterPlanOut": {
     "properties": {

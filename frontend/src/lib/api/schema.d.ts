@@ -760,6 +760,11 @@ export interface components {
              * @default true
              */
             fgc_covered: boolean;
+            /**
+             * To Invest
+             * @default false
+             */
+            to_invest: boolean;
         };
         /** FixedIncomeOut */
         FixedIncomeOut: {
@@ -790,6 +795,11 @@ export interface components {
             is_emergency_reserve: boolean;
             /** Fgc Covered */
             fgc_covered: boolean;
+            /**
+             * To Invest
+             * @default false
+             */
+            to_invest: boolean;
             /** Reserve Ok */
             reserve_ok?: boolean | null;
             /** Reserve Reason */
@@ -891,10 +901,19 @@ export interface components {
             reason: string;
             holding?: components["schemas"]["FixedIncomeIn"] | null;
         };
-        /** PlanOut */
+        /**
+         * PlanOut
+         * @description amount: o total distribuído, que é o aporte informado mais `cash_used`, o caixa a investir de
+         *     aportes anteriores que entra neste plano.
+         */
         PlanOut: {
             /** Amount */
             amount: number;
+            /**
+             * Cash Used
+             * @default 0
+             */
+            cash_used: number;
             /** Lines */
             lines: components["schemas"]["PlanLineOut"][];
             /** Notes */
@@ -1077,6 +1096,7 @@ export interface components {
         /**
          * RegisterPlanIn
          * @description Compras de ações e aplicações de renda fixa feitas a partir do plano. Precisa de pelo menos uma.
+         *     cash_used: quanto do caixa a investir o plano usou; é descontado das sobras guardadas.
          */
         RegisterPlanIn: {
             /**
@@ -1088,6 +1108,11 @@ export interface components {
             purchases?: components["schemas"]["PlanPurchaseIn"][];
             /** Holdings */
             holdings?: components["schemas"]["FixedIncomeIn"][];
+            /**
+             * Cash Used
+             * @default 0
+             */
+            cash_used: number | string;
         };
         /** RegisterPlanOut */
         RegisterPlanOut: {

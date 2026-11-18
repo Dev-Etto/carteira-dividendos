@@ -105,7 +105,9 @@ export function RegisterPlanCard({ plan, onRegistered }: { plan: Plan; onRegiste
     setErr(null);
     setBusy(true);
     try {
-      onRegistered(await api.post<RegisterPlanOut>("/api/aporte/registrar", { date: day, ...built.payload }));
+      onRegistered(
+        await api.post<RegisterPlanOut>("/api/aporte/registrar", { date: day, cash_used: plan.cash_used, ...built.payload }),
+      );
     } catch (e) {
       setErr(errorMessage(e));
     } finally {
