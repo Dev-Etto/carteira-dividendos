@@ -71,9 +71,14 @@ def _depth(code: str) -> int:
 
 
 def extract_net_income(dre: pd.DataFrame) -> float | None:
+    """Lucro atribuído aos sócios da controladora (3.11.01). Algumas empresas entregam essa linha zerada
+    com o lucro consolidado (3.11) preenchido; nesse caso vale o consolidado menos os minoritários (3.11.02)."""
     v = _code(dre, "3.11.01")
-    if v is not None:
+    total = _code(dre, "3.11")
+    if v is not None and (v != 0 or not total):
         return v
+    if total is not None:
+        return total - (_code(dre, "3.11.02") or 0.0)
     top = dre[(dre["cd"].map(_depth) == 1) & dre["ds"].str.contains("lucro") & dre["ds"].str.contains("periodo")]
     if top.empty:
         return None
