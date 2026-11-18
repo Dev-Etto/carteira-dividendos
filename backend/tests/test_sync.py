@@ -33,6 +33,7 @@ from app.providers.cvm import AnnualStatement, QuarterStatement
 from app.providers.cvm_etf import IndexFund, name_key
 from app.providers.cvm_fii import FiiMonthly, FiiQuarterly
 from app.providers.cvm_ipe import Filing
+from app.providers.susep import CombinedRatio
 from app.providers.tesouro import BondQuote
 from app.services import sync
 from app.services.snapshot import build_stock_snapshot
@@ -164,6 +165,11 @@ def yahoo(monkeypatch) -> FakeYahoo:
         return OverdueReport([Overdue(BANK_CNPJ[:8], "BANCO - PRUDENCIAL", 2.96, "2T26")], 3.57, "2T26")
 
     monkeypatch.setattr(sync.bcb_ifdata, "fetch_overdue", fetch_overdue)
+
+    async def fetch_combined_ratios(groups: dict[str, set[str]]) -> list[CombinedRatio]:
+        return [CombinedRatio(t, 67.8, "set/26") for t in sorted(groups)]
+
+    monkeypatch.setattr(sync.susep, "fetch_combined_ratios", fetch_combined_ratios)
 
     async def fetch_cash_dividends(ticker: str) -> list[CashDividend]:
         if ticker != "TAEE11":
@@ -468,3 +474,11 @@ async def test_credito_vencido_do_banco_e_do_sistema_vem_do_ifdata(db, yahoo):
     banco = build_stock_snapshot(db, itub)
     assert (banco.sector_metrics["inadimplencia"], banco.sector_metrics["inadimplencia_sistema"]) == (2.96, 3.57)
     assert "inadimplencia_sistema" not in build_stock_snapshot(db, _asset(db, "TAEE11")).sector_metrics
+
+
+async def test_indice_combinado_das_holdings_vem_da_susep(db, yahoo):
+    await sync.run_full_sync(db)
+    assert set(sync.insurer_groups()) == {"BBSE3", "CXSE3", "PSSA3"}
+    bbse = _asset(db, "BBSE3")
+    metric = db.scalar(select(SectorMetric).where(SectorMetric.asset_id == bbse.id, SectorMetric.key == "indice_combinado"))
+    assert (metric.value, metric.reference, metric.source) == (67.8, "set/26", "SUSEP")

@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 import respx
 
-from app.providers import base, bcb, bcb_ifdata, cvm, cvm_ipe, market, tesouro
+from app.providers import base, bcb, bcb_ifdata, cvm, cvm_ipe, market, susep, tesouro
 
 CVM_HEADER = "CNPJ_CIA;DT_REFER;VERSAO;DENOM_CIA;CD_CVM;GRUPO_DFP;MOEDA;ESCALA_MOEDA;ORDEM_EXERC;DT_INI_EXERC;DT_FIM_EXERC;CD_CONTA;DS_CONTA;VL_CONTA;ST_CONTA_FIXA"
 CNPJ = "07.859.971/0001-30"
@@ -294,3 +294,34 @@ def test_ifdata_credito_vencido_por_banco_e_sistema():
     assert report.banks == [bcb_ifdata.Overdue("60872504", "BANCO X - PRUDENCIAL", 1.5, "2T26")]
     assert report.system_pct == pytest.approx(round(100 * 10 / 300, 2))
     assert report.reference == "2T26"
+
+
+def _ses_zip(rows: list[tuple[str, str, str, str]]) -> io.BytesIO:
+    """SES_Balanco.csv mínimo: (seguradora, mês AAAAMM, item, valor no formato brasileiro), quadro "23 "."""
+    lines = ["coenti;damesano;cmpid;valor;seq;quadro"] + [f"{e};{m};{c};{v};1;23 " for e, m, c, v in rows]
+    lines.append("99999;202609;4027;1.000,00;1;22A")
+    path = io.BytesIO()
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("SES_Balanco.csv", "\n".join(lines).encode("latin-1"))
+    return path
+
+
+def test_susep_indice_combinado_dos_ultimos_12_meses_por_holding(tmp_path):
+    rows = [
+        ("06785", "202609", "4027", "900,00"),
+        ("06785", "202609", "11232", "-300,00"),
+        ("06785", "202609", "4069", "-150,00"),
+        ("06785", "202512", "4027", "1.100,00"),
+        ("06785", "202512", "11237", "-660,00"),
+        ("06785", "202509", "4027", "800,00"),
+        ("06785", "202509", "11232", "-400,00"),
+        ("06211", "202609", "4027", "100,00"),
+        ("06211", "202609", "4070", "-50,00"),
+    ]
+    file = tmp_path / "base.zip"
+    file.write_bytes(_ses_zip(rows).getvalue())
+    ratios = susep.parse_base(str(file), {"BBSE3": {"06785", "06211"}, "XXXX3": {"00000"}})
+    premios = 900 + 1100 - 800 + 100
+    despesas = 300 + 150 + 660 - 400 + 50
+    assert ratios == [susep.CombinedRatio("BBSE3", round(100 * despesas / premios, 1), "set/26")]
+    assert susep.month_label("202512") == "dez/25"
