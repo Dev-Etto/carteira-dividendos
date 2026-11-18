@@ -9,7 +9,7 @@ pela regra de dívida, porque dívida é a matéria-prima do negócio deles.
 from typing import Any
 
 from app.engine import fmt
-from app.engine.acoes import FINANCEIRO, current_dy, rule_liquidez
+from app.engine.acoes import FINANCEIRO, current_dy, rule_liquidez, with_linked_yields
 from app.engine.config import merged_rules
 from app.engine.metodos.base import MethodInfo, MetodoPorAtivo, Rules
 from app.engine.score import build_evaluation
@@ -159,7 +159,7 @@ class Bazin(MetodoPorAtivo):
     )
 
     def evaluate_one(self, snapshot: StockSnapshot, rules: Rules) -> Evaluation:
-        c = merged_rules(dict(rules))
+        c = with_linked_yields(merged_rules(dict(rules)), snapshot)
         checks = [rule_yield(snapshot, c), rule_regularidade(snapshot, c), rule_liquidez(snapshot, c)]
         if snapshot.sector not in FINANCEIRO:
             checks.append(rule_divida(snapshot, c))

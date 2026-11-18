@@ -65,3 +65,12 @@ def test_sem_preco_fica_sem_veredito():
 
 def test_venda_acima_do_alvo_e_inconsistente():
     assert rule_errors({**DEFAULT_RULES, "bazin_yield_venda": 0.08})
+
+
+def test_yield_ligado_ao_juro_real():
+    snap = transmissora(price=34.0, dividends_ttm=2.55, ntnb_real=0.08)
+    fixo = Bazin().evaluate_one(snap, {})
+    ligado = Bazin().evaluate_one(snap, {"bazin_yield_ligado_juros": 1})
+    assert status(fixo, "bazin-yield") == "ok"
+    assert status(ligado, "bazin-yield") == "fail"
+    assert ligado.ceiling_price == pytest.approx(2.55 / 0.08)

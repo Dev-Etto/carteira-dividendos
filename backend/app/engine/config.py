@@ -2,7 +2,8 @@
 (tela de Configurações). As chaves aqui são as mesmas da tabela.
 
 Grupos de limites:
-- preço-teto: yield-alvo (normal e exigente) e margem de segurança desejada;
+- preço-teto: yield-alvo (normal e exigente), margem de segurança desejada e se o yield-alvo acompanha
+  o juro real do Tesouro IPCA+ (1 liga, 0 usa só o fixo);
 - histórico de proventos: anos seguidos pagando (ideal e mínimo);
 - consistência: queda anual dos proventos considerada forte;
 - ROE médio de 5 anos (ideal e mínimo);
@@ -27,7 +28,8 @@ Grupos de limites dos FIIs (prefixo fii_):
 - taxa de administração ao ano.
 
 Limites do método Bazin (prefixo bazin_): yield-alvo e yield de venda sobre os proventos dos últimos
-12 meses, anos seguidos pagando e dívida líquida ÷ patrimônio máxima.
+12 meses, anos seguidos pagando, dívida líquida ÷ patrimônio máxima e se o yield-alvo acompanha o juro
+real (1 liga, 0 usa só o fixo).
 
 Limites do método Graham (prefixo graham_), critérios do investidor defensivo adaptados ao Brasil:
 receita mínima, liquidez corrente, anos seguidos com lucro e com proventos, crescimento do lucro ao ano,
@@ -40,7 +42,7 @@ Limites dos ETFs (prefixo etf_): liquidez média diária (ideal e mínima, elimi
 checklist só informa, e o aporte escolhe entre os favoritos do usuário.
 """
 
-PRECO_TETO = {"yield_alvo": 0.06, "yield_alvo_exigente": 0.08, "margem_ok": 0.10}
+PRECO_TETO = {"yield_alvo": 0.06, "yield_alvo_exigente": 0.08, "margem_ok": 0.10, "yield_ligado_juros": 0}
 HISTORICO_PROVENTOS = {"proventos_anos_ok": 10, "proventos_anos_min": 5}
 CONSISTENCIA = {"queda_forte": 0.30}
 ROE = {"roe_ok": 0.15, "roe_min": 0.10}
@@ -81,7 +83,13 @@ FII_CONCENTRACAO = {
 FII_TIJOLO = {"fii_imoveis_ok": 8, "fii_imoveis_min": 4, "fii_vacancia_ok": 0.10, "fii_vacancia_max": 0.20}
 FII_TAXA = {"fii_taxa_adm_ok": 0.010, "fii_taxa_adm_max": 0.015}
 
-BAZIN = {"bazin_yield_alvo": 0.06, "bazin_yield_venda": 0.04, "bazin_anos_pagando": 3, "bazin_divida_pl_max": 1.0}
+BAZIN = {
+    "bazin_yield_alvo": 0.06,
+    "bazin_yield_venda": 0.04,
+    "bazin_anos_pagando": 3,
+    "bazin_divida_pl_max": 1.0,
+    "bazin_yield_ligado_juros": 0,
+}
 
 GRAHAM = {
     "graham_receita_min": 300_000_000,
