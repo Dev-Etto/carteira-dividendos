@@ -3,8 +3,9 @@ from decimal import Decimal
 
 import pytest
 
-from app.engine.aporte import Candidate, build_plan, fund_one_unit, split_by_class
+from app.engine.aporte import Candidate, build_plan, fund_one_unit, national_etf_budget, split_by_class
 from app.engine.carteira import SplitEvent, Tx, compute_position, entitled_income, quantity_on
+from app.engine.config import DEFAULT_RULES, rule_errors
 from app.engine.perfil import profile_from_answers
 from app.engine.renda_fixa import (
     check_reserve_eligibility,
@@ -346,3 +347,41 @@ def test_plano_compra_a_cota_internacional_e_explica_quando_nao_da():
     )
     caixa = next(ln for ln in caro.lines if ln.asset_class == "caixa")
     assert "a cota de IVVB11 (R$ 483,47) não coube na parte da classe" in caixa.reason
+
+
+def test_arca_leva_parte_da_verba_de_acoes_para_os_etfs_nacionais_favoritos():
+    bova = [Candidate("BOVA11", "iShares Ibovespa", 160.0, 80, 0.0, "etf")]
+    acao = [Candidate("BBAS3", "Banco do Brasil", 15.0, 90, 0.4, "bancos")]
+    plano = build_plan(
+        amount=1000,
+        reserve_current=0,
+        reserve_target=0,
+        class_current={"acoes": 0.0},
+        targets={"acoes": 100.0},
+        stock_candidates=acao,
+        national_etf_candidates=bova,
+        national_etf_share=0.2,
+    )
+    linhas = {ln.ticker: ln for ln in plano.lines if ln.asset_class == "acoes"}
+    assert linhas["BOVA11"].quantity == 1
+    assert linhas["BBAS3"].amount > 0
+    sem_etf = build_plan(
+        amount=1000,
+        reserve_current=0,
+        reserve_target=0,
+        class_current={"acoes": 0.0},
+        targets={"acoes": 100.0},
+        stock_candidates=acao,
+    )
+    assert "BOVA11" not in {ln.ticker for ln in sem_etf.lines}
+
+
+def test_parte_de_um_todo_nao_passa_de_100_por_cento():
+    assert "etf_fatia_nacional_acoes não pode passar de 100%" in rule_errors({**DEFAULT_RULES, "etf_fatia_nacional_acoes": 1.5})
+
+
+def test_etf_nacional_ganha_uma_cota_mesmo_com_fatia_pequena():
+    bova = [Candidate("BOVA11", "iShares Ibovespa", 167.0, 80, 0.0, "etf")]
+    assert national_etf_budget(360.0, 0.2, 3000.0, bova) == 167.0
+    assert national_etf_budget(360.0, 0.2, 500.0, bova) == pytest.approx(72.0)
+    assert national_etf_budget(100.0, 0.2, 3000.0, bova) == pytest.approx(20.0)

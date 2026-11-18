@@ -38,7 +38,8 @@ P/L máximo (fixo ou ligado ao juro real: 1 liga, 0 usa o fixo) e P/L × P/VP m�
 Limites da Fórmula Mágica (prefixo fm_): fração do ranking que recebe "comprar" (o primeiro terço).
 
 Limites dos ETFs (prefixo etf_): liquidez média diária (ideal e mínima, eliminatória), patrimônio
-(ideal e mínimo) e taxa de administração ao ano (ideal e máxima). ETFs não têm nota Barsi: o
+(ideal e mínimo), taxa de administração ao ano (ideal e máxima) e, nas divisões sem classe de ETFs
+(ARCA), a parte da verba de ações que vai para os ETFs nacionais favoritos. ETFs não têm nota Barsi: o
 checklist só informa, e o aporte escolhe entre os favoritos do usuário.
 """
 
@@ -111,6 +112,7 @@ ETF_LIMITES = {
     "etf_pl_min": 100_000_000,
     "etf_taxa_adm_ok": 0.005,
     "etf_taxa_adm_max": 0.010,
+    "etf_fatia_nacional_acoes": 0.20,
 }
 
 DEFAULT_RULES: dict[str, float] = {
@@ -196,14 +198,19 @@ STRICTLY_POSITIVE = frozenset(
 )
 
 
+AT_MOST_ONE = frozenset({"etf_fatia_nacional_acoes", "fm_fracao_comprar"})
+"""Limites que são uma parte de um todo e não podem passar de 100%."""
+
+
 def rule_errors(cfg: dict[str, float]) -> list[str]:
     """Inconsistências de um conjunto completo de limites: valores negativos, yield-alvo zero
-    (o preço-teto divide por ele) e pares fora de ordem (o mínimo não pode passar do ideal)."""
+    (o preço-teto divide por ele), partes acima de 100% e pares fora de ordem (o mínimo não pode passar do ideal)."""
     negative = [f"{key} não pode ser negativo" for key, value in cfg.items() if value < 0]
     zero = [f"{key} precisa ser maior que zero" for key in sorted(STRICTLY_POSITIVE) if cfg[key] == 0]
+    above_whole = [f"{key} não pode passar de 100%" for key in sorted(AT_MOST_ONE) if cfg[key] > 1]
     unordered = [
         f"{low} ({cfg[low]:g}) não pode ser maior que {high} ({cfg[high]:g})"
         for low, high in ORDERED_LIMITS
         if cfg[low] > cfg[high]
     ]
-    return negative + zero + unordered
+    return negative + zero + above_whole + unordered

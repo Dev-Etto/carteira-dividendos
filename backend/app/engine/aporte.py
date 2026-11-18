@@ -100,6 +100,18 @@ INTERNATIONAL_POLICY = ClassPolicy(
 )
 
 
+NATIONAL_ETF_POLICY = ClassPolicy(
+    plan_class="acoes",
+    max_group_share=1.0,
+    margin_label="",
+    new_group_label="",
+    empty_note="",
+    unspent_label="ETFs nacionais favoritos sem cota que caiba",
+    equal_weight=True,
+)
+"""ETFs de índice brasileiro dentro da classe de ações, nas divisões que não têm classe própria de ETFs."""
+
+
 @dataclass
 class Plan:
     amount: float
@@ -263,6 +275,19 @@ def _add_assets(
     return budget - rest
 
 
+def national_etf_budget(budget: float, share: float, class_target: float, candidates: Sequence[Candidate]) -> float:
+    """Parte da verba de ações para os ETFs nacionais favoritos. Se essa parte não paga a cota mais barata,
+    mas os ETFs estão abaixo da fatia deles em pelo menos uma cota e a verba de ações paga a cota, ela é
+    completada com a parte das ações; senão o ETF nunca seria comprado com aportes pequenos."""
+    portion = budget * share
+    priced = [c.price for c in candidates if c.price > 0]
+    cheapest = min(priced) if priced else 0.0
+    gap = class_target * share - sum(c.held_value for c in candidates)
+    if 0 < portion < cheapest <= min(gap, budget):
+        return cheapest
+    return portion
+
+
 def build_plan(
     *,
     amount: float,
@@ -274,6 +299,8 @@ def build_plan(
     fii_candidates: Sequence[Candidate] = (),
     etf_candidates: Sequence[Candidate] = (),
     international_candidates: Sequence[Candidate] = (),
+    national_etf_candidates: Sequence[Candidate] = (),
+    national_etf_share: float = 0.0,
     long_term_fixed_income: str = DEFAULT_LONG_TERM_FIXED_INCOME,
     max_asset_share: float = 0.10,
     max_sector_share: float = 0.30,
@@ -337,6 +364,14 @@ def build_plan(
             )
             left -= budget
             continue
+        if cls == "acoes" and national_etf_candidates and national_etf_share > 0:
+            class_target_value = after_total * targets[cls] / 100
+            etf_budget = national_etf_budget(budget, national_etf_share, class_target_value, national_etf_candidates)
+            etf_used = _add_assets(
+                plan, NATIONAL_ETF_POLICY, etf_budget, national_etf_candidates, class_target_value * national_etf_share, 1.0, 1
+            )
+            budget -= etf_used
+            left -= etf_used
         if cls in by_class:
             policy, candidates = by_class[cls]
             class_target_value = after_total * targets[cls] / 100
