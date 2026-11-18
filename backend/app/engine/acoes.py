@@ -659,7 +659,9 @@ def setoriais(s: StockSnapshot, c: Rules) -> list[RuleResult]:
     return [rule(s, c) for rule in SECTOR_RULES.get(s.sector, [])]
 
 
-def graham_value(s: StockSnapshot) -> float | None:
+def graham_value(s: StockSnapshot, multiple: float = 22.5) -> float | None:
+    """Valor de Graham, √(múltiplo × LPA × VPA), com o lucro e o patrimônio do último balanço.
+    O múltiplo padrão, 22,5, é o P/L máximo de 15 vezes o P/VP máximo de 1,5."""
     fs = _recent_fundamentals(s, 1)
     if not fs or not s.shares_outstanding:
         return None
@@ -667,7 +669,7 @@ def graham_value(s: StockSnapshot) -> float | None:
     if not f.net_income or not f.equity or f.net_income <= 0 or f.equity <= 0:
         return None
     eps, bvps = f.net_income / s.shares_outstanding, f.equity / s.shares_outstanding
-    return math.sqrt(22.5 * eps * bvps)
+    return math.sqrt(multiple * eps * bvps)
 
 
 def evaluate_stock(s: StockSnapshot, overrides: dict[str, float] | None = None) -> Evaluation:

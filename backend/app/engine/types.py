@@ -55,6 +55,10 @@ class YearFundamentals:
     operating_cash_flow: float | None = None
     investing_cash_flow: float | None = None
     dividends_paid: float | None = None
+    current_assets: float | None = None
+    current_liabilities: float | None = None
+    short_term_debt: float | None = None
+    fixed_assets: float | None = None
 
     @property
     def ebitda(self) -> float | None:
@@ -85,6 +89,7 @@ class StockSnapshot:
     avg_daily_volume_brl: média dos últimos 3 meses de preço × volume.
     dividends_by_year: proventos por ação somados por ano civil (anos completos).
     pe_history / pb_history: séries mensais de P/L e P/VP dos últimos 5 anos, para "barato vs si mesmo".
+    ntnb_real: juro real da NTN-B (Tesouro IPCA+) mais longa, em fração; o Graham liga o P/L máximo a ele.
     """
 
     ticker: str
@@ -102,6 +107,7 @@ class StockSnapshot:
     pe_history: list[float] = field(default_factory=list)
     pb_history: list[float] = field(default_factory=list)
     current_year: int = 2026
+    ntnb_real: float | None = None
 
 
 @dataclass

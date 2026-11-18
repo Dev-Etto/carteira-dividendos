@@ -34,11 +34,14 @@ def _dfp_zip() -> bytes:
     ]
     bpa = [
         CVM_HEADER,
+        _line("1.01", "Ativo Circulante", 4000000),
         _line("1.01.01", "Caixa e Equivalentes de Caixa", 500000),
         _line("1.01.02", "Aplicações Financeiras", 1500000),
+        _line("1.02.03", "Imobilizado", 9000000),
     ]
     bpp = [
         CVM_HEADER,
+        _line("2.01", "Passivo Circulante", 2500000),
         _line("2.01.04", "Empréstimos e Financiamentos", 1000000),
         _line("2.02.01", "Empréstimos e Financiamentos", 6000000),
         _line("2.03", "Patrimônio Líquido Consolidado", 6500000),
@@ -75,6 +78,8 @@ def test_cvm_dfp_extrai_contas_em_reais():
     assert v["cash"] == 2_000_000_000
     assert v["depreciation"] == 100_000_000
     assert v["dividends_paid"] == -800_000_000
+    assert (v["current_assets"], v["current_liabilities"]) == (4_000_000_000, 2_500_000_000)
+    assert (v["short_term_debt"], v["fixed_assets"]) == (1_000_000_000, 9_000_000_000)
     assert st.published_at == date(2025, 2, 20)
 
 

@@ -3,9 +3,10 @@
 from app.engine.metodos.barsi import Barsi
 from app.engine.metodos.base import MetodoDivisao, MetodoSelecao
 from app.engine.metodos.bazin import Bazin
+from app.engine.metodos.graham import Graham
 from app.engine.metodos.perfil import PerfilDeRisco
 
-SELECTION_METHODS: dict[str, MetodoSelecao] = {m.info.key: m for m in (Barsi(), Bazin())}
+SELECTION_METHODS: dict[str, MetodoSelecao] = {m.info.key: m for m in (Barsi(), Bazin(), Graham())}
 ALLOCATION_METHODS: dict[str, MetodoDivisao] = {m.info.key: m for m in (PerfilDeRisco(),)}
 
 DEFAULT_SELECTION = "barsi"

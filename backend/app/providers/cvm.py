@@ -155,8 +155,12 @@ def parse_dfp_zip(content: bytes, cnpjs: set[str], year: int) -> dict[str, Annua
         if not d_bpp.empty:
             v["equity"] = extract_equity(d_bpp)
             v["gross_debt"] = _sum_codes(d_bpp, ["2.01.04", "2.02.01"])
+            v["current_liabilities"] = _code(d_bpp, "2.01")
+            v["short_term_debt"] = _code(d_bpp, "2.01.04")
         if not d_bpa.empty:
             v["cash"] = _sum_codes(d_bpa, ["1.01.01", "1.01.02"])
+            v["current_assets"] = _code(d_bpa, "1.01")
+            v["fixed_assets"] = _code(d_bpa, "1.02.03")
         if not d_dva.empty:
             v["depreciation"] = _code(d_dva, "7.04.01")
         if not d_dfc.empty:

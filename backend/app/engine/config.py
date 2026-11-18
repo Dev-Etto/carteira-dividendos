@@ -29,6 +29,10 @@ Grupos de limites dos FIIs (prefixo fii_):
 Limites do método Bazin (prefixo bazin_): yield-alvo e yield de venda sobre os proventos dos últimos
 12 meses, anos seguidos pagando e dívida líquida ÷ patrimônio máxima.
 
+Limites do método Graham (prefixo graham_), critérios do investidor defensivo adaptados ao Brasil:
+receita mínima, liquidez corrente, anos seguidos com lucro e com proventos, crescimento do lucro ao ano,
+P/L máximo (fixo ou ligado ao juro real: 1 liga, 0 usa o fixo) e P/L × P/VP máximo.
+
 Limites dos ETFs (prefixo etf_): liquidez média diária (ideal e mínima, eliminatória), patrimônio
 (ideal e mínimo) e taxa de administração ao ano (ideal e máxima). ETFs não têm nota Barsi: o
 checklist só informa, e o aporte escolhe entre os favoritos do usuário.
@@ -77,6 +81,17 @@ FII_TAXA = {"fii_taxa_adm_ok": 0.010, "fii_taxa_adm_max": 0.015}
 
 BAZIN = {"bazin_yield_alvo": 0.06, "bazin_yield_venda": 0.04, "bazin_anos_pagando": 3, "bazin_divida_pl_max": 1.0}
 
+GRAHAM = {
+    "graham_receita_min": 300_000_000,
+    "graham_liquidez_corrente_min": 1.22,
+    "graham_anos_lucro": 5,
+    "graham_anos_proventos": 5,
+    "graham_crescimento_min": 0.0266,
+    "graham_pl_max": 15.0,
+    "graham_pl_ligado_juros": 1,
+    "graham_pl_x_pvp_max": 22.5,
+}
+
 ETF_LIMITES = {
     "etf_liquidez_ok": 5_000_000,
     "etf_liquidez_min": 1_000_000,
@@ -112,6 +127,7 @@ DEFAULT_RULES: dict[str, float] = {
     **FII_TAXA,
     **ETF_LIMITES,
     **BAZIN,
+    **GRAHAM,
 }
 
 
@@ -154,7 +170,15 @@ ORDERED_LIMITS: tuple[tuple[str, str], ...] = (
     ("bazin_yield_venda", "bazin_yield_alvo"),
 )
 STRICTLY_POSITIVE = frozenset(
-    {"yield_alvo", "yield_alvo_exigente", "fii_pvp_papel_max", "fii_pvp_tijolo_max", "bazin_yield_alvo"}
+    {
+        "yield_alvo",
+        "yield_alvo_exigente",
+        "fii_pvp_papel_max",
+        "fii_pvp_tijolo_max",
+        "bazin_yield_alvo",
+        "graham_pl_max",
+        "graham_pl_x_pvp_max",
+    }
 )
 
 
