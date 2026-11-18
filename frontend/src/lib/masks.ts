@@ -18,7 +18,10 @@ export function maskDecimal(raw: string, decimals: number): string {
   if (comma < 0) return kept;
   const whole = kept.slice(0, comma);
   if (decimals <= 0) return whole;
-  const fraction = kept.slice(comma + 1).replace(/\D/g, "").slice(0, decimals);
+  const fraction = kept
+    .slice(comma + 1)
+    .replace(/\D/g, "")
+    .slice(0, decimals);
   return `${whole},${fraction}`;
 }
 
