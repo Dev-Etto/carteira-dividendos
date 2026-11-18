@@ -70,7 +70,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Asset */
+        patch: operations["update_asset_api_ativos__ticker__patch"];
         trace?: never;
     };
     "/api/ativos/{ticker}/historico": {
@@ -397,7 +398,7 @@ export interface components {
              * @default acao
              * @enum {string}
              */
-            asset_class: "acao" | "fii";
+            asset_class: "acao" | "fii" | "etf";
             /** Sector */
             sector?: ("bancos" | "seguros" | "energia" | "saneamento" | "telecom" | "perene" | "ciclico") | null;
             /** Segment */
@@ -435,6 +436,11 @@ export interface components {
             avg_daily_volume_brl?: number | null;
             /** Evaluated On */
             evaluated_on: string | null;
+            /**
+             * Favorite
+             * @default false
+             */
+            favorite: boolean;
             /** Summary */
             summary: string | null;
             /** Rules */
@@ -499,6 +505,26 @@ export interface components {
             avg_daily_volume_brl?: number | null;
             /** Evaluated On */
             evaluated_on: string | null;
+            /**
+             * Favorite
+             * @default false
+             */
+            favorite: boolean;
+        };
+        /**
+         * AssetUpdate
+         * @description Ajustes do usuário num ETF. Só os campos enviados mudam; null apaga o valor informado.
+         *
+         *     admin_fee: taxa de administração ao ano, em fração (0,005 = 0,5%).
+         *     distributes: se o ETF repassa os proventos (true) ou reinveste (false).
+         */
+        AssetUpdate: {
+            /** Favorite */
+            favorite?: boolean | null;
+            /** Admin Fee */
+            admin_fee?: number | null;
+            /** Distributes */
+            distributes?: boolean | null;
         };
         /** ClassSlice */
         ClassSlice: {
@@ -1179,6 +1205,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_asset_api_ativos__ticker__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticker: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

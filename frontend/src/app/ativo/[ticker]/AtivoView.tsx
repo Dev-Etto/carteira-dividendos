@@ -22,6 +22,8 @@ import { brl, brlCompact, dateBr, groupLabel, num, pct, SEGMENT_LABEL } from "@/
 import { withNav } from "@/lib/series";
 import { useApi } from "@/lib/useApi";
 
+import { EtfHeader, EtfInfoCard, EtfStats } from "./EtfParts";
+
 type Group = { key: string; title: string; help?: string };
 type Extras = Record<string, number | null | undefined>;
 
@@ -37,6 +39,10 @@ const FII_GROUPS: Group[] = [
   { key: "sustentabilidade", title: "Os rendimentos se mantêm?", help: "estabilidade-rendimentos" },
   { key: "preco", title: "O preço e o rendimento estão bons?", help: "p-vp" },
 ];
+
+const ETF_GROUPS: Group[] = [{ key: "qualidade", title: "Checklist do ETF", help: "etf" }];
+
+const GROUPS_BY_CLASS: Record<string, Group[]> = { acao: STOCK_GROUPS, fii: FII_GROUPS, etf: ETF_GROUPS };
 
 const SCORE_RING: Record<ScoreTone, string> = {
   good: "border-good text-good",
@@ -132,6 +138,31 @@ function subtitle(data: AssetDetail): string {
   return `${groupLabel(data.asset_class, data.sector)}${segment}${group}`;
 }
 
+function ScoreHeader({ data }: { data: AssetDetail }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className={`flex h-16 w-16 items-center justify-center rounded-full border-4 text-xl font-bold ${SCORE_RING[verdictTone(data.verdict)]}`}
+      >
+        {data.score}
+      </div>
+      <div>
+        <div className="flex items-center gap-2">
+          <VerdictBadge verdict={data.verdict} />
+          <Help slug="veredito" />
+        </div>
+        <p className="mt-1 max-w-xl text-sm text-ink">{data.summary}</p>
+      </div>
+    </div>
+  );
+}
+
+function ClassStats({ data, ex }: { data: AssetDetail; ex: Extras }) {
+  if (data.asset_class === "fii") return <FiiStats data={data} ex={ex} />;
+  if (data.asset_class === "etf") return <EtfStats data={data} ex={ex} />;
+  return <StockStats data={data} ex={ex} />;
+}
+
 export function AtivoView() {
   const { ticker } = useParams<{ ticker: string }>();
   const { data, error, loading, reload } = useApi<AssetDetail>(`/api/ativos/${ticker}`);
@@ -142,8 +173,9 @@ export function AtivoView() {
   if (!data) return null;
   const ex = data.extras as Extras;
   const isFii = data.asset_class === "fii";
-  const groups = isFii ? FII_GROUPS : STOCK_GROUPS;
-  const unit = isFii ? "por cota" : "por ação";
+  const isEtf = data.asset_class === "etf";
+  const groups = GROUPS_BY_CLASS[data.asset_class] ?? STOCK_GROUPS;
+  const unit = data.asset_class === "acao" ? "por ação" : "por cota";
 
   return (
     <div className="space-y-6">
@@ -162,23 +194,10 @@ export function AtivoView() {
 
       <Card>
         <div className="flex flex-wrap items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div
-              className={`flex h-16 w-16 items-center justify-center rounded-full border-4 text-xl font-bold ${SCORE_RING[verdictTone(data.verdict)]}`}
-            >
-              {data.score}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <VerdictBadge verdict={data.verdict} />
-                <Help slug="veredito" />
-              </div>
-              <p className="mt-1 max-w-xl text-sm text-ink">{data.summary}</p>
-            </div>
-          </div>
+          {isEtf ? <EtfHeader data={data} onChange={() => void reload()} /> : <ScoreHeader data={data} />}
         </div>
         <div className="mt-6 grid grid-cols-2 gap-5 border-t border-line pt-5 md:grid-cols-4">
-          {isFii ? <FiiStats data={data} ex={ex} /> : <StockStats data={data} ex={ex} />}
+          <ClassStats data={data} ex={ex} />
         </div>
       </Card>
 
@@ -252,6 +271,14 @@ export function AtivoView() {
               </p>
             )}
           </Card>
+          {isEtf && (
+            <EtfInfoCard
+              key={`${String(ex.taxa_adm_ano)}-${String(data.extras.distribui)}`}
+              data={data}
+              ex={ex}
+              onChange={() => void reload()}
+            />
+          )}
           <Card title="O que pode dar errado">
             <ul className="space-y-2 text-sm text-ink">
               {data.risks.map((r) => (
@@ -271,7 +298,7 @@ export function AtivoView() {
                 </div>
               ))}
             </dl>
-            {!isFii && (
+            {data.asset_class === "acao" && (
               <p className="mt-3 text-xs text-muted">Anos pagando proventos sem interrupção: {num(ex.anos_pagando ?? 0, 0)}</p>
             )}
           </Card>

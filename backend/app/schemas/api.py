@@ -28,6 +28,7 @@ class AssetRow(BaseModel):
     dividend_yield: float | None
     avg_daily_volume_brl: float | None = None
     evaluated_on: date | None
+    favorite: bool = False
 
 
 class AssetDetail(AssetRow):
@@ -44,7 +45,7 @@ class AssetCreate(BaseModel):
 
     ticker: str = Field(min_length=4, max_length=12)
     name: str
-    asset_class: Literal["acao", "fii"] = "acao"
+    asset_class: Literal["acao", "fii", "etf"] = "acao"
     sector: Literal["bancos", "seguros", "energia", "saneamento", "telecom", "perene", "ciclico"] | None = None
     segment: str | None = None
     economic_group: str | None = None
@@ -54,6 +55,17 @@ class AssetCreate(BaseModel):
         if self.asset_class == "acao" and self.sector is None:
             raise ValueError("Informe o setor da ação")
         return self
+
+
+class AssetUpdate(BaseModel):
+    """Ajustes do usuário num ETF. Só os campos enviados mudam; null apaga o valor informado.
+
+    admin_fee: taxa de administração ao ano, em fração (0,005 = 0,5%).
+    distributes: se o ETF repassa os proventos (true) ou reinveste (false)."""
+
+    favorite: bool | None = None
+    admin_fee: float | None = Field(default=None, ge=0, le=0.1)
+    distributes: bool | None = None
 
 
 class PricePointOut(BaseModel):

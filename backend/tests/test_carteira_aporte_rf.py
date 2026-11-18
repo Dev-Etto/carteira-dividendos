@@ -190,7 +190,7 @@ def test_caixa_explica_de_onde_vem_o_dinheiro():
     assert caixa.amount == 1000
     assert "ações sem veredito 'comprar' hoje: R$ 400,00" in caixa.reason
     assert "FIIs sem veredito 'comprar' hoje: R$ 400,00" in caixa.reason
-    assert "ETFs aguardando o motor da próxima fase: R$ 200,00" in caixa.reason
+    assert "ETFs sem favorito apto: R$ 200,00" in caixa.reason
     assert "sobra que não fecha uma cota" not in caixa.reason
 
 
@@ -262,3 +262,54 @@ def test_sem_fii_comprar_deixa_nota_e_caixa():
     )
     assert "Nenhum FII com veredito 'comprar' hoje. A parte de FIIs ficou em Tesouro Selic." in plan.notes
     assert [ln.asset_class for ln in plan.lines] == ["caixa"]
+
+
+def etfs(**held):
+    return [
+        Candidate("BOVA11", "iShares Ibovespa", 150.0, 75, 0.0, "etf", held_value=held.get("BOVA11", 0.0)),
+        Candidate("DIVO11", "It Now IDIV", 100.0, 100, 0.0, "etf", held_value=held.get("DIVO11", 0.0)),
+    ]
+
+
+def _so_etfs(amount: float, current: float, candidates) -> list:
+    plan = build_plan(
+        amount=amount,
+        reserve_current=0,
+        reserve_target=0,
+        class_current={"renda_fixa": 0, "acoes": 0, "fiis": 0, "etfs": current},
+        targets={"renda_fixa": 0, "acoes": 0, "fiis": 0, "etfs": 100},
+        stock_candidates=[],
+        etf_candidates=candidates,
+    )
+    return [ln for ln in plan.lines if ln.asset_class == "etfs"]
+
+
+def test_aporte_divide_etfs_favoritos_em_partes_iguais():
+    linhas = {ln.ticker: ln for ln in _so_etfs(1000, 0, etfs())}
+    assert linhas["BOVA11"].quantity == 3
+    assert linhas["DIVO11"].quantity == 5
+    assert "cada ETF caminha para R$ 500,00" in linhas["DIVO11"].reason
+
+
+def test_aporte_prioriza_o_etf_mais_abaixo_da_fatia():
+    linhas = _so_etfs(300, 1000, etfs(BOVA11=1000.0))
+    assert [ln.ticker for ln in linhas] == ["DIVO11"]
+    assert linhas[0].quantity == 3
+
+
+def test_aporte_sem_cota_na_fatia_compra_o_mais_distante_que_cabe():
+    linhas = _so_etfs(120, 0, etfs())
+    assert [(ln.ticker, ln.quantity) for ln in linhas] == [("DIVO11", 1)]
+    assert linhas[0].reason == "favorito mais abaixo da sua fatia"
+
+
+def test_aporte_sem_etf_favorito_deixa_nota():
+    plan = build_plan(
+        amount=500,
+        reserve_current=0,
+        reserve_target=0,
+        class_current={"renda_fixa": 0, "acoes": 0, "fiis": 0, "etfs": 0},
+        targets={"renda_fixa": 0, "acoes": 0, "fiis": 0, "etfs": 100},
+        stock_candidates=[],
+    )
+    assert any("Nenhum ETF favorito apto" in n for n in plan.notes)

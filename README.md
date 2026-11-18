@@ -73,15 +73,14 @@ CVM_YEARS=6             # anos de balanços da CVM a baixar
 | --- | --- |
 | Onboarding | Questionário de perfil, reserva de emergência (6 a 12 meses de gastos) e divisão-alvo da carteira |
 | Início | Próximo passo recomendado, reserva, renda passiva × meta, divisão atual × alvo, oportunidades, Selic/CDI/IPCA |
-| Explorar | Ranking de ações e de FIIs com nota, veredito, preço-teto (ou preço máximo pelo P/VP) e margem; adicionar novos ativos |
+| Explorar | Ranking de ações e de FIIs com nota, veredito, preço-teto (ou preço máximo pelo P/VP) e margem; ETFs com checklist e favoritos; adicionar novos ativos |
 | Ficha do ativo | Checklist de regras com explicação, preço-teto, Bazin, Graham, gráficos, riscos e fonte de cada dado |
 | Carteira | Posições, preço médio, resultado, yield on cost, alertas de concentração e histórico de operações editável |
-| Aporte do mês | Plano de compras: reserva → classes abaixo do alvo → melhores ações e FIIs; registra compras e aplicações de uma vez |
+| Aporte do mês | Plano de compras: reserva → classes abaixo do alvo → melhores ações e FIIs e ETFs favoritos; registra compras e aplicações de uma vez |
 | Renda fixa | Reserva de emergência, aplicações, comparador isento × tributado e taxas do Tesouro Direto |
 | Aprender | Glossário com tudo o que aparece no app e a trilha "Comece aqui" |
 | Configurações | Atualização de dados, perfil, divisão-alvo e limites das regras |
 
-ETFs ainda não são avaliados. Até lá, a parte do aporte destinada a eles fica em Tesouro Selic, identificada no plano.
 
 ## Como as ações são avaliadas
 
@@ -120,6 +119,17 @@ O tipo do fundo (papel, tijolo, fundo de fundos ou híbrido) vem da carteira que
 
 Os dados vêm dos informes mensal e trimestral da CVM. Quando um informe é contraditório (por exemplo, imóvel 100% vago gerando receita), a regra fica "sem dado" em vez de usar um número errado.
 
+## Como os ETFs entram
+
+ETFs replicam um índice: não há empresa para avaliar pelo método Barsi, então eles não recebem nota. Cada ETF tem um checklist que só informa:
+
+- **Liquidez** (eliminatória): ≥ R$ 1 mi por dia, ideal ≥ R$ 5 mi
+- **Patrimônio:** ideal ≥ R$ 500 mi
+- **Taxa de administração:** ideal ≤ 0,5% ao ano
+- **Distribui proventos:** repassa os dividendos ou reinveste
+
+Taxa e distribuição não estão em nenhuma fonte gratuita estruturada (o Yahoo não traz proventos de ETFs brasileiros), então você informa os dois na ficha do ETF. Você marca com ★ os ETFs que quer no aporte, e a fatia de ETFs é dividida em partes iguais entre os favoritos que não reprovaram em liquidez.
+
 ## De onde vêm os dados
 
 | Dado | Fonte |
@@ -129,10 +139,11 @@ Os dados vêm dos informes mensal e trimestral da CVM. Quando um informe é cont
 | Balanços (DRE, BP, DFC, DVA) | CVM Dados Abertos, DFP anual |
 | CNPJ ↔ ticker | CVM, FCA (valores mobiliários) |
 | FIIs: patrimônio, cotistas, composição, imóveis, vacância | CVM Dados Abertos, informes mensal e trimestral de FII |
+| ETFs: patrimônio | CVM Dados Abertos, cadastro de classes de fundos (ligado ao ticker pelo nome) |
 | Preços, proventos, desdobramentos | Yahoo Finance via `yfinance` (não oficial) |
 | Cotação do dia | brapi (plano gratuito, opcional) |
 
-As ações e os FIIs do universo inicial ficam em `backend/app/data/universo.csv`, e outros podem ser adicionados pela tela Explorar.
+As ações, os FIIs e os ETFs do universo inicial ficam em `backend/app/data/universo.csv`, e outros podem ser adicionados pela tela Explorar.
 
 ## Desenvolvimento
 

@@ -1,6 +1,6 @@
 """Roda o motor para os ativos e grava a avaliação do dia."""
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import date
 
 from sqlalchemy import func, select
@@ -8,12 +8,19 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Asset, Evaluation, RuleConfig
 from app.engine.acoes import evaluate_stock
+from app.engine.etf import evaluate_etf
 from app.engine.fii import evaluate_fii
 from app.engine.types import Evaluation as EvalModel
-from app.services.snapshot import build_fii_snapshot, build_stock_snapshot
+from app.services.snapshot import build_etf_snapshot, build_fii_snapshot, build_stock_snapshot
 from app.services.upsert import upsert
 
-EVALUATED_CLASSES = ("acao", "fii")
+Evaluator = Callable[[Session, Asset, dict[str, float]], EvalModel]
+EVALUATORS: dict[str, Evaluator] = {
+    "acao": lambda db, asset, rules: evaluate_stock(build_stock_snapshot(db, asset), rules),
+    "fii": lambda db, asset, rules: evaluate_fii(build_fii_snapshot(db, asset), rules),
+    "etf": lambda db, asset, rules: evaluate_etf(build_etf_snapshot(db, asset), rules),
+}
+EVALUATED_CLASSES = tuple(EVALUATORS)
 
 
 def rule_overrides(db: Session) -> dict[str, float]:
@@ -22,9 +29,7 @@ def rule_overrides(db: Session) -> dict[str, float]:
 
 def evaluate_asset(db: Session, asset: Asset, overrides: dict[str, float] | None = None) -> EvalModel:
     rules = overrides if overrides is not None else rule_overrides(db)
-    if asset.asset_class == "fii":
-        return evaluate_fii(build_fii_snapshot(db, asset), rules)
-    return evaluate_stock(build_stock_snapshot(db, asset), rules)
+    return EVALUATORS[asset.asset_class](db, asset, rules)
 
 
 def save_evaluation(db: Session, asset: Asset, ev: EvalModel, day: date | None = None) -> None:

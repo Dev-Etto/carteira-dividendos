@@ -147,6 +147,10 @@ export default function Aporte() {
             Em FIIs, vale o mesmo: só os com veredito &quot;comprar&quot;, cada fundo com no máximo 20% dos seus FIIs e cada tipo
             (papel ou tijolo) com 60%.
           </li>
+          <li>
+            Em ETFs, a fatia é dividida em partes iguais entre os seus favoritos (★ no Explorar), desde que não estejam reprovados
+            em liquidez.
+          </li>
           <li>O app nunca sugere vender para rebalancear. O equilíbrio vem dos próximos aportes.</li>
         </ol>
       </Card>

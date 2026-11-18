@@ -4,7 +4,7 @@ export type Termo = {
   curto: string;
   explicacao: string;
   exemplo?: string;
-  categoria: "básico" | "ações" | "fiis" | "renda fixa" | "carteira" | "setores";
+  categoria: "básico" | "ações" | "fiis" | "etfs" | "renda fixa" | "carteira" | "setores";
 };
 
 export const GLOSSARIO: Termo[] = [
@@ -399,6 +399,23 @@ export const GLOSSARIO: Termo[] = [
     explicacao:
       "Área vaga não gera aluguel e ainda custa condomínio e IPTU ao fundo. O app calcula a vacância física média, ponderada pela área de cada imóvel, a partir do informe trimestral da CVM. Até 10% é o ideal. Quando o informe do fundo é contraditório (por exemplo, um imóvel 100% vago que ainda gera receita), o app mostra “sem dado” em vez de um número errado.",
     categoria: "fiis",
+  },
+  {
+    slug: "etf",
+    termo: "ETF (fundo de índice)",
+    curto: "Fundo negociado na bolsa que replica um índice, como o Ibovespa ou o S&P 500.",
+    explicacao:
+      "Com uma cota você compra, de uma vez, todas as ações do índice. É um jeito barato de diversificar. Não há empresa para avaliar pelo método Barsi, então o app não dá nota: o checklist mostra se o ETF é líquido, grande, barato de manter e se paga proventos. Marque como favoritos (★) os ETFs que você quer receber no aporte.",
+    categoria: "etfs",
+  },
+  {
+    slug: "etf-distribui",
+    termo: "ETF que distribui × ETF que reinveste",
+    curto: "Alguns ETFs repassam os dividendos; a maioria reinveste dentro do fundo.",
+    explicacao:
+      "Quando as empresas do índice pagam dividendos, o ETF pode repassar o dinheiro aos cotistas ou reinvestir comprando mais ações. Os que reinvestem não geram renda em dinheiro: o retorno vem só da valorização da cota. Para renda passiva, prefira os que distribuem. O Yahoo não informa proventos de ETFs brasileiros, por isso o app pergunta na ficha do ETF; a resposta está no site da gestora.",
+    exemplo: "BOVA11 reinveste; ETFs de dividendos como NDIV11 repassam os proventos.",
+    categoria: "etfs",
   },
 ];
 

@@ -25,6 +25,10 @@ Grupos de limites dos FIIs (prefixo fii_):
 - concentração: maior ativo de crédito ÷ patrimônio (papel) e maior imóvel ÷ receita (tijolo);
 - tijolo: número de imóveis e vacância física;
 - taxa de administração ao ano.
+
+Limites dos ETFs (prefixo etf_): liquidez média diária (ideal e mínima, eliminatória), patrimônio
+(ideal e mínimo) e taxa de administração ao ano (ideal e máxima). ETFs não têm nota Barsi: o
+checklist só informa, e o aporte escolhe entre os favoritos do usuário.
 """
 
 PRECO_TETO = {"yield_alvo": 0.06, "yield_alvo_exigente": 0.08, "margem_ok": 0.10}
@@ -68,6 +72,15 @@ FII_CONCENTRACAO = {
 FII_TIJOLO = {"fii_imoveis_ok": 8, "fii_imoveis_min": 4, "fii_vacancia_ok": 0.10, "fii_vacancia_max": 0.20}
 FII_TAXA = {"fii_taxa_adm_ok": 0.010, "fii_taxa_adm_max": 0.015}
 
+ETF_LIMITES = {
+    "etf_liquidez_ok": 5_000_000,
+    "etf_liquidez_min": 1_000_000,
+    "etf_pl_ok": 500_000_000,
+    "etf_pl_min": 100_000_000,
+    "etf_taxa_adm_ok": 0.005,
+    "etf_taxa_adm_max": 0.010,
+}
+
 DEFAULT_RULES: dict[str, float] = {
     **PRECO_TETO,
     **HISTORICO_PROVENTOS,
@@ -92,6 +105,7 @@ DEFAULT_RULES: dict[str, float] = {
     **FII_CONCENTRACAO,
     **FII_TIJOLO,
     **FII_TAXA,
+    **ETF_LIMITES,
 }
 
 
@@ -128,6 +142,9 @@ ORDERED_LIMITS: tuple[tuple[str, str], ...] = (
     ("fii_imoveis_min", "fii_imoveis_ok"),
     ("fii_vacancia_ok", "fii_vacancia_max"),
     ("fii_taxa_adm_ok", "fii_taxa_adm_max"),
+    ("etf_liquidez_min", "etf_liquidez_ok"),
+    ("etf_pl_min", "etf_pl_ok"),
+    ("etf_taxa_adm_ok", "etf_taxa_adm_max"),
 )
 STRICTLY_POSITIVE = frozenset({"yield_alvo", "yield_alvo_exigente", "fii_pvp_papel_max", "fii_pvp_tijolo_max"})
 

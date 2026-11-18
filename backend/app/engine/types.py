@@ -140,3 +140,23 @@ class FiiSnapshot:
     largest_property_share: float | None = None
     properties: int | None = None
     vacancy: float | None = None
+
+
+@dataclass
+class EtfSnapshot:
+    """O que o checklist de ETFs precisa saber, já carregado.
+
+    equity: patrimônio em R$ (cadastro da CVM). admin_fee: taxa de administração ao ano, em fração,
+    informada pelo usuário (não há fonte gratuita estruturada). dividends_ttm: proventos por cota nos
+    últimos 12 meses, quando a fonte de cotações os traz (o Yahoo costuma não trazer para ETFs).
+    distributes: se o ETF repassa os proventos, informado pelo usuário; None quando não informado.
+    """
+
+    ticker: str
+    name: str
+    price: float | None = None
+    avg_daily_volume_brl: float | None = None
+    equity: float | None = None
+    admin_fee: float | None = None
+    dividends_ttm: float | None = None
+    distributes: bool | None = None

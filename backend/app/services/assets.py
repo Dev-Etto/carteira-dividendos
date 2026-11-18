@@ -8,10 +8,19 @@ from statistics import mean
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.errors import ConflictError, NotFoundError
-from app.db.models import Asset, Dividend, Evaluation, FiiQuarterlyReport, FiiReport, Fundamental, PriceDaily
+from app.core.errors import BusinessRuleError, ConflictError, NotFoundError
+from app.db.models import Asset, Dividend, EtfReport, Evaluation, FiiQuarterlyReport, FiiReport, Fundamental, PriceDaily
 from app.engine.types import RuleResult
-from app.schemas.api import AssetCreate, AssetDetail, AssetHistory, AssetRow, DividendYearOut, PricePointOut, ScorePointOut
+from app.schemas.api import (
+    AssetCreate,
+    AssetDetail,
+    AssetHistory,
+    AssetRow,
+    AssetUpdate,
+    DividendYearOut,
+    PricePointOut,
+    ScorePointOut,
+)
 from app.services.evaluation import EVALUATED_CLASSES, evaluate_asset, latest_evaluation, latest_evaluations, save_evaluation
 from app.services.sync import start_background_sync
 
@@ -23,6 +32,7 @@ SECTOR_RISKS = {
     "telecom": "Telecom exige investimentos altos e constantes em rede, e a concorrência pressiona preços.",
     "ciclico": "Setor cíclico: lucro e dividendos podem cair muito quando a economia ou o preço das commodities cai.",
     "perene": "Mesmo setores estáveis enfrentam concorrência e mudanças de hábito dos consumidores.",
+    "etf": "Um ETF acompanha o índice para cima e para baixo: o risco é o do mercado que ele replica, sem proteção na queda.",
 }
 FII_KIND_RISKS = {
     "papel": "FIIs de papel dependem de os devedores pagarem os CRIs em dia; o rendimento também cai quando o CDI ou o IPCA caem.",
@@ -35,9 +45,14 @@ VOLUME_WINDOW_DAYS = 63
 VOLUME_MIN_DAYS = 20
 MAX_WARN_RISKS = 3
 CHART_EVERY_N_DAYS = 5
-NEW_ASSET_SYNC_STEPS = {"acao": {"cvm", "mercado", "avaliacoes"}, "fii": {"fiis", "mercado", "avaliacoes"}}
-NEW_FII_KIND = "hibrido"
-"""Tipo provisório de um FII recém-cadastrado, até o informe da CVM dizer se é papel ou tijolo."""
+NEW_ASSET_SYNC_STEPS = {
+    "acao": {"cvm", "mercado", "avaliacoes"},
+    "fii": {"fiis", "mercado", "avaliacoes"},
+    "etf": {"etfs", "mercado", "avaliacoes"},
+}
+NEW_ASSET_SECTOR = {"fii": "hibrido", "etf": "etf"}
+REEVALUATING_FIELDS = {"admin_fee", "distributes"}
+"""Grupo de um ativo novo sem setor: o FII fica híbrido até o informe da CVM dizer se é papel ou tijolo."""
 
 
 def get_asset(db: Session, ticker: str) -> Asset:
@@ -74,6 +89,7 @@ def asset_row(asset: Asset, ev: Evaluation | None, avg_volume: float | None = No
         dividend_yield=ev.dividend_yield if ev else None,
         avg_daily_volume_brl=avg_volume,
         evaluated_on=ev.date if ev else None,
+        favorite=bool(asset.favorite),
     )
 
 
@@ -151,6 +167,17 @@ def _fii_sources(db: Session, asset: Asset) -> dict[str, str | None]:
     }
 
 
+def _etf_sources(db: Session, asset: Asset) -> dict[str, str | None]:
+    day = db.scalar(select(func.max(EtfReport.ref_date)).where(EtfReport.asset_id == asset.id))
+    fee = "informada por você" if asset.admin_fee is not None else None
+    distributes = "informada por você" if asset.distributes is not None else None
+    return {
+        "Patrimônio": f"CVM, cadastro de fundos em {day:%d/%m/%Y}" if day else None,
+        "Taxa de administração": fee,
+        "Distribuição de proventos": distributes,
+    }
+
+
 def _stock_sources(db: Session, asset: Asset) -> dict[str, str | None]:
     last_fund = db.scalar(select(Fundamental).where(Fundamental.asset_id == asset.id).order_by(Fundamental.year.desc()).limit(1))
     return {"Balanços": _balance_source(last_fund)}
@@ -159,7 +186,8 @@ def _stock_sources(db: Session, asset: Asset) -> dict[str, str | None]:
 def _data_sources(db: Session, asset: Asset, ev: Evaluation) -> dict[str, str | None]:
     last_div = db.scalar(select(func.max(Dividend.ex_date)).where(Dividend.asset_id == asset.id))
     quote = f"{asset.price_source or '—'} em {asset.last_price_at:%d/%m/%Y %H:%M}" if asset.last_price_at else None
-    reports = _fii_sources(db, asset) if asset.asset_class == "fii" else _stock_sources(db, asset)
+    sources = {"fii": _fii_sources, "etf": _etf_sources}.get(asset.asset_class, _stock_sources)
+    reports = sources(db, asset)
     return {
         "Cotação": quote,
         **reports,
@@ -243,7 +271,7 @@ def create_asset(db: Session, body: AssetCreate) -> AssetRow:
         ticker=ticker,
         name=body.name,
         asset_class=body.asset_class,
-        sector=body.sector or NEW_FII_KIND,
+        sector=body.sector or NEW_ASSET_SECTOR[body.asset_class],
         segment=body.segment,
         economic_group=body.economic_group,
         active=True,
@@ -252,3 +280,18 @@ def create_asset(db: Session, body: AssetCreate) -> AssetRow:
     db.commit()
     start_background_sync(NEW_ASSET_SYNC_STEPS[body.asset_class], {ticker})
     return asset_row(asset, None)
+
+
+def update_asset(db: Session, ticker: str, body: AssetUpdate) -> AssetDetail:
+    """Marca o ETF como favorito e/ou guarda a taxa e a distribuição informadas; mudar uma delas reavalia o ETF."""
+    asset = get_asset(db, ticker)
+    if asset.asset_class != "etf":
+        raise BusinessRuleError("Favorito e taxa de administração só valem para ETFs")
+    changes = body.model_dump(exclude_unset=True)
+    for field, value in changes.items():
+        setattr(asset, field, value)
+    db.commit()
+    if changes.keys() & REEVALUATING_FIELDS:
+        save_evaluation(db, asset, evaluate_asset(db, asset))
+        db.commit()
+    return asset_detail(db, ticker)

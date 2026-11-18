@@ -20,6 +20,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -38,6 +39,9 @@ class Asset(Base):
     sector: em ações, bancos | seguros | energia | saneamento | telecom | perene | ciclico;
         em FIIs, o tipo pela carteira: papel | tijolo | fof | hibrido.
     segment: em energia, transmissao | geracao | distribuicao | integrada; em FIIs, o segmento declarado à CVM.
+    favorite: ETF escolhido pelo usuário para receber aportes.
+    admin_fee: taxa de administração ao ano (fração) informada pelo usuário; usada nos ETFs.
+    distributes: se o ETF repassa os proventos, informado pelo usuário (o Yahoo não traz proventos de ETFs).
     """
 
     __tablename__ = "assets"
@@ -55,6 +59,9 @@ class Asset(Base):
     last_price: Mapped[float | None] = mapped_column(Float)
     last_price_at: Mapped[datetime | None] = mapped_column(DateTime)
     price_source: Mapped[str | None] = mapped_column(String(20))
+    favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    admin_fee: Mapped[float | None] = mapped_column(Float)
+    distributes: Mapped[bool | None] = mapped_column(Boolean)
 
     evaluations: Mapped[list["Evaluation"]] = relationship(back_populates="asset")
 
@@ -185,6 +192,18 @@ class FiiQuarterlyReport(Base):
     vacancy: Mapped[float | None] = mapped_column(Float)
     largest_property_share: Mapped[float | None] = mapped_column(Float)
     largest_credit_value: Mapped[float | None] = mapped_column(Float)
+
+
+class EtfReport(Base):
+    """Patrimônio de um ETF no cadastro de fundos da CVM, na data informada pela CVM."""
+
+    __tablename__ = "etf_reports"
+    __table_args__ = (UniqueConstraint("asset_id", "ref_date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
+    ref_date: Mapped[date] = mapped_column(Date)
+    equity: Mapped[float | None] = mapped_column(Float)
 
 
 class MacroRate(Base):

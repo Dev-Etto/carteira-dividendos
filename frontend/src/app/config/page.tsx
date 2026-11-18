@@ -14,6 +14,7 @@ const STEP_LABEL: Record<string, string> = {
   tesouro: "Tesouro Direto",
   cvm: "Balanços (CVM)",
   fiis: "Informes de FIIs (CVM)",
+  etfs: "Patrimônio dos ETFs (CVM)",
   mercado: "Preços e proventos",
   avaliacoes: "Avaliações",
 };
@@ -56,12 +57,20 @@ const RULE_LABEL: Record<string, string> = {
   fii_vacancia_max: "Tijolo: vacância máxima (%)",
   fii_taxa_adm_ok: "Taxa de administração ideal (% a.a.)",
   fii_taxa_adm_max: "Taxa de administração máxima (% a.a.)",
+  etf_liquidez_ok: "Liquidez diária ideal (R$)",
+  etf_liquidez_min: "Liquidez diária mínima (R$)",
+  etf_pl_ok: "Patrimônio ideal (R$)",
+  etf_pl_min: "Patrimônio mínimo (R$)",
+  etf_taxa_adm_ok: "Taxa de administração ideal (% a.a.)",
+  etf_taxa_adm_max: "Taxa de administração máxima (% a.a.)",
 };
 
 const FII_PREFIX = "fii_";
+const ETF_PREFIX = "etf_";
 const RULE_SECTIONS = [
-  { title: "Ações", matches: (key: string) => !key.startsWith(FII_PREFIX) },
+  { title: "Ações", matches: (key: string) => !key.startsWith(FII_PREFIX) && !key.startsWith(ETF_PREFIX) },
   { title: "FIIs", matches: (key: string) => key.startsWith(FII_PREFIX) },
+  { title: "ETFs", matches: (key: string) => key.startsWith(ETF_PREFIX) },
 ];
 
 /** Limites guardados como fração (0,06) que a tela mostra e recebe em porcentagem (6). */
@@ -84,6 +93,8 @@ const PERCENT_RULES = new Set([
   "fii_vacancia_max",
   "fii_taxa_adm_ok",
   "fii_taxa_adm_max",
+  "etf_taxa_adm_ok",
+  "etf_taxa_adm_max",
 ]);
 
 /** Valor da regra como o usuário vê: em % para as frações, com vírgula decimal e sem separador de milhar. */

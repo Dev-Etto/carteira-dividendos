@@ -13,6 +13,7 @@ from app.db.models import (
     Asset,
     Base,
     Dividend,
+    EtfReport,
     Evaluation,
     FiiQuarterlyReport,
     FiiReport,
@@ -24,6 +25,7 @@ from app.db.models import (
 )
 from app.providers.base import DividendEvent, PricePoint, SplitInfo
 from app.providers.cvm import AnnualStatement
+from app.providers.cvm_etf import IndexFund, name_key
 from app.providers.cvm_fii import FiiMonthly, FiiQuarterly
 from app.providers.tesouro import BondQuote
 from app.services import sync
@@ -133,6 +135,16 @@ def yahoo(monkeypatch) -> FakeYahoo:
     monkeypatch.setattr(sync.cvm, "fetch_dfp", fetch_dfp)
     monkeypatch.setattr(sync.market, "yahoo_history", fake)
     monkeypatch.setattr(sync.market, "brapi_quote", brapi_quote)
+
+    async def fetch_index_funds() -> dict[str, IndexFund]:
+        fund = IndexFund("10406511000161", "ISHARES IBOVESPA CLASSE DE ÍNDICE", 18e9, date(TODAY.year, 1, 2))
+        return {name_key(fund.name): fund}
+
+    async def yahoo_long_name(ticker: str) -> str | None:
+        return {"BOVA11": "iShares Ibovespa Classe de Índice"}.get(ticker)
+
+    monkeypatch.setattr(sync.cvm_etf, "fetch_index_funds", fetch_index_funds)
+    monkeypatch.setattr(sync.market, "yahoo_long_name", yahoo_long_name)
     monkeypatch.setattr(sync.cvm_fii, "fetch_monthly", fetch_monthly)
     monkeypatch.setattr(sync.cvm_fii, "fetch_quarterly", fetch_quarterly)
     return fake
@@ -305,3 +317,23 @@ async def test_sync_completo_avalia_os_fiis(db, yahoo):
     assert regras["fii-patrimonio"]["status"] == "ok"
     assert regras["fii-concentracao-credito"]["value"] == pytest.approx(400e6 / 10e9)
     assert avaliacao.extras["valor_patrimonial_cota"] == 101.0
+
+
+async def test_sync_etf_liga_pelo_nome_do_yahoo_e_grava_o_patrimonio(db, yahoo):
+    await sync.sync_etf(db)
+    bova, divo = _asset(db, "BOVA11"), _asset(db, "DIVO11")
+    assert bova.cnpj == "10406511000161"
+    assert divo.cnpj is None
+    assert db.scalar(select(EtfReport.equity).where(EtfReport.asset_id == bova.id)) == 18e9
+
+
+async def test_sync_completo_avalia_os_etfs(db, yahoo):
+    assert await sync.run_full_sync(db) is True
+    bova = _asset(db, "BOVA11")
+    avaliacao = db.scalar(select(Evaluation).where(Evaluation.asset_id == bova.id))
+    assert avaliacao is not None
+    assert avaliacao.engine_version.startswith("etf-")
+    assert avaliacao.verdict in {"neutro", "evitar"}
+    regras = {r["id"]: r for r in avaliacao.rules}
+    assert regras["etf-patrimonio"]["status"] == "ok"
+    assert regras["etf-taxa-adm"]["status"] == "na"
