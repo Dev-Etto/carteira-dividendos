@@ -63,14 +63,24 @@ const RULE_LABEL: Record<string, string> = {
   etf_pl_min: "Patrimônio mínimo (R$)",
   etf_taxa_adm_ok: "Taxa de administração ideal (% a.a.)",
   etf_taxa_adm_max: "Taxa de administração máxima (% a.a.)",
+  bazin_yield_alvo: "Yield mínimo dos últimos 12 meses (%)",
+  bazin_yield_venda: "Yield em que o Bazin venderia (%)",
+  bazin_anos_pagando: "Anos seguidos pagando (mínimo)",
+  bazin_divida_pl_max: "Dívida líquida ÷ patrimônio máxima",
 };
 
-const FII_PREFIX = "fii_";
-const ETF_PREFIX = "etf_";
+/** Seções da tela de limites. Cada uma, menos a das ações pelo Barsi, junta as chaves de um prefixo. */
+const PREFIXED_SECTIONS = [
+  { title: "Ações pelo Bazin", prefix: "bazin_" },
+  { title: "FIIs", prefix: "fii_" },
+  { title: "ETFs", prefix: "etf_" },
+];
 const RULE_SECTIONS = [
-  { title: "Ações", matches: (key: string) => !key.startsWith(FII_PREFIX) && !key.startsWith(ETF_PREFIX) },
-  { title: "FIIs", matches: (key: string) => key.startsWith(FII_PREFIX) },
-  { title: "ETFs", matches: (key: string) => key.startsWith(ETF_PREFIX) },
+  {
+    title: "Ações pelo Barsi",
+    matches: (key: string) => !PREFIXED_SECTIONS.some((s) => key.startsWith(s.prefix)),
+  },
+  ...PREFIXED_SECTIONS.map((s) => ({ title: s.title, matches: (key: string) => key.startsWith(s.prefix) })),
 ];
 
 /** Limites guardados como fração (0,06) que a tela mostra e recebe em porcentagem (6). */
@@ -95,6 +105,8 @@ const PERCENT_RULES = new Set([
   "fii_taxa_adm_max",
   "etf_taxa_adm_ok",
   "etf_taxa_adm_max",
+  "bazin_yield_alvo",
+  "bazin_yield_venda",
 ]);
 
 /** Valor da regra como o usuário vê: em % para as frações, com vírgula decimal e sem separador de milhar. */
