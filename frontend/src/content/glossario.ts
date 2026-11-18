@@ -204,6 +204,14 @@ export const GLOSSARIO: Termo[] = [
     categoria: "ações",
   },
   {
+    slug: "formula-magica",
+    termo: "Fórmula Mágica",
+    curto: "Ranking de Joel Greenblatt: ações baratas (earnings yield) e rentáveis (retorno sobre o capital).",
+    explicacao:
+      "No livro The Little Book That Beats the Market, Greenblatt ordena as ações duas vezes: pelo earnings yield (lucro operacional ÷ valor da firma, que é o valor de mercado mais a dívida líquida) e pelo retorno sobre o capital (lucro operacional ÷ capital de giro mais imobilizado). Soma as duas posições e compra as primeiras, trocando a carteira a cada ano. Bancos, seguradoras, energia e saneamento ficam de fora. O método busca valorização e ignora dividendos; no app, o primeiro terço do ranking recebe comprar e o resto fica neutro, sem evitar.",
+    categoria: "ações",
+  },
+  {
     slug: "graham",
     termo: "Valor de Graham",
     curto: "√(22,5 × lucro por ação × valor patrimonial por ação).",
