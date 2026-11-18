@@ -297,7 +297,7 @@ export function AtivoView() {
           </Card>
           {isEtf && (
             <EtfInfoCard
-              key={`${String(ex.taxa_adm_ano)}-${String(data.extras.distribui)}`}
+              key={`${String(ex.taxa_adm_ano)}-${String(data.extras.distribui)}-${data.region}`}
               data={data}
               ex={ex}
               onChange={() => void reload()}

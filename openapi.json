@@ -1216,7 +1216,8 @@
        "renda_fixa",
        "acoes",
        "fiis",
-       "etfs"
+       "etfs",
+       "internacional"
       ],
       "title": "Asset Class"
      },
@@ -1441,6 +1442,11 @@
       "type": "boolean",
       "title": "Favorite",
       "default": false
+     },
+     "region": {
+      "type": "string",
+      "title": "Region",
+      "default": "nacional"
      },
      "summary": {
       "anyOf": [
@@ -1716,6 +1722,11 @@
       "type": "boolean",
       "title": "Favorite",
       "default": false
+     },
+     "region": {
+      "type": "string",
+      "title": "Region",
+      "default": "nacional"
      }
     },
     "type": "object",
@@ -1772,11 +1783,26 @@
        }
       ],
       "title": "Distributes"
+     },
+     "region": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "nacional",
+         "internacional"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Region"
      }
     },
     "type": "object",
     "title": "AssetUpdate",
-    "description": "Ajustes do usuário num ETF. Só os campos enviados mudam; null apaga o valor informado.\n\nadmin_fee: taxa de administração ao ano, em fração (0,005 = 0,5%).\ndistributes: se o ETF repassa os proventos (true) ou reinveste (false)."
+    "description": "Ajustes do usuário num ETF. Só os campos enviados mudam; null apaga o valor informado.\n\nadmin_fee: taxa de administração ao ano, em fração (0,005 = 0,5%).\ndistributes: se o ETF repassa os proventos (true) ou reinveste (false).\nregion: se o índice do ETF é brasileiro (nacional) ou estrangeiro (internacional)."
    },
    "ClassSlice": {
     "properties": {

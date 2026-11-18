@@ -414,7 +414,7 @@ export interface components {
              * Asset Class
              * @enum {string}
              */
-            asset_class: "renda_fixa" | "acoes" | "fiis" | "etfs";
+            asset_class: "renda_fixa" | "acoes" | "fiis" | "etfs" | "internacional";
             /** Weight Pct */
             weight_pct: number;
         };
@@ -478,6 +478,11 @@ export interface components {
              * @default false
              */
             favorite: boolean;
+            /**
+             * Region
+             * @default nacional
+             */
+            region: string;
             /** Summary */
             summary: string | null;
             /** Rules */
@@ -562,6 +567,11 @@ export interface components {
              * @default false
              */
             favorite: boolean;
+            /**
+             * Region
+             * @default nacional
+             */
+            region: string;
         };
         /**
          * AssetUpdate
@@ -569,6 +579,7 @@ export interface components {
          *
          *     admin_fee: taxa de administração ao ano, em fração (0,005 = 0,5%).
          *     distributes: se o ETF repassa os proventos (true) ou reinveste (false).
+         *     region: se o índice do ETF é brasileiro (nacional) ou estrangeiro (internacional).
          */
         AssetUpdate: {
             /** Favorite */
@@ -577,6 +588,8 @@ export interface components {
             admin_fee?: number | null;
             /** Distributes */
             distributes?: boolean | null;
+            /** Region */
+            region?: ("nacional" | "internacional") | null;
         };
         /** ClassSlice */
         ClassSlice: {
