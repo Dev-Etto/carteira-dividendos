@@ -363,6 +363,17 @@ class NextStep(BaseModel):
     href: str
 
 
+class FilingOut(BaseModel):
+    """Comunicado à CVM. category: fato_relevante | comunicado | aviso_acionistas | proventos."""
+
+    ticker: str
+    delivered_on: date
+    category: str
+    kind: str
+    subject: str
+    link: str
+
+
 class DashboardOut(BaseModel):
     profile: ProfileOut
     total_invested: float
@@ -376,6 +387,7 @@ class DashboardOut(BaseModel):
     top_opportunities: list[AssetRow]
     macro: MacroOut
     last_sync: datetime | None
+    filings: list[FilingOut] = []
 
 
 class SyncRunOut(ORM):
