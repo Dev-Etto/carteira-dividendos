@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 import respx
 
-from app.providers import base, bcb, cvm, market, tesouro
+from app.providers import base, bcb, cvm, cvm_ipe, market, tesouro
 
 CVM_HEADER = "CNPJ_CIA;DT_REFER;VERSAO;DENOM_CIA;CD_CVM;GRUPO_DFP;MOEDA;ESCALA_MOEDA;ORDEM_EXERC;DT_INI_EXERC;DT_FIM_EXERC;CD_CONTA;DS_CONTA;VL_CONTA;ST_CONTA_FIXA"
 CNPJ = "07.859.971/0001-30"
@@ -218,3 +218,24 @@ def test_quarto_trimestre_e_o_ano_menos_os_tres_primeiros():
     anual = {"net_income": 1000.0, "revenue": 4000.0, "equity": 600.0}
     tri = [{"net_income": 200.0, "revenue": 900.0}, {"net_income": 250.0, "revenue": 1000.0}, {"net_income": 300.0}]
     assert cvm.fourth_quarter(anual, tri) == {"net_income": 250.0, "equity": 600.0}
+
+
+def test_cvm_ipe_guarda_so_categorias_relevantes_na_versao_mais_nova():
+    header = "CNPJ_Companhia;Nome_Companhia;Codigo_CVM;Data_Referencia;Categoria;Tipo;Especie;Assunto;Data_Entrega;Tipo_Apresentacao;Protocolo_Entrega;Versao;Link_Download"
+    rows = [
+        header,
+        f"{CNPJ};EMPRESA;1;2026-11-10;Fato Relevante;;;Aquisição de ativo;2026-11-10;AP;111;1;https://cvm/111v1",
+        f"{CNPJ};EMPRESA;1;2026-11-10;Fato Relevante;;;Aquisição de ativo (corrigido);2026-11-11;RE;111;2;https://cvm/111v2",
+        f"{CNPJ};EMPRESA;1;2026-11-01;Assembleia;AGE;;Edital;2026-11-01;AP;222;1;https://cvm/222",
+        f"{CNPJ};EMPRESA;1;2026-11-05;Aviso aos Acionistas;;Pagamento de JCP;;2026-11-05;AP;333;1;https://cvm/333",
+        "99.999.999/0001-99;OUTRA;2;2026-11-05;Fato Relevante;;;Outra;2026-11-05;AP;444;1;https://cvm/444",
+    ]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("ipe_cia_aberta_2026.csv", "\n".join(rows).encode("latin-1"))
+    filings = {f.protocol: f for f in cvm_ipe.parse_ipe_zip(buf.getvalue(), {"07859971000130"})}
+    assert set(filings) == {"111", "333"}
+    assert filings["111"].subject == "Aquisição de ativo (corrigido)"
+    assert filings["111"].delivered_on == date(2026, 11, 11)
+    assert filings["111"].category == "fato_relevante"
+    assert (filings["333"].category, filings["333"].subject) == ("aviso_acionistas", "Pagamento de JCP")

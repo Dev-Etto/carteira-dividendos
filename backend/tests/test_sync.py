@@ -24,10 +24,12 @@ from app.db.models import (
     SyncRun,
     TreasuryBond,
 )
+from app.db.models import Filing as FilingRow
 from app.providers.base import DividendEvent, PricePoint, SplitInfo
 from app.providers.cvm import AnnualStatement, QuarterStatement
 from app.providers.cvm_etf import IndexFund, name_key
 from app.providers.cvm_fii import FiiMonthly, FiiQuarterly
+from app.providers.cvm_ipe import Filing
 from app.providers.tesouro import BondQuote
 from app.services import sync
 
@@ -117,6 +119,10 @@ def yahoo(monkeypatch) -> FakeYahoo:
             if TAEE_CNPJ in cnpjs
         ]
 
+    async def fetch_filings(year: int, cnpjs: set[str]) -> list[Filing]:
+        fato = Filing(TAEE_CNPJ, f"P{year}", date(year, 3, 1), "fato_relevante", "Fato Relevante", "Aquisição", "https://cvm/1")
+        return [fato] if TAEE_CNPJ in cnpjs else []
+
     async def brapi_quote(ticker: str) -> None:
         return None
 
@@ -143,6 +149,7 @@ def yahoo(monkeypatch) -> FakeYahoo:
     monkeypatch.setattr(sync.cvm, "fetch_ticker_map", fetch_ticker_map)
     monkeypatch.setattr(sync.cvm, "fetch_dfp", fetch_dfp)
     monkeypatch.setattr(sync.cvm, "fetch_itr", fetch_itr)
+    monkeypatch.setattr(sync.cvm_ipe, "fetch_filings", fetch_filings)
     monkeypatch.setattr(sync.market, "yahoo_history", fake)
     monkeypatch.setattr(sync.market, "brapi_quote", brapi_quote)
 
@@ -362,3 +369,12 @@ async def test_itr_grava_trimestres_e_calcula_o_quarto_pela_dfp(db, yahoo):
     assert quarto.net_income == pytest.approx(1e9 - 3 * 2e8)
     assert quarto.equity == 6e9
     assert (TODAY.year - 1, 4) not in rows
+
+
+async def test_comunicados_gravados_por_ativo_sem_duplicar(db, yahoo):
+    assert await sync.run_full_sync(db) is True
+    assert await sync.sync_filings(db) == sync.FILING_YEARS
+    taee = _asset(db, "TAEE11")
+    gravados = list(db.scalars(select(FilingRow).where(FilingRow.asset_id == taee.id)))
+    assert len(gravados) == sync.FILING_YEARS
+    assert {f.category for f in gravados} == {"fato_relevante"}
