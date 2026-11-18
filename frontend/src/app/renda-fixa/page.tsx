@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
+import { DateInput, IntegerInput, MoneyInput, PercentInput } from "@/components/inputs";
 import {
   Button,
   Card,
@@ -17,9 +18,10 @@ import {
   Stat,
 } from "@/components/ui";
 import { api, type Compare, type FixedIncome, type Portfolio, type Treasury } from "@/lib/api/client";
-import { brl, dateBr, decimalStr, num, parseNumber, pct, todayIso } from "@/lib/format";
+import { brl, dateBr, num, parseNumber, pct, todayIso } from "@/lib/format";
 import { decimalInput, scrollAndFocus } from "@/lib/inputs";
 import { useApi } from "@/lib/useApi";
+import { canSubmit, checkDate, checkInteger, checkMoney, checkPercent } from "@/lib/validation";
 
 const KIND_LABEL: Record<string, string> = { tesouro: "Tesouro Direto", cdb: "CDB", lci: "LCI", lca: "LCA", outro: "Outro" };
 
@@ -317,16 +319,22 @@ function HoldingForm({
   useEffect(() => {
     if (focusOnMount) scrollAndFocus(formRef.current, amountRef.current);
   }, [focusOnMount]);
+  const change = (k: keyof HoldingFields, value: string | boolean) => setF((s) => withDefaults({ ...s, [k]: value }, k));
+  const setText = (k: keyof HoldingFields) => (text: string) => change(k, text);
   const set = (k: keyof HoldingFields) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const t = e.target as HTMLInputElement;
-    setF((s) => withDefaults({ ...s, [k]: t.type === "checkbox" ? t.checked : t.value }, k));
+    change(k, t.type === "checkbox" ? t.checked : t.value);
   };
+  const checks = {
+    rate: checkPercent(f.rate),
+    amount: checkMoney(f.amount, { positive: true }),
+    start: checkDate(f.start_date, { max: todayIso() }),
+    maturity: checkDate(f.maturity, { min: f.start_date || undefined }),
+  };
+  const ready = canSubmit([checks.amount, checks.start], [checks.rate, checks.maturity]);
   async function save() {
     setErr(null);
-    const rate = parseNumber(f.rate || "0");
-    const amount = decimalStr(f.amount);
-    if (rate === null || amount === null) return setErr("Taxa e valor precisam ser números (ex.: 110 ou 1.000,00).");
-    const body = { ...f, rate, amount, maturity: f.maturity || null };
+    const body = { ...f, rate: checks.rate.value ?? 0, amount: String(checks.amount.value), maturity: f.maturity || null };
     try {
       await (editing ? api.put(`/api/renda-fixa/${editing.id}`, body) : api.post("/api/renda-fixa", body));
       setF((s) => ({ ...s, amount: "" }));
@@ -365,17 +373,17 @@ function HoldingForm({
             <option value="pre">Prefixado</option>
           </select>
         </Field>
-        <Field label={f.indexer === "cdi" ? "Taxa (% do CDI)" : "Taxa (% a.a.)"}>
-          <input className={inputCls} inputMode="decimal" value={f.rate} onChange={set("rate")} />
+        <Field label={f.indexer === "cdi" ? "Taxa (% do CDI)" : "Taxa (% a.a.)"} error={checks.rate.error}>
+          <PercentInput value={f.rate} onValueChange={setText("rate")} />
         </Field>
-        <Field label={editing ? "Saldo atual (R$)" : "Valor (R$)"}>
-          <input ref={amountRef} className={inputCls} inputMode="decimal" value={f.amount} onChange={set("amount")} />
+        <Field label={editing ? "Saldo atual (R$)" : "Valor (R$)"} error={checks.amount.error}>
+          <MoneyInput ref={amountRef} value={f.amount} onValueChange={setText("amount")} />
         </Field>
-        <Field label="Data da aplicação">
-          <input type="date" className={inputCls} value={f.start_date} onChange={set("start_date")} />
+        <Field label="Data da aplicação" error={checks.start.error}>
+          <DateInput value={f.start_date} max={todayIso()} onValueChange={setText("start_date")} />
         </Field>
-        <Field label="Vencimento">
-          <input type="date" className={inputCls} value={f.maturity} onChange={set("maturity")} />
+        <Field label="Vencimento" error={checks.maturity.error}>
+          <DateInput value={f.maturity} min={f.start_date || undefined} onValueChange={setText("maturity")} />
         </Field>
       </div>
       <div className="mt-4 flex flex-wrap gap-5 text-sm text-label [&_input]:h-[18px] [&_input]:w-[18px] [&_input]:accent-accent">
@@ -391,7 +399,7 @@ function HoldingForm({
         </label>
       </div>
       <div className="mt-4 flex items-center gap-3">
-        <Button onClick={save} disabled={!f.amount}>
+        <Button onClick={save} disabled={!ready}>
           {editing ? "Salvar alterações" : "Salvar aplicação"}
         </Button>
         {editing && (
@@ -485,14 +493,15 @@ function Comparator() {
   const [f, setF] = useState({ kind: "cdb", indexer: "cdi", rate: "110", days: "730" });
   const [res, setRes] = useState<Compare | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setF((s) => ({ ...s, [k]: e.target.value }));
+  const setText = (k: keyof typeof f) => (text: string) => setF((s) => ({ ...s, [k]: text }));
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLSelectElement>) => setText(k)(e.target.value);
+  const rateCheck = checkPercent(f.rate);
+  const daysCheck = checkInteger(f.days, { positive: true });
   async function run() {
     setErr(null);
-    const rate = parseNumber(f.rate);
-    const days = parseNumber(f.days);
-    if (rate === null || days === null || days <= 0 || !Number.isInteger(days))
-      return setErr("Informe a taxa e o prazo em dias inteiros.");
+    const rate = rateCheck.value;
+    const days = daysCheck.value;
+    if (rate === null || days === null) return;
     try {
       setRes(await api.post<Compare>("/api/renda-fixa/comparar", { ...f, rate, days }));
     } catch (e) {
@@ -530,8 +539,8 @@ function Comparator() {
                   <option value="selic">Selic</option>
                 </select>
               </Field>
-              <Field label={f.indexer === "cdi" ? "Taxa (% do CDI)" : "Taxa (% a.a.)"}>
-                <input className={inputCls} inputMode="decimal" value={f.rate} onChange={set("rate")} />
+              <Field label={f.indexer === "cdi" ? "Taxa (% do CDI)" : "Taxa (% a.a.)"} error={rateCheck.error}>
+                <PercentInput value={f.rate} onValueChange={setText("rate")} />
               </Field>
             </div>
             <span className="text-[13px] text-subtle">{KIND_HINT}</span>
@@ -539,12 +548,12 @@ function Comparator() {
           <fieldset>
             <legend className="mb-3 text-[13px] font-bold text-accent">2. Por quanto tempo</legend>
             <div className="max-w-[220px]">
-              <Field label="Prazo (dias)" hint={yearsHint(f.days)}>
-                <input className={inputCls} inputMode="numeric" value={f.days} onChange={set("days")} />
+              <Field label="Prazo (dias)" hint={yearsHint(f.days)} error={daysCheck.error}>
+                <IntegerInput value={f.days} onValueChange={setText("days")} />
               </Field>
             </div>
           </fieldset>
-          <Button className="self-start" onClick={run}>
+          <Button className="self-start" onClick={run} disabled={!canSubmit([rateCheck, daysCheck])}>
             3. Calcular
           </Button>
           {err && <ErrorBox error={err} />}

@@ -3,9 +3,11 @@
 import { useState } from "react";
 
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { PercentInput } from "@/components/inputs";
 import { Button, Card, ErrorBox, Field, Help, inputCls, Stat } from "@/components/ui";
 import { api, type AssetDetail } from "@/lib/api/client";
-import { brl, brlCompact, dateBr, num, parseNumber, pct } from "@/lib/format";
+import { brl, brlCompact, dateBr, num, pct } from "@/lib/format";
+import { checkPercent } from "@/lib/validation";
 
 type Extras = Record<string, number | null | undefined>;
 
@@ -63,13 +65,6 @@ export function EtfStats({ data, ex }: { data: AssetDetail; ex: Extras }) {
   );
 }
 
-/** Valor em % digitado (ex.: "0,5") convertido para a fração que a API guarda; null se inválido. */
-function feeFraction(text: string): number | null {
-  const n = parseNumber(text);
-  if (n === null || n < 0 || n > MAX_FEE_PCT) return null;
-  return n / 100;
-}
-
 const DISTRIBUTES_OPTIONS = [
   { value: "", label: "Não sei" },
   { value: "sim", label: "Sim, repassa os proventos" },
@@ -91,6 +86,7 @@ export function EtfInfoCard({ data, ex, onChange }: { data: AssetDetail; ex: Ext
   const [fee, setFee] = useState(current === null || current === undefined ? "" : num(current * 100, 2));
   const [distributes, setDistributes] = useState(distributesText(data.extras.distribui as boolean | null | undefined));
   const [err, setErr] = useState<string | null>(null);
+  const feeCheck = checkPercent(fee, { max: MAX_FEE_PCT });
 
   async function save(body: { admin_fee: number | null; distributes: boolean | null }) {
     setErr(null);
@@ -103,8 +99,8 @@ export function EtfInfoCard({ data, ex, onChange }: { data: AssetDetail; ex: Ext
   }
 
   function submit() {
-    const adminFee = fee.trim() ? feeFraction(fee) : null;
-    if (fee.trim() && adminFee === null) return setErr(`Informe a taxa em % ao ano, entre 0 e ${MAX_FEE_PCT}.`);
+    if (feeCheck.error) return;
+    const adminFee = feeCheck.value === null ? null : feeCheck.value / 100;
     void save({ admin_fee: adminFee, distributes: distributes ? distributes === "sim" : null });
   }
 
@@ -114,14 +110,8 @@ export function EtfInfoCard({ data, ex, onChange }: { data: AssetDetail; ex: Ext
         Taxa e distribuição estão no site da gestora ou no regulamento do ETF. Deixe em branco o que não souber.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Taxa de administração (% ao ano)">
-          <input
-            className={inputCls}
-            inputMode="decimal"
-            value={fee}
-            onChange={(e) => setFee(e.target.value)}
-            placeholder="0,50"
-          />
+        <Field label="Taxa de administração (% ao ano)" error={feeCheck.error}>
+          <PercentInput value={fee} onValueChange={setFee} placeholder="0,50" />
         </Field>
         <Field label="Distribui proventos?">
           <select className={inputCls} value={distributes} onChange={(e) => setDistributes(e.target.value)}>
@@ -134,7 +124,9 @@ export function EtfInfoCard({ data, ex, onChange }: { data: AssetDetail; ex: Ext
         </Field>
       </div>
       <div className="mt-4">
-        <Button onClick={submit}>Salvar</Button>
+        <Button onClick={submit} disabled={Boolean(feeCheck.error)}>
+          Salvar
+        </Button>
       </div>
       {err && (
         <div className="mt-3">

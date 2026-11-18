@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { Button, Card, ErrorBox, Field, inputCls } from "@/components/ui";
+import { DateInput, IntegerInput, MoneyInput } from "@/components/inputs";
+import { Button, Card, ErrorBox, Field } from "@/components/ui";
 import { api, type FixedIncomeIn, type Plan, type S } from "@/lib/api/client";
-import { brl, CLASS_LABEL, decimalStr, num, todayIso } from "@/lib/format";
+import { brl, CLASS_LABEL, num, todayIso } from "@/lib/format";
+import { checkDate, checkInteger, checkMoney } from "@/lib/validation";
 
 type PlanLine = Plan["lines"][number];
 type PlanPurchaseIn = S["PlanPurchaseIn"];
@@ -29,21 +31,33 @@ function initialEntries(plan: Plan): Entry[] {
   }));
 }
 
-function isPositive(value: string | null): value is string {
-  return value !== null && Number(value) > 0;
+const POSITIVE = { positive: true };
+
+/** Validação dos campos de uma linha; só os campos que a linha mostra importam. */
+function entryChecks(entry: Entry) {
+  return {
+    quantity: checkInteger(entry.quantity, POSITIVE),
+    price: checkMoney(entry.price, POSITIVE),
+    amount: checkMoney(entry.amount, POSITIVE),
+  };
+}
+
+function hasFieldError(line: PlanLine, entry: Entry): boolean {
+  const checks = entryChecks(entry);
+  if (line.ticker) return Boolean(checks.quantity.error ?? checks.price.error);
+  return Boolean(line.holding && checks.amount.error);
 }
 
 function purchaseOf(ticker: string, entry: Entry): Checked<PlanPurchaseIn> {
-  const quantity = decimalStr(entry.quantity);
-  const price = decimalStr(entry.price);
-  if (!isPositive(quantity) || !isPositive(price)) return { error: `Quantidade ou preço pago de ${ticker} inválido.` };
-  return { value: { ticker, quantity, price, fees: "0" } };
+  const { quantity, price } = entryChecks(entry);
+  if (quantity.value === null || price.value === null) return { error: `Quantidade ou preço pago de ${ticker} inválido.` };
+  return { value: { ticker, quantity: String(quantity.value), price: String(price.value), fees: "0" } };
 }
 
 function holdingOf(product: string, holding: FixedIncomeIn, entry: Entry, day: string): Checked<FixedIncomeIn> {
-  const amount = decimalStr(entry.amount);
-  if (!isPositive(amount)) return { error: `Valor aplicado em ${product} inválido.` };
-  return { value: { ...holding, amount, start_date: day } };
+  const { amount } = entryChecks(entry);
+  if (amount.value === null) return { error: `Valor aplicado em ${product} inválido.` };
+  return { value: { ...holding, amount: String(amount.value), start_date: day } };
 }
 
 function valuesOf<T>(items: Checked<T>[]): T[] {
@@ -78,6 +92,10 @@ export function RegisterPlanCard({ plan, onRegistered }: { plan: Plan; onRegiste
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const dayCheck = checkDate(day, { max: todayIso() });
+  const blocked =
+    dayCheck.value === null || plan.lines.some((line, i) => entries[i]?.selected && hasFieldError(line, entries[i]));
+
   const update = (index: number, patch: Partial<Entry>) =>
     setEntries((all) => all.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)));
 
@@ -108,11 +126,11 @@ export function RegisterPlanCard({ plan, onRegistered }: { plan: Plan; onRegiste
       </ul>
       <div className="mt-5 flex flex-wrap items-end gap-4 border-t border-line pt-5">
         <div className="w-48">
-          <Field label="Data da operação">
-            <input type="date" className={inputCls} value={day} max={todayIso()} onChange={(e) => setDay(e.target.value)} />
+          <Field label="Data da operação" error={dayCheck.error}>
+            <DateInput value={day} max={todayIso()} onValueChange={setDay} />
           </Field>
         </div>
-        <Button onClick={register} disabled={busy}>
+        <Button onClick={register} disabled={busy || blocked}>
           {busy ? "Registrando…" : "Registrar selecionados"}
         </Button>
       </div>
@@ -152,26 +170,15 @@ function PlanLineEntry({ line, entry, onChange }: { line: PlanLine; entry?: Entr
 }
 
 function LineFields({ line, entry, onChange }: { line: PlanLine; entry: Entry; onChange: (patch: Partial<Entry>) => void }) {
+  const checks = entryChecks(entry);
   if (line.ticker) {
     return (
       <div className="grid gap-2.5 sm:grid-cols-2">
-        <Field label="Quantidade">
-          <input
-            className={inputCls}
-            inputMode="numeric"
-            value={entry.quantity}
-            disabled={!entry.selected}
-            onChange={(e) => onChange({ quantity: e.target.value })}
-          />
+        <Field label="Quantidade" error={entry.selected ? checks.quantity.error : null}>
+          <IntegerInput value={entry.quantity} disabled={!entry.selected} onValueChange={(quantity) => onChange({ quantity })} />
         </Field>
-        <Field label="Preço pago (R$)">
-          <input
-            className={inputCls}
-            inputMode="decimal"
-            value={entry.price}
-            disabled={!entry.selected}
-            onChange={(e) => onChange({ price: e.target.value })}
-          />
+        <Field label="Preço pago (R$)" error={entry.selected ? checks.price.error : null}>
+          <MoneyInput value={entry.price} disabled={!entry.selected} onValueChange={(price) => onChange({ price })} />
         </Field>
       </div>
     );
@@ -179,14 +186,8 @@ function LineFields({ line, entry, onChange }: { line: PlanLine; entry: Entry; o
   if (line.holding) {
     return (
       <div>
-        <Field label="Valor aplicado (R$)">
-          <input
-            className={inputCls}
-            inputMode="decimal"
-            value={entry.amount}
-            disabled={!entry.selected}
-            onChange={(e) => onChange({ amount: e.target.value })}
-          />
+        <Field label="Valor aplicado (R$)" error={entry.selected ? checks.amount.error : null}>
+          <MoneyInput value={entry.amount} disabled={!entry.selected} onValueChange={(amount) => onChange({ amount })} />
         </Field>
       </div>
     );

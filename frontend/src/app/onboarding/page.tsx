@@ -3,10 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { MoneyInput } from "@/components/inputs";
 import { Button, Card, ErrorBox, Field, Help, inputCls, Loading, PageHeader } from "@/components/ui";
 import { api, type ProfileOut, type Question } from "@/lib/api/client";
-import { brl, decimalStr, num, PROFILE_LABEL } from "@/lib/format";
+import { brl, num, PROFILE_LABEL } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
+import { canSubmit, checkMoney } from "@/lib/validation";
 
 const STABILITY = [
   { v: "estavel", label: "Estável (CLT, concursado, aposentado)", months: 6 },
@@ -59,9 +61,9 @@ function OnboardingForm({ qs, profile }: { qs: Question[]; profile: ProfileOut }
   const [saveError, setSaveError] = useState<string | null>(null);
   const [result, setResult] = useState<ProfileOut | null>(null);
 
-  const money = { expenses: decimalStr(expenses), contribution: decimalStr(contribution || "0"), goal: decimalStr(goal || "0") };
-  const invalid = Object.values(money).some((v) => v === null || Number(v) < 0);
-  const complete = qs.every((q) => answers[q.id] !== undefined) && expenses !== "" && !invalid;
+  const checks = { expenses: checkMoney(expenses), contribution: checkMoney(contribution), goal: checkMoney(goal) };
+  const complete =
+    qs.every((q) => answers[q.id] !== undefined) && canSubmit([checks.expenses], [checks.contribution, checks.goal]);
   const hint = pendingHint(qs, answers);
 
   async function submit() {
@@ -71,9 +73,9 @@ function OnboardingForm({ qs, profile }: { qs: Question[]; profile: ProfileOut }
       const p = await api.put<ProfileOut>("/api/perfil", {
         answers,
         income_stability: stability,
-        monthly_expenses: money.expenses,
-        monthly_contribution: money.contribution,
-        passive_income_goal: money.goal,
+        monthly_expenses: String(checks.expenses.value ?? 0),
+        monthly_contribution: String(checks.contribution.value ?? 0),
+        passive_income_goal: String(checks.goal.value ?? 0),
         keep_allocation: known && keepAllocation,
       });
       setResult(p);
@@ -178,32 +180,14 @@ function OnboardingForm({ qs, profile }: { qs: Question[]; profile: ProfileOut }
             </select>
           </Field>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Gastos mensais (R$)" hint="o essencial para viver">
-              <input
-                className={inputCls}
-                inputMode="decimal"
-                value={expenses}
-                onChange={(e) => setExpenses(e.target.value)}
-                placeholder="3.000"
-              />
+            <Field label="Gastos mensais (R$)" hint="o essencial para viver" error={checks.expenses.error}>
+              <MoneyInput value={expenses} onValueChange={setExpenses} placeholder="3.000" />
             </Field>
-            <Field label="Quanto pretende investir por mês (R$)">
-              <input
-                className={inputCls}
-                inputMode="decimal"
-                value={contribution}
-                onChange={(e) => setContribution(e.target.value)}
-                placeholder="500"
-              />
+            <Field label="Quanto pretende investir por mês (R$)" error={checks.contribution.error}>
+              <MoneyInput value={contribution} onValueChange={setContribution} placeholder="500" />
             </Field>
-            <Field label="Meta de renda passiva por mês (R$)">
-              <input
-                className={inputCls}
-                inputMode="decimal"
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-                placeholder="2000"
-              />
+            <Field label="Meta de renda passiva por mês (R$)" error={checks.goal.error}>
+              <MoneyInput value={goal} onValueChange={setGoal} placeholder="2.000" />
             </Field>
           </div>
           <p className="flex items-center gap-1 text-[13px] text-muted">
@@ -212,9 +196,6 @@ function OnboardingForm({ qs, profile }: { qs: Question[]; profile: ProfileOut }
         </div>
       </Card>
 
-      {invalid && expenses !== "" && (
-        <ErrorBox error="Algum valor não é um número válido. Use, por exemplo, 3.000 ou 3.000,50." />
-      )}
       {known && (
         <Card>
           <label className="flex cursor-pointer items-start gap-3 text-ink">

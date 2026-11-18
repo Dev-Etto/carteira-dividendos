@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
-import { Button, Card, ErrorBox, Field, Help, inputCls, Loading, PageHeader } from "@/components/ui";
+import { MoneyInput } from "@/components/inputs";
+import { Button, Card, ErrorBox, Field, Help, Loading, PageHeader } from "@/components/ui";
 import { RegisterPlanCard, type RegisterPlanOut } from "@/components/aporte/RegisterPlanCard";
 import { api, type Plan, type ProfileOut } from "@/lib/api/client";
-import { brl, CLASS_LABEL, num, parseNumber } from "@/lib/format";
+import { brl, CLASS_LABEL, num } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
+import { checkMoney } from "@/lib/validation";
 
 const AMOUNT_PARAM = "valor";
 
@@ -22,9 +24,7 @@ function useAmountField(fromUrl: number | null, defaultAmount: number) {
 }
 
 function validAmount(text: string | null): number | null {
-  const amount = parseNumber(text ?? "");
-  if (amount === null || amount <= 0) return null;
-  return amount;
+  return checkMoney(text ?? "", { positive: true }).value;
 }
 
 export default function AportePage() {
@@ -48,10 +48,9 @@ function Aporte() {
   const [value, setAmount] = useAmountField(urlAmount, Number(profile.data?.monthly_contribution ?? 0));
   const [round, setRound] = useState(0);
   const [result, setResult] = useState<PlanResult | null>(null);
-  const [inputError, setInputError] = useState<string | null>(null);
   const [registered, setRegistered] = useState<RegisterPlanOut | null>(null);
 
-  const parsed = parseNumber(value);
+  const amount = checkMoney(value, { positive: true });
 
   useEffect(() => {
     if (urlAmount === null) return;
@@ -72,12 +71,12 @@ function Aporte() {
   const current = result && result.amount === urlAmount && result.round === round ? result : null;
   const busy = urlAmount !== null && current === null;
   const plan = current?.plan ?? null;
-  const err = inputError ?? current?.error ?? null;
+  const err = current?.error ?? null;
 
   /** Monta o plano: põe o valor na URL, de onde o plano é carregado. Mesmo valor de novo recalcula. */
   function calc() {
-    if (parsed === null || parsed <= 0) return setInputError("Informe um valor de aporte válido, por exemplo 1.500 ou 1.500,00.");
-    setInputError(null);
+    const parsed = amount.value;
+    if (parsed === null) return;
     setRegistered(null);
     if (parsed === urlAmount) return setRound((r) => r + 1);
     router.replace(`/aporte?${AMOUNT_PARAM}=${parsed}`, { scroll: false });
@@ -109,17 +108,16 @@ function Aporte() {
       <Card>
         <div className="flex flex-wrap items-end gap-4">
           <div className="w-72">
-            <Field label="Valor do aporte (R$)">
-              <input
-                className={`${inputCls} text-lg font-bold tabular-nums`}
-                inputMode="decimal"
+            <Field label="Valor do aporte (R$)" error={amount.error}>
+              <MoneyInput
+                className="text-lg font-bold tabular-nums"
                 value={value}
-                onChange={(e) => setAmount(e.target.value)}
+                onValueChange={setAmount}
                 placeholder="1.000,00"
               />
             </Field>
           </div>
-          <Button onClick={calc} disabled={parsed === null || parsed <= 0 || busy}>
+          <Button onClick={calc} disabled={amount.value === null || busy}>
             {busy ? "Calculando…" : "Montar plano"}
           </Button>
           <span className="flex items-center gap-1 pb-2.5 text-sm text-muted">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { GLOSSARIO_POR_SLUG } from "@/content/glossario";
 
@@ -291,18 +291,49 @@ export function Button({
   );
 }
 
-export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+const FieldErrorContext = createContext<string | undefined>(undefined);
+
+/** Id da mensagem de erro do Field em volta, enquanto ela está à mostra; os inputs usam em aria-describedby. */
+export function useFieldErrorId(): string | undefined {
+  return useContext(FieldErrorContext);
+}
+
+/**
+ * Rótulo, campo, dica e erro. O erro só aparece depois que o usuário sai do campo uma vez, para não
+ * acusar "PET" enquanto ele ainda digita "PETR4"; dali em diante acompanha a digitação.
+ */
+export function Field({
+  label,
+  hint,
+  error,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  error?: string | null;
+  children: ReactNode;
+}) {
+  const [touched, setTouched] = useState(false);
+  const errorId = useId();
+  const shown = touched && error ? error : null;
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-[13px] font-semibold text-label">{label}</span>
-      {children}
-      {hint && <span className="mt-1 block text-[13px] text-subtle">{hint}</span>}
-    </label>
+    <FieldErrorContext value={shown ? errorId : undefined}>
+      <label className="block" onBlur={() => setTouched(true)}>
+        <span className="mb-1.5 block text-[13px] font-semibold text-label">{label}</span>
+        {children}
+        {hint && <span className="mt-1 block text-[13px] text-subtle">{hint}</span>}
+        {shown && (
+          <span id={errorId} role="alert" className="mt-1 block text-[13px] font-medium text-bad">
+            {shown}
+          </span>
+        )}
+      </label>
+    </FieldErrorContext>
   );
 }
 
 export const inputCls =
-  "h-[42px] w-full rounded-[10px] border border-line-strong bg-surface px-3 text-[15px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:bg-neutral-soft disabled:text-subtle";
+  "h-[42px] w-full rounded-[10px] border border-line-strong bg-surface px-3 text-[15px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:bg-neutral-soft disabled:text-subtle aria-invalid:border-bad aria-invalid:focus:border-bad aria-invalid:focus:ring-bad/20";
 
 export function ProgressBar({ value, max, className = "" }: { value: number; max: number; className?: string }) {
   const p = max > 0 ? Math.min(100, (100 * value) / max) : 0;
